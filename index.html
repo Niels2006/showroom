@@ -20,6 +20,7 @@
     --accent-a:#5eb1ff;
     --accent-b:#8affa0;
     --accent-c:#ff7a6e;
+    --accent-d:#ffd23e;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
@@ -385,6 +386,7 @@
   .card:nth-child(1){animation-delay:.05s}
   .card:nth-child(2){animation-delay:.13s}
   .card:nth-child(3){animation-delay:.21s}
+  .card:nth-child(4){animation-delay:.29s}
 
   @media (max-width:640px){
     header.hero{padding:60px 0 34px}
@@ -412,12 +414,12 @@
     </div>
     <h1 class="title">作品展厅</h1>
     <p class="hero-sub">
-      交互模拟、小游戏与多人对战 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
+      交互模拟、小游戏、飞行射击与多人对战 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
     </p>
     <div class="hero-meta">
-      <div class="stat"><b>3</b><span>件作品</span></div>
-      <div class="stat"><b>3</b><span>类玩法</span></div>
-      <div class="stat"><b>2</b><span>纯前端 · 免安装</span></div>
+      <div class="stat"><b>4</b><span>件作品</span></div>
+      <div class="stat"><b>4</b><span>类玩法</span></div>
+      <div class="stat"><b>3</b><span>纯前端 · 免安装</span></div>
     </div>
   </header>
 
@@ -486,6 +488,35 @@
       </div>
     </a>
 
+    <!-- 飞机大战 -->
+    <a class="card" href="flight-battle.html" target="_blank" rel="noopener" style="--accent:var(--accent-d)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 2 11 13"/>
+            <path d="M22 2 15 22l-4-9-9-4 20-7Z"/>
+          </svg>
+        </div>
+        <span class="card-index">03</span>
+      </div>
+      <h3>飞机大战<span class="en">Flight Battle</span></h3>
+      <p class="desc">
+        移动鼠标操控战机，火力全自动，击落敌机即可得分。每 16 秒难度提升一波——敌机更多更快、很快便会开火还击；第 4 波解锁三连火力，每 5 波遭遇 BOSS，共 3 条命，并自动保存历史战绩。
+      </p>
+      <div class="tags">
+        <span class="tag">飞行射击</span>
+        <span class="tag">鼠标操控</span>
+        <span class="tag">波次 / BOSS 战</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">flight-battle.html</span>
+      </div>
+    </a>
+
     <!-- 宿舍大乱斗 -->
     <a class="card" href="dorm-brawl/index.html" target="_blank" rel="noopener" style="--accent:var(--accent-c)">
       <div class="card-top">
@@ -496,7 +527,7 @@
             <path d="M4 20l-1 1"/>
           </svg>
         </div>
-        <span class="card-index">03</span>
+        <span class="card-index">04</span>
       </div>
       <h3>宿舍大乱斗<span class="en">Dorm Brawl</span></h3>
       <p class="desc">
