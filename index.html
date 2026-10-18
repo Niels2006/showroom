@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作品展厅 · Showroom</title>
+<meta name="description" content="AI Workspace 作品展厅 — 汇集交互模拟、小游戏与多人对战作品。">
+<style>
+  :root{
+    --bg:#070a12;
+    --bg-soft:#0d1220;
+    --card:#111827;
+    --card-hover:#151d30;
+    --line:rgba(148,163,184,.14);
+    --line-strong:rgba(148,163,184,.28);
+    --text:#e8eefc;
+    --muted:#94a3b8;
+    --muted-2:#64748b;
+    --radius:18px;
+    --accent-a:#5eb1ff;
+    --accent-b:#8affa0;
+    --accent-c:#ff7a6e;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  html{scroll-behavior:smooth}
+
+  body{
+    font-family:"SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.6;
+    overflow-x:hidden;
+    position:relative;
+  }
+
+  /* ── 背景光晕 ───────────────────────────── */
+  .glow{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .glow::before,
+  .glow::after{
+    content:"";
+    position:absolute;
+    width:60vw;
+    height:60vw;
+    max-width:760px;
+    max-height:760px;
+    border-radius:50%;
+    filter:blur(120px);
+    opacity:.22;
+  }
+  .glow::before{
+    background:radial-gradient(circle,var(--accent-a),transparent 68%);
+    top:-18vw;left:-12vw;
+    animation:float1 20s ease-in-out infinite;
+  }
+  .glow::after{
+    background:radial-gradient(circle,var(--accent-c),transparent 68%);
+    bottom:-22vw;right:-14vw;
+    animation:float2 26s ease-in-out infinite;
+  }
+  @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(6vw,4vw)}}
+  @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-5vw,-5vw)}}
+
+  /* 细微网格 */
+  .grid-bg{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),
+                     linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:56px 56px;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 20%,transparent 78%);
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000 20%,transparent 78%);
+    opacity:.55;
+  }
+
+  .wrap{
+    position:relative;
+    z-index:1;
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 24px 80px;
+  }
+
+  /* ── 顶部 ──────────────────────────────── */
+  header.hero{
+    padding:84px 0 48px;
+    animation:rise .8s cubic-bezier(.2,.7,.3,1) both;
+  }
+  .badge-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+  }
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    font-size:12.5px;
+    letter-spacing:.06em;
+    color:var(--muted);
+    border:1px solid var(--line-strong);
+    background:rgba(148,163,184,.05);
+    padding:6px 12px;
+    border-radius:999px;
+    text-transform:uppercase;
+  }
+  .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--accent-b);
+    box-shadow:0 0 10px var(--accent-b);
+    animation:pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  h1.title{
+    font-size:clamp(38px,6.2vw,68px);
+    font-weight:800;
+    letter-spacing:-.02em;
+    line-height:1.04;
+    background:linear-gradient(120deg,#ffffff 8%,var(--accent-a) 46%,var(--accent-b) 72%,#ffffff 100%);
+    background-size:220% auto;
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    animation:shine 9s linear infinite;
+  }
+  @keyframes shine{to{background-position:220% center}}
+
+  .hero-sub{
+    margin-top:20px;
+    max-width:620px;
+    font-size:17px;
+    color:var(--muted);
+  }
+  .hero-meta{
+    display:flex;
+    gap:28px;
+    margin-top:32px;
+    flex-wrap:wrap;
+  }
+  .stat b{
+    display:block;
+    font-size:26px;
+    font-weight:700;
+    color:var(--text);
+    letter-spacing:-.01em;
+  }
+  .stat span{
+    font-size:12.5px;
+    color:var(--muted-2);
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+
+  /* ── 区块标题 ──────────────────────────── */
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    margin:44px 0 22px;
+  }
+  .section-head h2{
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:-.01em;
+  }
+  .section-head .line{
+    flex:1;
+    height:1px;
+    background:linear-gradient(90deg,var(--line-strong),transparent);
+  }
+
+  /* ── 卡片网格 ──────────────────────────── */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+    gap:22px;
+  }
+
+  .card{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    background:linear-gradient(180deg,var(--card),#0c1322);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:26px 26px 24px;
+    overflow:hidden;
+    text-decoration:none;
+    color:inherit;
+    transition:transform .35s cubic-bezier(.2,.7,.3,1),border-color .35s,box-shadow .35s;
+    animation:rise .7s cubic-bezier(.2,.7,.3,1) both;
+  }
+  .card:hover{
+    transform:translateY(-6px);
+    border-color:var(--line-strong);
+    box-shadow:0 22px 50px -22px rgba(0,0,0,.85);
+  }
+  /* 顶部强调色条 */
+  .card::before{
+    content:"";
+    position:absolute;
+    top:0;left:0;right:0;
+    height:3px;
+    background:var(--accent);
+    opacity:.85;
+    transform:scaleX(.28);
+    transform-origin:left;
+    transition:transform .45s cubic-bezier(.2,.7,.3,1);
+  }
+  .card:hover::before{transform:scaleX(1)}
+
+  /* 悬浮时右上角光晕 */
+  .card::after{
+    content:"";
+    position:absolute;
+    top:-40%;right:-30%;
+    width:70%;height:70%;
+    border-radius:50%;
+    background:radial-gradient(circle,var(--accent),transparent 70%);
+    opacity:0;
+    transition:opacity .45s;
+    filter:blur(46px);
+    pointer-events:none;
+  }
+  .card:hover::after{opacity:.14}
+
+  .card-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:18px;
+  }
+  .icon{
+    width:46px;height:46px;
+    border-radius:13px;
+    display:grid;
+    place-items:center;
+    background:color-mix(in srgb,var(--accent) 14%,transparent);
+    border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);
+    color:var(--accent);
+    flex:none;
+  }
+  .icon svg{width:23px;height:23px}
+
+  .card-index{
+    font-size:12px;
+    font-family:"SF Mono",ui-monospace,"Consolas",monospace;
+    color:var(--muted-2);
+    letter-spacing:.1em;
+    border:1px solid var(--line);
+    padding:4px 9px;
+    border-radius:8px;
+    flex:none;
+  }
+
+  .card h3{
+    font-size:21px;
+    font-weight:700;
+    letter-spacing:-.01em;
+    line-height:1.25;
+  }
+  .card .en{
+    display:block;
+    margin-top:5px;
+    font-size:12px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    opacity:.9;
+  }
+  .card p.desc{
+    margin-top:14px;
+    font-size:14.5px;
+    color:var(--muted);
+    flex:1;
+  }
+
+  .tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:20px;
+  }
+  .tag{
+    font-size:11.5px;
+    color:var(--muted);
+    background:rgba(148,163,184,.07);
+    border:1px solid var(--line);
+    padding:4px 10px;
+    border-radius:7px;
+    letter-spacing:.02em;
+  }
+
+  .note{
+    display:flex;
+    gap:9px;
+    align-items:flex-start;
+    margin-top:18px;
+    padding:11px 13px;
+    font-size:13px;
+    color:#fcd9a0;
+    background:rgba(251,191,36,.07);
+    border:1px solid rgba(251,191,36,.2);
+    border-radius:11px;
+    line-height:1.5;
+  }
+  .note svg{width:15px;height:15px;flex:none;margin-top:2.5px;color:#fbbf24}
+
+  .card-foot{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:22px;
+    padding-top:18px;
+    border-top:1px solid var(--line);
+  }
+  .open-link{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:14px;
+    font-weight:600;
+    color:var(--accent);
+  }
+  .open-link svg{
+    width:15px;height:15px;
+    transition:transform .3s;
+  }
+  .card:hover .open-link svg{transform:translateX(4px)}
+
+  .path{
+    font-size:11.5px;
+    font-family:"SF Mono",ui-monospace,"Consolas",monospace;
+    color:var(--muted-2);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    max-width:52%;
+  }
+
+  /* ── 页脚 ──────────────────────────────── */
+  footer{
+    margin-top:64px;
+    padding-top:28px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
+    font-size:13px;
+    color:var(--muted-2);
+  }
+  footer code{
+    font-family:"SF Mono",ui-monospace,"Consolas",monospace;
+    color:var(--muted);
+    background:rgba(148,163,184,.07);
+    padding:3px 8px;
+    border-radius:6px;
+    border:1px solid var(--line);
+  }
+
+  @keyframes rise{
+    from{opacity:0;transform:translateY(22px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+
+  /* 依次入场 */
+  .card:nth-child(1){animation-delay:.05s}
+  .card:nth-child(2){animation-delay:.13s}
+  .card:nth-child(3){animation-delay:.21s}
+
+  @media (max-width:640px){
+    header.hero{padding:60px 0 34px}
+    .wrap{padding:0 18px 60px}
+    .grid{grid-template-columns:1fr}
+    .hero-meta{gap:20px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<div class="glow"></div>
+<div class="grid-bg"></div>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="badge-row">
+      <span class="chip"><span class="dot"></span>AI Workspace</span>
+      <span class="chip">Showroom</span>
+    </div>
+    <h1 class="title">作品展厅</h1>
+    <p class="hero-sub">
+      交互模拟、小游戏与多人对战 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
+    </p>
+    <div class="hero-meta">
+      <div class="stat"><b>3</b><span>件作品</span></div>
+      <div class="stat"><b>3</b><span>类玩法</span></div>
+      <div class="stat"><b>2</b><span>纯前端 · 免安装</span></div>
+    </div>
+  </header>
+
+  <div class="section-head">
+    <h2>全部作品</h2>
+    <div class="line"></div>
+  </div>
+
+  <section class="grid">
+
+    <!-- 鸟群涌现 -->
+    <a class="card" href="flocking_simulation.html" target="_blank" rel="noopener" style="--accent:var(--accent-a)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12c3-5 6-5 9 0s6 5 9 0"/>
+            <path d="M6.5 7.5 9 10M17.5 7.5 15 10"/>
+          </svg>
+        </div>
+        <span class="card-index">01</span>
+      </div>
+      <h3>鸟群涌现<span class="en">Emergence · Boids</span></h3>
+      <p class="desc">
+        仅凭分离、对齐、聚集三条简单规则，涌现出逼真的群体飞行行为。可实时拖动滑块调整规则权重、感知半径与速度，鼠标或触摸还能直接扰动鸟群。
+      </p>
+      <div class="tags">
+        <span class="tag">群体行为模拟</span>
+        <span class="tag">实时参数调节</span>
+        <span class="tag">鼠标 / 触摸交互</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">flocking_simulation.html</span>
+      </div>
+    </a>
+
+    <!-- 贪吃蛇 -->
+    <a class="card" href="snake.html" target="_blank" rel="noopener" style="--accent:var(--accent-b)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 6h9a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3H8a3 3 0 0 0-3 3v0"/>
+            <circle cx="18.5" cy="9" r="1.6"/>
+          </svg>
+        </div>
+        <span class="card-index">02</span>
+      </div>
+      <h3>贪吃蛇<span class="en">Snake</span></h3>
+      <p class="desc">
+        经典街机玩法的现代复刻。E / S / D / F 控制方向，空格暂停，吃到食物加分并逐级提速，自动记录最高分。撞墙或撞到自己即结束。
+      </p>
+      <div class="tags">
+        <span class="tag">休闲游戏</span>
+        <span class="tag">逐级提速</span>
+        <span class="tag">本地最高分</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">snake.html</span>
+      </div>
+    </a>
+
+    <!-- 宿舍大乱斗 -->
+    <a class="card" href="dorm-brawl/index.html" target="_blank" rel="noopener" style="--accent:var(--accent-c)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 3.5 20.5 9.5l-3 3-6-6 3-3Z"/>
+            <path d="M11.5 6.5 4 14v6h6l7.5-7.5"/>
+            <path d="M4 20l-1 1"/>
+          </svg>
+        </div>
+        <span class="card-index">03</span>
+      </div>
+      <h3>宿舍大乱斗<span class="en">Dorm Brawl</span></h3>
+      <p class="desc">
+        多人实时对战小游戏，所有命中判定由服务器统一权威计算，杜绝客户端作弊。可自定义昵称、服务器地址与机器人数量，游戏中也能随时调整。
+      </p>
+      <div class="tags">
+        <span class="tag">多人实时对战</span>
+        <span class="tag">WebSocket</span>
+        <span class="tag">服务器权威判定</span>
+      </div>
+      <div class="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L14.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <span>需先启动后端：运行 <b>dorm-brawl/start.bat</b>（或 <b>python server.py</b>）后再进入游戏大厅。</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          进入大厅
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">dorm-brawl/index.html</span>
+      </div>
+    </a>
+
+  </section>
+
+  <footer>
+    <span>AI Workspace · <code>showroom</code> 作品展厅</span>
+    <span>纯静态页面，双击即可打开</span>
+  </footer>
+
+</div>
+
+</body>
+</html>
