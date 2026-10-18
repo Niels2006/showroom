@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鸟群涌现 · Boids 群体行为模拟</title>
+<style>
+  :root {
+    --bg: #070b14;
+    --panel: rgba(13, 20, 36, 0.82);
+    --border: rgba(120, 170, 255, 0.14);
+    --text: #dbe6f5;
+    --muted: #7d8ba3;
+    --accent: #5eb1ff;
+    --warm: #ffc66e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  }
+  #canvas { position: fixed; inset: 0; display: block; }
+
+  /* ---------- 顶部标题 ---------- */
+  header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 18px 28px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(7,11,20,.85), transparent);
+    z-index: 5;
+  }
+  header h1 {
+    font-size: 20px; font-weight: 600; letter-spacing: 2px;
+    color: #fff;
+  }
+  header h1 span { color: var(--accent); }
+  header p { margin-top: 4px; font-size: 12.5px; color: var(--muted); letter-spacing: 1px; }
+
+  /* ---------- 控制面板 ---------- */
+  #panel {
+    position: fixed; top: 78px; right: 20px; width: 292px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px 12px;
+    backdrop-filter: blur(14px);
+    z-index: 10;
+    box-shadow: 0 10px 40px rgba(0,0,0,.45);
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+    transition: transform .35s ease, opacity .35s ease;
+  }
+  #panel.hidden { transform: translateX(330px); opacity: 0; }
+  #panel::-webkit-scrollbar { width: 6px; }
+  #panel::-webkit-scrollbar-thumb { background: rgba(120,170,255,.2); border-radius: 3px; }
+
+  .rule-tag {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    margin-right: 7px; vertical-align: -1px;
+  }
+  .ctrl { margin-bottom: 13px; }
+  .ctrl label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12.5px; color: var(--text); margin-bottom: 5px; letter-spacing: .5px;
+  }
+  .ctrl label b { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+  input[type=range] {
+    width: 100%; height: 4px; -webkit-appearance: none; appearance: none;
+    background: linear-gradient(90deg, var(--accent) var(--fill,50%), rgba(255,255,255,.12) var(--fill,50%));
+    border-radius: 2px; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--accent); cursor: pointer;
+    box-shadow: 0 0 8px rgba(94,177,255,.6);
+  }
+  hr { border: none; border-top: 1px solid var(--border); margin: 14px 0 13px; }
+
+  .section-title { font-size: 11px; color: var(--muted); letter-spacing: 2px; margin-bottom: 10px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  button {
+    flex: 1; min-width: 70px;
+    background: rgba(94,177,255,.1); color: var(--text);
+    border: 1px solid rgba(94,177,255,.3); border-radius: 8px;
+    padding: 7px 6px; font-size: 12px; cursor: pointer;
+    transition: all .18s ease; font-family: inherit; letter-spacing: 1px;
+  }
+  button:hover { background: rgba(94,177,255,.22); }
+  button.active { background: var(--accent); color: #04101f; font-weight: 600; border-color: var(--accent); }
+  .hint { font-size: 11.5px; color: var(--muted); line-height: 1.7; margin-top: 10px; }
+  .hint em { color: var(--warm); font-style: normal; }
+
+  /* ---------- 左下角规则卡片 ---------- */
+  #rules {
+    position: fixed; left: 20px; bottom: 20px; width: 300px;
+    display: flex; flex-direction: column; gap: 9px; z-index: 5;
+  }
+  .rule-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 11px; padding: 10px 14px;
+    backdrop-filter: blur(12px);
+    display: flex; gap: 11px; align-items: flex-start;
+    transition: opacity .4s ease, transform .4s ease;
+  }
+  .rule-card .icon {
+    width: 30px; height: 30px; flex-shrink: 0; margin-top: 2px;
+  }
+  .rule-card h3 { font-size: 13px; color: #fff; letter-spacing: 1px; }
+  .rule-card p { font-size: 11.5px; color: var(--muted); line-height: 1.55; margin-top: 2px; }
+  .rule-card.dim { opacity: .3; transform: scale(.97); }
+
+  /* ---------- 右下角状态 ---------- */
+  #stats {
+    position: fixed; right: 20px; bottom: 20px; z-index: 5;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 11px; padding: 10px 16px;
+    backdrop-filter: blur(12px);
+    font-size: 11.5px; color: var(--muted); text-align: right;
+    font-variant-numeric: tabular-nums; letter-spacing: .5px;
+  }
+  #stats b { color: var(--accent); font-weight: 600; }
+
+  #togglePanel {
+    position: fixed; top: 76px; right: 20px; z-index: 11;
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text); cursor: pointer; backdrop-filter: blur(10px);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; min-width: unset; padding: 0; flex: unset;
+  }
+  #togglePanel:hover { background: rgba(94,177,255,.2); }
+
+  @media (max-width: 560px) {
+    #rules { display: none; }
+    #panel { width: calc(100vw - 40px); }
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<header>
+  <h1>鸟群涌现 <span>EMERGENCE</span></h1>
+  <p>三条简单规则 → 复杂的群体智慧 · Boids Model (Craig Reynolds, 1986)</p>
+</header>
+
+<button id="togglePanel" title="显示/隐藏面板">⚙</button>
+
+<div id="panel">
+  <div class="section-title">群体行为规则</div>
+  <div class="ctrl">
+    <label><span><span class="rule-tag" style="background:#ff7a6e"></span>分离 SEPARATION</span><b id="vSep">1.6</b></label>
+    <input type="range" id="sep" min="0" max="4" step="0.05" value="1.6">
+  </div>
+  <div class="ctrl">
+    <label><span><span class="rule-tag" style="background:#5eb1ff"></span>对齐 ALIGNMENT</span><b id="vAli">1.1</b></label>
+    <input type="range" id="ali" min="0" max="4" step="0.05" value="1.1">
+  </div>
+  <div class="ctrl">
+    <label><span><span class="rule-tag" style="background:#8affa0"></span>聚集 COHESION</span><b id="vCoh">0.9</b></label>
+    <input type="range" id="coh" min="0" max="4" step="0.05" value="0.9">
+  </div>
+
+  <hr>
+  <div class="section-title">环境参数</div>
+  <div class="ctrl">
+    <label><span>感知半径</span><b id="vPer">65</b></label>
+    <input type="range" id="per" min="20" max="140" step="1" value="65">
+  </div>
+  <div class="ctrl">
+    <label><span>最大速度</span><b id="vSpd">3.2</b></label>
+    <input type="range" id="spd" min="1" max="7" step="0.1" value="3.2">
+  </div>
+  <div class="ctrl">
+    <label><span>鸟群数量</span><b id="vPop">260</b></label>
+    <input type="range" id="pop" min="50" max="600" step="10" value="260">
+  </div>
+
+  <hr>
+  <div class="section-title">交互模式</div>
+  <div class="btn-row">
+    <button id="btnNone" class="active">无</button>
+    <button id="btnAttract">吸引</button>
+    <button id="btnRepel">驱赶</button>
+    <button id="btnHawk">鹰 🦅</button>
+  </div>
+  <div class="btn-row">
+    <button id="btnTrail">轨迹: 关</button>
+    <button id="btnScatter">惊群一下</button>
+  </div>
+
+  <div class="hint">
+    按住 <em>鼠标左键</em> 在画面中使用当前交互模式。
+    把「对齐」和「聚集」调到 0，观察鸟群如何失去秩序；
+    全部调高，观察涌现出的旋涡与长龙。
+  </div>
+</div>
+
+<div id="rules">
+  <div class="rule-card" data-rule="sep">
+    <svg class="icon" viewBox="0 0 30 30"><circle cx="15" cy="15" r="3" fill="#ff7a6e"/><circle cx="7" cy="8" r="3" fill="none" stroke="#ff7a6e" stroke-opacity=".55"/><circle cx="23" cy="8" r="3" fill="none" stroke="#ff7a6e" stroke-opacity=".55"/><circle cx="15" cy="25" r="3" fill="none" stroke="#ff7a6e" stroke-opacity=".55"/><line x1="13" y1="12" x2="9" y2="10" stroke="#ff7a6e" stroke-opacity=".7"/><line x1="17" y1="12" x2="21" y2="10" stroke="#ff7a6e" stroke-opacity=".7"/></svg>
+    <div><h3>分离 · 避免拥挤</h3><p>与过近的邻居保持距离，防止碰撞和堆积。</p></div>
+  </div>
+  <div class="rule-card" data-rule="ali">
+    <svg class="icon" viewBox="0 0 30 30"><g stroke="#5eb1ff" stroke-width="2"><line x1="5" y1="12" x2="13" y2="12"/><line x1="7" y1="19" x2="15" y2="19"/><line x1="15" y1="6" x2="23" y2="6"/><line x1="18" y1="25" x2="26" y2="25"/></g><polygon points="25,10 31,13 25,16" fill="#5eb1ff" transform="translate(-2,-1)"/></svg>
+    <div><h3>对齐 · 随大流</h3><p>匹配附近同伴的平均飞行方向与速度。</p></div>
+  </div>
+  <div class="rule-card" data-rule="coh">
+    <svg class="icon" viewBox="0 0 30 30"><circle cx="15" cy="15" r="10" fill="none" stroke="#8affa0" stroke-opacity=".5" stroke-dasharray="3 3"/><circle cx="11" cy="12" r="2.4" fill="#8affa0"/><circle cx="19" cy="13" r="2.4" fill="#8affa0"/><circle cx="15" cy="20" r="2.4" fill="#8affa0"/></svg>
+    <div><h3>聚集 · 靠拢群体</h3><p>朝附近同伴的中心位置移动，互相陪伴。</p></div>
+  </div>
+  <div class="rule-card" data-rule="eme">
+    <svg class="icon" viewBox="0 0 30 30"><path d="M15 4 C22 8 24 16 18 21 C14 25 8 24 7 19" fill="none" stroke="#ffc66e" stroke-width="1.6"/><polygon points="7,19 10,14 12,21" fill="#ffc66e"/><circle cx="15" cy="4" r="2.2" fill="#ffc66e"/></svg>
+    <div><h3>涌现 · 整体大于部分</h3><p>没有任何一只鸟知道全局，但群体呈现出漩涡、波浪、长龙等复杂图案——这就是涌现。</p></div>
+  </div>
+</div>
+
+<div id="stats">
+  个体数 <b id="statPop">260</b> ｜ 簇数 <b id="statClusters">—</b> ｜ FPS <b id="statFps">60</b>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------------- 参数 ----------------
+  const P = {
+    sep: 1.6, ali: 1.1, coh: 0.9,
+    per: 65, spd: 3.2, pop: 260,
+    mode: 'none', trail: false
+  };
+
+  // ---------------- Boid 个体 ----------------
+  class Boid {
+    constructor() {
+      this.x = Math.random() * W;
+      this.y = Math.random() * H;
+      const a = Math.random() * Math.PI * 2;
+      const s = P.spd * (0.6 + Math.random() * 0.4);
+      this.vx = Math.cos(a) * s;
+      this.vy = Math.sin(a) * s;
+      this.hue = 200 + Math.random() * 40;   // 蓝色系
+      this.size = 1.6 + Math.random() * 1.6;
+    }
+  }
+
+  let boids = [];
+  function initBoids(n) {
+    boids = [];
+    for (let i = 0; i < n; i++) boids.push(new Boid());
+  }
+  initBoids(P.pop);
+
+  // 鹰（捕食者）
+  const hawk = { x: -999, y: -999, vx: 0, vy: 0, active: false };
+
+  // 鼠标
+  const mouse = { x: 0, y: 0, down: false };
+  canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  canvas.addEventListener('mousedown', e => { mouse.down = true; mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('mouseup', () => mouse.down = false);
+  canvas.addEventListener('touchstart', e => {
+    mouse.down = true; mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY;
+  }, { passive: true });
+  canvas.addEventListener('touchmove', e => {
+    mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY;
+  }, { passive: true });
+  window.addEventListener('touchend', () => mouse.down = false);
+
+  // ---------------- 空间网格（性能优化）----------------
+  const CELL = 70;
+  let grid = new Map();
+  function buildGrid() {
+    grid.clear();
+    for (const b of boids) {
+      const key = ((b.x / CELL) | 0) + ',' + ((b.y / CELL) | 0);
+      let arr = grid.get(key);
+      if (!arr) grid.set(key, arr = []);
+      arr.push(b);
+    }
+  }
+
+  function neighbors(b, out) {
+    out.length = 0;
+    const cx = (b.x / CELL) | 0, cy = (b.y / CELL) | 0;
+    const r = Math.ceil(P.per / CELL);
+    for (let dx = -r; dx <= r; dx++)
+      for (let dy = -r; dy <= r; dy++) {
+        const arr = grid.get((cx + dx) + ',' + (cy + dy));
+        if (arr) for (const o of arr) if (o !== b) out.push(o);
+      }
+    return out;
+  }
+
+  // ---------------- 更新 ----------------
+  const nbs = [];
+  function step() {
+    buildGrid();
+    const per2 = P.per * P.per;
+    const sepR = 26, sepR2 = sepR * sepR;
+
+    for (const b of boids) {
+      neighbors(b, nbs);
+      let ax = 0, ay = 0;             // 分离
+      let vxSum = 0, vySum = 0;       // 对齐
+      let pxSum = 0, pySum = 0;       // 聚集
+      let cnt = 0;
+
+      for (const o of nbs) {
+        const dx = o.x - b.x, dy = o.y - b.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > per2 || d2 === 0) continue;
+        cnt++;
+        vxSum += o.vx; vySum += o.vy;
+        pxSum += o.x;  pySum += o.y;
+        if (d2 < sepR2) {
+          const d = Math.sqrt(d2);
+          ax -= dx / d * (1 - d / sepR);
+          ay -= dy / d * (1 - d / sepR);
+        }
+      }
+
+      if (cnt > 0) {
+        // 对齐：转向邻居平均速度
+        b.vx += ((vxSum / cnt) - b.vx) * 0.05 * P.ali;
+        b.vy += ((vySum / cnt) - b.vy) * 0.05 * P.ali;
+        // 聚集：朝邻居中心
+        b.vx += ((pxSum / cnt) - b.x) * 0.0025 * P.coh * P.spd;
+        b.vy += ((pySum / cnt) - b.y) * 0.0025 * P.coh * P.spd;
+      }
+      // 分离
+      b.vx += ax * 0.35 * P.sep;
+      b.vy += ay * 0.35 * P.sep;
+
+      // 鹰的威慑
+      if (hawk.active) {
+        const dx = b.x - hawk.x, dy = b.y - hawk.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < 160 * 160 && d2 > 1) {
+          const d = Math.sqrt(d2);
+          const f = (1 - d / 160) * 1.2;
+          b.vx += dx / d * f;
+          b.vy += dy / d * f;
+        }
+      }
+
+      // 鼠标交互
+      if (mouse.down && P.mode !== 'none' && P.mode !== 'hawk') {
+        const dx = mouse.x - b.x, dy = mouse.y - b.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < 180 * 180 && d2 > 1) {
+          const d = Math.sqrt(d2);
+          const f = (1 - d / 180) * (P.mode === 'attract' ? 0.10 : -0.16);
+          b.vx += dx / d * f * 3;
+          b.vy += dy / d * f * 3;
+        }
+      }
+
+      // 边界：柔和回转
+      const M = 60;
+      if (b.x < M)   b.vx += (M - b.x) * 0.004 * P.spd;
+      if (b.x > W - M) b.vx -= (b.x - (W - M)) * 0.004 * P.spd;
+      if (b.y < M)   b.vy += (M - b.y) * 0.004 * P.spd;
+      if (b.y > H - M) b.vy -= (b.y - (H - M)) * 0.004 * P.spd;
+
+      // 限速
+      const sp = Math.hypot(b.vx, b.vy);
+      const maxS = P.spd, minS = P.spd * 0.45;
+      if (sp > maxS) { b.vx = b.vx / sp * maxS; b.vy = b.vy / sp * maxS; }
+      else if (sp < minS && sp > 0.01) { b.vx = b.vx / sp * minS; b.vy = b.vy / sp * minS; }
+
+      b.x += b.vx;
+      b.y += b.vy;
+    }
+
+    // 鹰自主飞行
+    if (hawk.active) {
+      let tx = W / 2, ty = H / 2, best = 1e12;
+      for (const b of boids) {
+        const d2 = (b.x - hawk.x) ** 2 + (b.y - hawk.y) ** 2;
+        if (d2 < best) { best = d2; tx = b.x; ty = b.y; }
+      }
+      hawk.vx += (tx - hawk.x) * 0.0012;
+      hawk.vy += (ty - hawk.y) * 0.0012;
+      const hs = Math.hypot(hawk.vx, hawk.vy);
+      if (hs > P.spd * 1.6) { hawk.vx = hawk.vx / hs * P.spd * 1.6; hawk.vy = hawk.vy / hs * P.spd * 1.6; }
+      hawk.x += hawk.vx; hawk.y += hawk.vy;
+    }
+  }
+
+  // ---------------- 绘制 ----------------
+  function drawBoidShape(x, y, ang, size, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(ang) * size * 3.2, y + Math.sin(ang) * size * 3.2);
+    ctx.lineTo(x + Math.cos(ang + 2.6) * size * 1.6, y + Math.sin(ang + 2.6) * size * 1.6);
+    ctx.lineTo(x + Math.cos(ang - 2.6) * size * 1.6, y + Math.sin(ang - 2.6) * size * 1.6);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function render() {
+    if (P.trail) {
+      ctx.fillStyle = 'rgba(7,11,20,0.075)';
+      ctx.fillRect(0, 0, W, H);
+    } else {
+      ctx.fillStyle = '#070b14';
+      ctx.fillRect(0, 0, W, H);
+      // 微弱星点背景
+      ctx.fillStyle = 'rgba(255,255,255,0.03)';
+      for (let i = 0; i < 60; i++) {
+        const sx = (i * 977) % W, sy = (i * 613) % H;
+        ctx.fillRect(sx, sy, 1.2, 1.2);
+      }
+    }
+
+    // 交互光圈
+    if (mouse.down && P.mode !== 'none') {
+      const color = P.mode === 'attract' ? '94,177,255' : P.mode === 'repel' ? '255,122,110' : '255,198,110';
+      const g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 180);
+      g.addColorStop(0, `rgba(${color},0.16)`);
+      g.addColorStop(1, `rgba(${color},0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 180, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // 鸟群
+    for (const b of boids) {
+      const ang = Math.atan2(b.vy, b.vx);
+      const speed = Math.hypot(b.vx, b.vy) / P.spd;
+      const alpha = 0.45 + speed * 0.5;
+      drawBoidShape(b.x, b.y, ang, b.size, `hsla(${b.hue - speed * 40}, 85%, ${58 + speed * 18}%, ${alpha})`);
+    }
+
+    // 鹰
+    if (hawk.active) {
+      const ang = Math.atan2(hawk.vy, hawk.vx);
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,150,60,0.9)';
+      ctx.shadowBlur = 22;
+      drawBoidShape(hawk.x, hawk.y, ang, 8, '#ffb35e');
+      ctx.restore();
+    }
+  }
+
+  // ---------------- 簇统计（并查集）----------------
+  function countClusters() {
+    const n = boids.length;
+    const parent = new Int32Array(n).map((_, i) => i);
+    function find(i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+    const per2 = (P.per * 1.4) ** 2;
+    for (let i = 0; i < n; i++)
+      for (let j = i + 1; j < n; j++) {
+        const dx = boids[i].x - boids[j].x, dy = boids[i].y - boids[j].y;
+        if (dx * dx + dy * dy < per2) {
+          const a = find(i), b = find(j);
+          if (a !== b) parent[a] = b;
+        }
+      }
+    const set = new Set();
+    for (let i = 0; i < n; i++) set.add(find(i));
+    return set.size;
+  }
+
+  // ---------------- 主循环 ----------------
+  let frames = 0, lastFpsTime = performance.now(), lastClusterTime = 0;
+  function loop(t) {
+    step();
+    render();
+
+    frames++;
+    if (t - lastFpsTime > 1000) {
+      document.getElementById('statFps').textContent = frames;
+      frames = 0; lastFpsTime = t;
+    }
+    if (t - lastClusterTime > 1200) {
+      lastClusterTime = t;
+      document.getElementById('statClusters').textContent = countClusters();
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // ---------------- 控件绑定 ----------------
+  function bindRange(id, key, fmt = v => v) {
+    const el = document.getElementById(id);
+    const label = document.getElementById('v' + id.charAt(0).toUpperCase() + id.slice(1));
+    const update = () => {
+      P[key] = parseFloat(el.value);
+      label.textContent = fmt(P[key]);
+      const pct = (el.value - el.min) / (el.max - el.min) * 100;
+      el.style.setProperty('--fill', pct + '%');
+    };
+    el.addEventListener('input', () => {
+      update();
+      if (key === 'pop') syncPop();
+    });
+    update();
+  }
+
+  function syncPop() {
+    const n = P.pop;
+    while (boids.length > n) boids.pop();
+    while (boids.length < n) boids.push(new Boid());
+    document.getElementById('statPop').textContent = n;
+  }
+
+  bindRange('sep', 'sep');
+  bindRange('ali', 'ali');
+  bindRange('coh', 'coh');
+  bindRange('per', 'per', v => Math.round(v));
+  bindRange('spd', 'spd');
+  bindRange('pop', 'pop', v => Math.round(v));
+
+  // 交互模式按钮
+  const modeBtns = { none: document.getElementById('btnNone'), attract: document.getElementById('btnAttract'), repel: document.getElementById('btnRepel'), hawk: document.getElementById('btnHawk') };
+  function setMode(m) {
+    P.mode = m;
+    hawk.active = (m === 'hawk');
+    if (hawk.active) { hawk.x = W / 2; hawk.y = H / 2; hawk.vx = 2; hawk.vy = 1; }
+    for (const k in modeBtns) modeBtns[k].classList.toggle('active', k === m);
+  }
+  for (const k in modeBtns) modeBtns[k].addEventListener('click', () => setMode(k));
+
+  // 轨迹开关
+  const btnTrail = document.getElementById('btnTrail');
+  btnTrail.addEventListener('click', () => {
+    P.trail = !P.trail;
+    btnTrail.textContent = '轨迹: ' + (P.trail ? '开' : '关');
+    btnTrail.classList.toggle('active', P.trail);
+  });
+
+  // 惊群
+  document.getElementById('btnScatter').addEventListener('click', () => {
+    const cx = W / 2, cy = H / 2;
+    for (const b of boids) {
+      const dx = b.x - cx, dy = b.y - cy;
+      const d = Math.max(Math.hypot(dx, dy), 1);
+      b.vx += dx / d * 9;
+      b.vy += dy / d * 9;
+    }
+  });
+
+  // 面板显隐
+  const panel = document.getElementById('panel');
+  const toggleBtn = document.getElementById('togglePanel');
+  toggleBtn.addEventListener('click', () => {
+    panel.classList.toggle('hidden');
+    toggleBtn.style.right = panel.classList.contains('hidden') ? '20px' : '328px';
+  });
+
+  // 左下角规则卡片：随滑块联动高亮
+  const ruleMap = { sep: 'sep', ali: 'ali', coh: 'coh' };
+  for (const id in ruleMap) {
+    document.getElementById(id).addEventListener('input', e => {
+      const card = document.querySelector(`.rule-card[data-rule="${id}"]`);
+      card.style.opacity = e.target.value == 0 ? '.3' : '1';
+    });
+  }
+})();
+</script>
+</body>
+</html>
