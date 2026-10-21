@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>作品展厅 · Showroom</title>
-<meta name="description" content="AI Workspace 作品展厅 — 汇集交互模拟、小游戏与多人对战作品。">
+<meta name="description" content="AI Workspace 作品展厅 — 汇集游戏、交互模拟等作品。">
 <style>
   :root{
     --bg:#070a12;
@@ -21,6 +21,9 @@
     --accent-b:#8affa0;
     --accent-c:#ff7a6e;
     --accent-d:#ffd23e;
+    --accent-e:#b78aff;
+    --accent-f:#5eead4;
+    --accent-g:#ff8ad8;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
@@ -171,12 +174,20 @@
     display:flex;
     align-items:baseline;
     gap:12px;
-    margin:44px 0 22px;
+    margin:48px 0 22px;
   }
   .section-head h2{
     font-size:20px;
     font-weight:700;
     letter-spacing:-.01em;
+  }
+  .section-head .count{
+    font-size:12px;
+    font-family:"SF Mono",ui-monospace,"Consolas",monospace;
+    color:var(--muted-2);
+    border:1px solid var(--line);
+    padding:3px 9px;
+    border-radius:8px;
   }
   .section-head .line{
     flex:1;
@@ -384,9 +395,11 @@
 
   /* 依次入场 */
   .card:nth-child(1){animation-delay:.05s}
-  .card:nth-child(2){animation-delay:.13s}
-  .card:nth-child(3){animation-delay:.21s}
-  .card:nth-child(4){animation-delay:.29s}
+  .card:nth-child(2){animation-delay:.11s}
+  .card:nth-child(3){animation-delay:.17s}
+  .card:nth-child(4){animation-delay:.23s}
+  .card:nth-child(5){animation-delay:.29s}
+  .card:nth-child(6){animation-delay:.35s}
 
   @media (max-width:640px){
     header.hero{padding:60px 0 34px}
@@ -414,53 +427,55 @@
     </div>
     <h1 class="title">作品展厅</h1>
     <p class="hero-sub">
-      交互模拟、小游戏、飞行射击与多人对战 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
+      街机游戏、飞行射击、多人对战与群体行为模拟 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
     </p>
     <div class="hero-meta">
-      <div class="stat"><b>4</b><span>件作品</span></div>
-      <div class="stat"><b>4</b><span>类玩法</span></div>
-      <div class="stat"><b>3</b><span>纯前端 · 免安装</span></div>
+      <div class="stat"><b>7</b><span>件作品</span></div>
+      <div class="stat"><b>2</b><span>个分类</span></div>
+      <div class="stat"><b>6</b><span>纯前端 · 免安装</span></div>
     </div>
   </header>
 
+  <!-- ══════════ 游戏 ══════════ -->
   <div class="section-head">
-    <h2>全部作品</h2>
+    <h2>游戏 Game</h2>
+    <span class="count">6</span>
     <div class="line"></div>
   </div>
 
   <section class="grid">
 
-    <!-- 鸟群涌现 -->
-    <a class="card" href="flocking_simulation.html" target="_blank" rel="noopener" style="--accent:var(--accent-a)">
+    <!-- 飞机大战 -->
+    <a class="card" href="game/flight-battle.html" target="_blank" rel="noopener" style="--accent:var(--accent-d)">
       <div class="card-top">
         <div class="icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12c3-5 6-5 9 0s6 5 9 0"/>
-            <path d="M6.5 7.5 9 10M17.5 7.5 15 10"/>
+            <path d="M22 2 11 13"/>
+            <path d="M22 2 15 22l-4-9-9-4 20-7Z"/>
           </svg>
         </div>
         <span class="card-index">01</span>
       </div>
-      <h3>鸟群涌现<span class="en">Emergence · Boids</span></h3>
+      <h3>飞机大战<span class="en">Flight Battle</span></h3>
       <p class="desc">
-        仅凭分离、对齐、聚集三条简单规则，涌现出逼真的群体飞行行为。可实时拖动滑块调整规则权重、感知半径与速度，鼠标或触摸还能直接扰动鸟群。
+        移动鼠标操控战机，火力全自动，击落敌机即可得分。每 16 秒难度提升一波——敌机更多更快、很快便会开火还击；第 4 波解锁三连火力，每 5 波遭遇 BOSS，共 3 条命，并自动保存历史战绩。
       </p>
       <div class="tags">
-        <span class="tag">群体行为模拟</span>
-        <span class="tag">实时参数调节</span>
-        <span class="tag">鼠标 / 触摸交互</span>
+        <span class="tag">飞行射击</span>
+        <span class="tag">鼠标操控</span>
+        <span class="tag">波次 / BOSS 战</span>
       </div>
       <div class="card-foot">
         <span class="open-link">
           打开作品
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </span>
-        <span class="path">flocking_simulation.html</span>
+        <span class="path">game/flight-battle.html</span>
       </div>
     </a>
 
     <!-- 贪吃蛇 -->
-    <a class="card" href="snake.html" target="_blank" rel="noopener" style="--accent:var(--accent-b)">
+    <a class="card" href="game/snake.html" target="_blank" rel="noopener" style="--accent:var(--accent-b)">
       <div class="card-top">
         <div class="icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -484,41 +499,103 @@
           打开作品
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </span>
-        <span class="path">snake.html</span>
+        <span class="path">game/snake.html</span>
       </div>
     </a>
 
-    <!-- 飞机大战 -->
-    <a class="card" href="flight-battle.html" target="_blank" rel="noopener" style="--accent:var(--accent-d)">
+    <!-- 贪吃蛇大作战 -->
+    <a class="card" href="game/snake-arena.html" target="_blank" rel="noopener" style="--accent:var(--accent-e)">
       <div class="card-top">
         <div class="icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 2 11 13"/>
-            <path d="M22 2 15 22l-4-9-9-4 20-7Z"/>
+            <circle cx="6" cy="6" r="2.4"/>
+            <path d="M8.4 6H16a4 4 0 0 1 4 4v1a4 4 0 0 1-4 4H9a3.5 3.5 0 0 0-3.5 3.5V19"/>
+            <circle cx="18.5" cy="3.5" r="1.3"/>
+            <circle cx="21" cy="16.5" r="1.3"/>
           </svg>
         </div>
         <span class="card-index">03</span>
       </div>
-      <h3>飞机大战<span class="en">Flight Battle</span></h3>
+      <h3>贪吃蛇大作战<span class="en">Snake Arena</span></h3>
       <p class="desc">
-        移动鼠标操控战机，火力全自动，击落敌机即可得分。每 16 秒难度提升一波——敌机更多更快、很快便会开火还击；第 4 波解锁三连火力，每 5 波遭遇 BOSS，共 3 条命，并自动保存历史战绩。
+        slither.io 风格竞技贪吃蛇。移动鼠标控制方向，吃发光食物不断成长；蛇头撞到其他蛇的身体或边界即死亡，尸体化为大量食物。与 AI 蛇同场竞技，登上排行榜榜首。
       </p>
       <div class="tags">
-        <span class="tag">飞行射击</span>
+        <span class="tag">竞技生存</span>
         <span class="tag">鼠标操控</span>
-        <span class="tag">波次 / BOSS 战</span>
+        <span class="tag">AI 对战排行榜</span>
       </div>
       <div class="card-foot">
         <span class="open-link">
           打开作品
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </span>
-        <span class="path">flight-battle.html</span>
+        <span class="path">game/snake-arena.html</span>
+      </div>
+    </a>
+
+    <!-- 大鱼吃小鱼 -->
+    <a class="card" href="game/big%20fish%20eat%20little%20fish.html" target="_blank" rel="noopener" style="--accent:var(--accent-f)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6.5 12c3-4.5 7-6 11-5.5-.6 1.6-.6 3.4 0 5-4 .5-8-1-11-.5Z"/>
+            <path d="M6.5 12 3 9.5c.4 1.7.4 3.3 0 5L6.5 12Z"/>
+            <circle cx="14.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <span class="card-index">04</span>
+      </div>
+      <h3>大鱼吃小鱼<span class="en">Big Fish</span></h3>
+      <p class="desc">
+        深海生存法则——吃掉比你小的，躲开比你大的。按住鼠标左键朝指针方向游动，你的鱼始终在画面中央；可捕食的鱼带蓝色“!”标记，更高级的鱼会红圈锁定穷追不舍。从银鱼苗一路进化到深海鮟鱇，共 3 条命。
+      </p>
+      <div class="tags">
+        <span class="tag">生存进化</span>
+        <span class="tag">按住游动</span>
+        <span class="tag">8 阶进化路线</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">game/big fish eat little fish.html</span>
+      </div>
+    </a>
+
+    <!-- 迷宫猎手 -->
+    <a class="card" href="game/hunter.html" target="_blank" rel="noopener" style="--accent:var(--accent-g)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="8"/>
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+          </svg>
+        </div>
+        <span class="card-index">05</span>
+      </div>
+      <h3>迷宫猎手<span class="en">Maze Hunter</span></h3>
+      <p class="desc">
+        俯视角迷宫射击。WASD / 方向键移动，鼠标瞄准、左键射击，子弹可在墙面反弹，利用弹射清掉视野死角的歹徒。生命有限，全灭敌人即胜利，R 键随时重开。
+      </p>
+      <div class="tags">
+        <span class="tag">迷宫射击</span>
+        <span class="tag">键鼠配合</span>
+        <span class="tag">子弹弹射</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">game/hunter.html</span>
       </div>
     </a>
 
     <!-- 宿舍大乱斗 -->
-    <a class="card" href="dorm-brawl/index.html" target="_blank" rel="noopener" style="--accent:var(--accent-c)">
+    <a class="card" href="game/dorm-brawl/index.html" target="_blank" rel="noopener" style="--accent:var(--accent-c)">
       <div class="card-top">
         <div class="icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -527,7 +604,7 @@
             <path d="M4 20l-1 1"/>
           </svg>
         </div>
-        <span class="card-index">04</span>
+        <span class="card-index">06</span>
       </div>
       <h3>宿舍大乱斗<span class="en">Dorm Brawl</span></h3>
       <p class="desc">
@@ -540,14 +617,54 @@
       </div>
       <div class="note">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L14.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-        <span>需先启动后端：运行 <b>dorm-brawl/start.bat</b>（或 <b>python server.py</b>）后再进入游戏大厅。</span>
+        <span>需先启动后端：运行 <b>game/dorm-brawl/start.bat</b>（或 <b>python server.py</b>）后再进入游戏大厅。</span>
       </div>
       <div class="card-foot">
         <span class="open-link">
           进入大厅
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </span>
-        <span class="path">dorm-brawl/index.html</span>
+        <span class="path">game/dorm-brawl/index.html</span>
+      </div>
+    </a>
+
+  </section>
+
+  <!-- ══════════ 模拟 ══════════ -->
+  <div class="section-head">
+    <h2>模拟 Simulation</h2>
+    <span class="count">1</span>
+    <div class="line"></div>
+  </div>
+
+  <section class="grid">
+
+    <!-- 鸟群涌现 -->
+    <a class="card" href="simulation/flocking_simulation.html" target="_blank" rel="noopener" style="--accent:var(--accent-a)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12c3-5 6-5 9 0s6 5 9 0"/>
+            <path d="M6.5 7.5 9 10M17.5 7.5 15 10"/>
+          </svg>
+        </div>
+        <span class="card-index">07</span>
+      </div>
+      <h3>鸟群涌现<span class="en">Emergence · Boids</span></h3>
+      <p class="desc">
+        仅凭分离、对齐、聚集三条简单规则，涌现出逼真的群体飞行行为。可实时拖动滑块调整规则权重、感知半径与速度，鼠标或触摸还能直接扰动鸟群。
+      </p>
+      <div class="tags">
+        <span class="tag">群体行为模拟</span>
+        <span class="tag">实时参数调节</span>
+        <span class="tag">鼠标 / 触摸交互</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">simulation/flocking_simulation.html</span>
       </div>
     </a>
 

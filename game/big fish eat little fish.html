@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>大鱼吃小鱼</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#04263f;
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+  #game { display:block; width:100vw; height:100vh; }
+  body.playing #game { cursor:none; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; top:0; left:0; right:0; display:none; justify-content:space-between;
+    padding:14px 18px; pointer-events:none; z-index:5; }
+  body.playing #hud { display:flex; }
+  .panel { background:rgba(3,26,46,.55); border:1px solid rgba(120,200,255,.18);
+    border-radius:12px; padding:10px 14px; color:#dff3ff; backdrop-filter:blur(6px);
+    display:flex; flex-direction:column; gap:8px; min-width:230px; }
+  .panel .row { display:flex; align-items:center; gap:8px; font-size:14px; }
+  .panel b { font-size:18px; color:#ffd166; }
+  #lv { color:#7cf0ff; }
+  #fishname { color:#9fd8ff; font-size:12px; }
+  .xpbar { flex:1; height:8px; background:rgba(255,255,255,.12); border-radius:4px; overflow:hidden; }
+  .xpbar i { display:block; height:100%; width:0%; border-radius:4px;
+    background:linear-gradient(90deg,#ffd166,#ff9f43); transition:width .25s; }
+  .right { align-items:flex-end; min-width:0; }
+  #lives { color:#ff5d6c; font-size:20px; letter-spacing:3px; text-shadow:0 0 6px rgba(255,80,100,.6); }
+  #mute { pointer-events:auto; cursor:pointer; border:1px solid rgba(120,200,255,.3);
+    background:rgba(3,26,46,.6); color:#bfe8ff; border-radius:8px; padding:4px 10px; font-size:12px; }
+  #mute:hover { background:rgba(30,80,120,.6); }
+
+  /* ---------- 受伤红光 ---------- */
+  #flash { position:fixed; inset:0; z-index:4; pointer-events:none; opacity:0; transition:opacity .5s;
+    background:radial-gradient(ellipse at center, rgba(255,40,40,0) 55%, rgba(255,40,40,.45) 100%); }
+
+  /* ---------- 覆盖层 ---------- */
+  .overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(2,18,34,.66); backdrop-filter:blur(5px); z-index:10;
+    opacity:0; pointer-events:none; transition:opacity .35s; }
+  .overlay.show { opacity:1; pointer-events:auto; }
+  .card { text-align:center; color:#e8f7ff;
+    background:linear-gradient(160deg, rgba(10,50,84,.92), rgba(4,28,52,.92));
+    border:1px solid rgba(120,200,255,.25); border-radius:20px; padding:38px 46px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5); max-width:560px; }
+  .card h1 { font-size:40px; letter-spacing:2px; margin-bottom:8px;
+    background:linear-gradient(90deg,#7cf0ff,#ffd166,#ff8fab);
+    -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .card .sub { color:#9fd8ff; margin-bottom:20px; font-size:15px; }
+  .rules { text-align:left; list-style:none; margin:0 auto 24px; font-size:14.5px; line-height:1.95; color:#d5eeff; }
+  .rules li::before { content:"▸ "; color:#ffd166; }
+  .rules b { color:#ffd166; }
+  .card button { pointer-events:auto; cursor:pointer; border:none; border-radius:999px;
+    padding:13px 52px; font-size:18px; font-weight:bold; letter-spacing:4px; color:#08283f;
+    background:linear-gradient(90deg,#7cf0ff,#ffd166); box-shadow:0 8px 24px rgba(124,240,255,.35);
+    transition:transform .15s; }
+  .card button:hover { transform:scale(1.06); }
+  .stat { font-size:15px; color:#9fd8ff; margin:6px 0; }
+  .stat b { color:#ffd166; font-size:24px; }
+  #goTitle { font-size:34px; color:#ff8f9f; margin-bottom:14px; }
+  .best { margin-top:14px; font-size:13px; color:#7fb6d8; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="panel">
+    <div class="row">分数 <b id="score">0</b>
+      <span id="best" style="margin-left:auto;font-size:12px;color:#7fb6d8;">最高 0</span></div>
+    <div class="row">等级 <b id="lv">1</b><span id="fishname">银鱼苗</span>
+      <span class="xpbar"><i id="xpfill"></i></span></div>
+  </div>
+  <div class="panel right">
+    <span id="lives">♥♥♥</span>
+    <button id="mute">音效:开</button>
+  </div>
+</div>
+
+<div id="flash"></div>
+
+<div id="start" class="overlay show">
+  <div class="card">
+    <h1>大鱼吃小鱼</h1>
+    <p class="sub">深海生存法则 —— 吃掉比你小的，躲开比你大的！</p>
+    <ul class="rules">
+      <li><b>按住鼠标左键</b>，你的鱼朝指针方向游动，松开即停下</li>
+      <li>你的鱼始终保持在<b>画面正中央</b>，海洋世界随你移动</li>
+      <li>可以吃掉 <b>等级 ≤ 自己</b> 的鱼：它们带 <b style="color:#9fe8ff;">蓝色"!"</b>、冒泡逃跑</li>
+      <li><b>等级更高</b>的鱼会主动攻击你：<b style="color:#ff5d5d;">红圈 + 红色"!"</b>，盯上你就穷追不舍</li>
+      <li>鱼的<b>等级越高游速越快</b>，共 3 条命</li>
+      <li>进化路线：银鱼苗 → 小黄鱼 → 小丑鱼 → 河豚 → 石斑鱼 → 龙鱼 → 鲨鱼 → 深海鮟鱇</li>
+    </ul>
+    <button id="startBtn">开始游戏</button>
+    <p class="best" id="startBest"></p>
+  </div>
+</div>
+
+<div id="over" class="overlay">
+  <div class="card">
+    <h1 id="goTitle">游戏结束</h1>
+    <p class="stat">最终得分 <b id="finalScore">0</b></p>
+    <p class="stat">达到等级 <b id="finalLevel">1</b></p>
+    <p class="stat">历史最高 <b id="finalBest">0</b></p>
+    <button id="againBtn" style="margin-top:18px;">再来一局</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= 基础 ================= */
+const cv = document.getElementById('game');
+const ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+const el = { score:$('score'), best:$('best'), lv:$('lv'), name:$('fishname'),
+  xp:$('xpfill'), lives:$('lives'), mute:$('mute'), flash:$('flash'),
+  start:$('start'), over:$('over'), startBest:$('startBest'),
+  finalScore:$('finalScore'), finalLevel:$('finalLevel'), finalBest:$('finalBest') };
+
+let W = 0, H = 0, bgGrad = null;
+function resize(){
+  W = cv.width = innerWidth; H = cv.height = innerHeight;
+  bgGrad = ctx.createLinearGradient(0,0,0,H);
+  bgGrad.addColorStop(0,'#0a4a75'); bgGrad.addColorStop(.55,'#06375c'); bgGrad.addColorStop(1,'#03223c');
+}
+addEventListener('resize', resize); resize();
+
+/* ================= 鱼的等级表（每种鱼外形/配色独立绘制，c1 仅用于粒子色） ================= */
+const TYPES = [
+  {lv:1,size:16,c1:'#cfe9ff',name:'银鱼苗'},
+  {lv:2,size:22,c1:'#ffd166',name:'小黄鱼'},
+  {lv:3,size:29,c1:'#f5821f',name:'小丑鱼'},
+  {lv:4,size:37,c1:'#a9bd7a',name:'河豚'},
+  {lv:5,size:46,c1:'#c96f2e',name:'石斑鱼'},
+  {lv:6,size:57,c1:'#b389f0',name:'龙鱼'},
+  {lv:7,size:70,c1:'#7d9db4',name:'鲨鱼'},
+  {lv:8,size:86,c1:'#8a2430',name:'深海鮟鱇'},
+];
+
+/* ================= 状态 ================= */
+const G = { running:false, over:false, score:0, best:0, lives:3, level:1, xp:0, xpNeed:5,
+  inv:0, time:0, lmb:false, mouse:{x:innerWidth/2, y:innerHeight/2} };
+try{ G.best = +(localStorage.getItem('fishBest')||0); }catch(e){}
+el.startBest.textContent = G.best>0 ? '历史最高分：'+G.best : '';
+// 玩家使用世界坐标，摄像机始终跟随玩家 => 玩家永远在屏幕正中央
+const player = { x:0, y:0, vx:0, vy:0, angle:0, size:TYPES[0].size, tail:0 };
+let fishes=[], parts=[], floats=[], bubbles=[];
+
+/* 角度插值（走最短弧，避免转身时绕远路） */
+function lerpAngle(a,b,t){
+  let d=b-a;
+  while(d>Math.PI) d-=Math.PI*2;
+  while(d<-Math.PI) d+=Math.PI*2;
+  return a+d*t;
+}
+
+/* ================= 音效 ================= */
+let AC=null, muted=false;
+function initAudio(){
+  if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(AC && AC.state==='suspended') AC.resume();
+}
+function sfx(kind, lv){
+  if(!AC||muted) return;
+  try{
+    const t=AC.currentTime, o=AC.createOscillator(), g=AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    if(kind==='eat'){
+      o.type='triangle';
+      o.frequency.setValueAtTime(380+(lv||1)*70, t);
+      o.frequency.exponentialRampToValueAtTime(880+(lv||1)*70, t+.09);
+      g.gain.setValueAtTime(.12,t); g.gain.exponentialRampToValueAtTime(.001,t+.16);
+      o.start(t); o.stop(t+.18);
+    } else if(kind==='up'){
+      o.type='square'; [523,659,784,1046].forEach((f,i)=>o.frequency.setValueAtTime(f,t+i*.09));
+      g.gain.setValueAtTime(.07,t); g.gain.exponentialRampToValueAtTime(.001,t+.5);
+      o.start(t); o.stop(t+.52);
+    } else if(kind==='hurt'){
+      o.type='sawtooth';
+      o.frequency.setValueAtTime(220,t); o.frequency.exponentialRampToValueAtTime(60,t+.3);
+      g.gain.setValueAtTime(.14,t); g.gain.exponentialRampToValueAtTime(.001,t+.35);
+      o.start(t); o.stop(t+.4);
+    } else if(kind==='over'){
+      o.type='sine'; [392,330,262,196].forEach((f,i)=>o.frequency.setValueAtTime(f,t+i*.2));
+      g.gain.setValueAtTime(.1,t); g.gain.exponentialRampToValueAtTime(.001,t+.95);
+      o.start(t); o.stop(t+1);
+    }
+  }catch(e){}
+}
+el.mute.onclick = ()=>{ muted=!muted; el.mute.textContent = muted?'音效:关':'音效:开'; };
+
+/* ================= 输入：按住鼠标左键控制游动方向 ================= */
+function setMouse(x,y){ G.mouse.x=x; G.mouse.y=y; }
+addEventListener('mousemove', e=>setMouse(e.clientX,e.clientY));
+addEventListener('mousedown', e=>{
+  setMouse(e.clientX,e.clientY);
+  if(e.button===0 && !(e.target && e.target.closest && e.target.closest('button'))) G.lmb=true;
+});
+addEventListener('mouseup', e=>{ if(e.button===0) G.lmb=false; });
+addEventListener('blur', ()=>{ G.lmb=false; });
+cv.addEventListener('contextmenu', e=>e.preventDefault());
+addEventListener('touchstart', e=>{ const t=e.touches[0]; if(t){ setMouse(t.clientX,t.clientY); G.lmb=true; } }, {passive:true});
+addEventListener('touchmove', e=>{ const t=e.touches[0]; if(t) setMouse(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
+addEventListener('touchend', ()=>{ G.lmb=false; });
+
+/* ================= 生成鱼（在玩家周围的世界坐标中生成） ================= */
+function rollLevel(){
+  const pool=[];
+  for(let d=-3; d<=2; d++){
+    const lv=G.level+d;
+    if(lv<1||lv>8) continue;
+    // 提高高等级鱼出现权重，加大难度
+    const w = d<0?2.6 : d===0?2.2 : d===1?1.6 : .7;
+    for(let i=0;i<w*10;i++) pool.push(lv);
+  }
+  return pool.length? pool[(Math.random()*pool.length)|0] : 1;
+}
+function spawnFish(anywhere, forceLv){
+  const lv = forceLv || rollLevel(), t = TYPES[lv-1];
+  const dir = Math.random()<.5?1:-1;
+  // 等级越高，游速越快
+  const speed = (100+lv*16)*(.9+Math.random()*.25);
+  const R = Math.hypot(W,H)/2;
+  const a = Math.random()*6.28;
+  const r = anywhere ? Math.random()*R : R+120+Math.random()*280;
+  fishes.push({
+    lv, t, dir, speed, tail:Math.random()*10,
+    x: player.x+Math.cos(a)*r, y: player.y+Math.sin(a)*r,
+    vx: dir*speed, vy: 0, angle: dir>0?0:Math.PI,
+    state: null, aggro: false,   // state: 'chase'|'flee'|null；aggro: 大鱼仇恨记忆
+    ph: Math.random()*6.28, freq: .5+Math.random()*1.2,
+  });
+}
+let spawnT=0;
+function spawnTick(dt){
+  spawnT-=dt;
+  const target = G.running ? 14+G.level : 9;
+  if(spawnT<=0 && fishes.length<target){ spawnFish(!G.running); spawnT=.3; }
+}
+
+/* ================= 特效 ================= */
+function burst(x,y,c,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*6.28, v=40+Math.random()*160;
+    parts.push({x,y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, r:2+Math.random()*4, c, life:.5+Math.random()*.4});
+  }
+}
+function addFloat(x,y,txt,c){ floats.push({x,y,txt,c,life:1}); }
+
+/* ================= 游戏逻辑 ================= */
+function updPlayer(dt){
+  if(G.over) return;
+  // 方向 = 屏幕中心(即玩家位置) 指向 鼠标指针；按住左键才游动
+  const dx=G.mouse.x-W/2, dy=G.mouse.y-H/2;
+  const d=Math.hypot(dx,dy);
+  const sp=Math.max(175, 295-G.level*10);
+  if(G.lmb && d>14){
+    const k=Math.min(1, dt*6);
+    player.vx += (dx/d*sp-player.vx)*k;
+    player.vy += (dy/d*sp-player.vy)*k;
+  } else {
+    // 松开左键后逐渐减速停下
+    const k=1-Math.min(1, dt*3.5);
+    player.vx*=k; player.vy*=k;
+  }
+  player.x += player.vx*dt; player.y += player.vy*dt;
+  // 鱼头朝向速度方向（平滑转身）
+  if(Math.hypot(player.vx,player.vy)>10)
+    player.angle = lerpAngle(player.angle, Math.atan2(player.vy,player.vx), Math.min(1,dt*10));
+  player.tail += dt*(3+Math.hypot(player.vx,player.vy)*.02);
+}
+
+function updFishes(dt){
+  const R = Math.hypot(W,H)/2;
+  const active = G.running && !G.over;
+  for(let i=fishes.length-1;i>=0;i--){
+    const f=fishes[i];
+    const dx=player.x-f.x, dy=player.y-f.y;
+    const dist=Math.hypot(dx,dy)||1;
+    let dvx, dvy;
+    // 大鱼仇恨：进入 700px 锁定玩家，逃出 980px 才放弃
+    if(active && f.lv>G.level){
+      if(dist<700) f.aggro=true;
+      else if(dist>980) f.aggro=false;
+    } else f.aggro=false;
+    if(f.aggro){
+      // 等级更高的鱼：主动追击玩家（速度加成）
+      const s=f.speed*1.35;
+      dvx=dx/dist*s; dvy=dy/dist*s;
+      f.state='chase';
+    } else if(active && f.lv<=G.level && dist<400){
+      // 等级小于等于自己的鱼：逃离玩家
+      const s=f.speed*1.2;
+      dvx=-dx/dist*s; dvy=-dy/dist*s;
+      f.state='flee';
+    } else {
+      // 无目标时水平巡游 + 上下摆动
+      dvx=f.dir*f.speed*.8;
+      dvy=Math.sin(G.time*f.freq+f.ph)*36;
+      f.state=null;
+    }
+    const k=Math.min(1, dt*(f.state==='chase'?3:2.4));
+    f.vx += (dvx-f.vx)*k;
+    f.vy += (dvy-f.vy)*k;
+    f.x += f.vx*dt; f.y += f.vy*dt;
+    // 鱼头朝向速度方向（平滑转身）
+    if(Math.hypot(f.vx,f.vy)>8)
+      f.angle = lerpAngle(f.angle, Math.atan2(f.vy,f.vx), Math.min(1,dt*7));
+    f.tail += dt*(3+Math.hypot(f.vx,f.vy)*.03);
+    // 攻击/逃跑时留下尾部粒子轨迹：追击=红色杀气，逃跑=白色惊惶气泡
+    if(f.state && parts.length<420 && Math.random()<dt*16){
+      const bx=f.x-Math.cos(f.angle)*f.t.size*1.1;
+      const by=f.y-Math.sin(f.angle)*f.t.size*1.1;
+      parts.push({ x:bx, y:by,
+        vx:-f.vx*.12+(Math.random()-.5)*24, vy:-f.vy*.12+(Math.random()-.5)*24,
+        r:1.5+Math.random()*2.5,
+        c: f.state==='chase' ? 'rgba(255,95,95,.8)' : 'rgba(205,240,255,.85)',
+        life:.35+Math.random()*.3 });
+    }
+    if(dist > R+560) fishes.splice(i,1);
+  }
+}
+
+function collide(){
+  for(let i=fishes.length-1;i>=0;i--){
+    const f=fishes[i];
+    const dx=f.x-player.x, dy=f.y-player.y;
+    const rr=f.t.size*.75 + player.size*.72;
+    if(dx*dx+dy*dy < rr*rr){
+      if(f.lv<=G.level) eatFish(i);
+      else if(G.inv<=0 && !G.over) hurt();
+    }
+  }
+}
+function eatFish(i){
+  const f=fishes[i]; fishes.splice(i,1);
+  const pts=f.lv*10;
+  G.score += pts;
+  if(G.level<8){
+    G.xp += f.lv;
+    while(G.xp>=G.xpNeed && G.level<8){
+      G.xp -= G.xpNeed; G.level++;
+      G.xpNeed = 2+G.level*3;
+      player.size = TYPES[G.level-1].size;
+      burst(player.x, player.y, '#ffd166', 26);
+      addFloat(player.x, player.y-player.size-14, '升级！Lv.'+G.level+' '+TYPES[G.level-1].name, '#ffd166');
+      sfx('up');
+    }
+    if(G.level>=8) G.xp=0;
+  }
+  burst(f.x, f.y, f.t.c1, 10+f.lv*2);
+  addFloat(f.x, f.y-f.t.size, '+'+pts, '#ffffff');
+  sfx('eat', f.lv);
+  updateHud();
+}
+function safeSpot(){
+  // 在玩家周围找一处离所有大鱼最远的位置
+  let bx=player.x, by=player.y, bd=-1;
+  for(let i=0;i<16;i++){
+    const a=Math.random()*6.28, r=180+Math.random()*420;
+    const x=player.x+Math.cos(a)*r, y=player.y+Math.sin(a)*r;
+    let md=1e9;
+    for(const f of fishes) if(f.lv>G.level) md=Math.min(md, Math.hypot(f.x-x, f.y-y));
+    if(md>bd){ bd=md; bx=x; by=y; }
+  }
+  return {x:bx, y:by};
+}
+function hurt(){
+  G.lives--; G.inv=2.2;
+  burst(player.x, player.y, '#ff6b6b', 26);
+  const s=safeSpot(); player.x=s.x; player.y=s.y; player.vx=player.vy=0;
+  addFloat(s.x, s.y-40, '被大鱼咬了！剩余生命 '+Math.max(0,G.lives), '#ff9f9f');
+  el.flash.style.opacity=1; setTimeout(()=>el.flash.style.opacity=0, 60);
+  sfx('hurt');
+  if(G.lives<=0) gameOver();
+  updateHud();
+}
+function gameOver(){
+  G.over=true;
+  if(G.score>G.best){ G.best=G.score; try{ localStorage.setItem('fishBest', G.best); }catch(e){} }
+  el.finalScore.textContent=G.score;
+  el.finalLevel.textContent=G.level;
+  el.finalBest.textContent=G.best;
+  el.over.classList.add('show');
+  document.body.classList.remove('playing');
+  sfx('over');
+}
+function start(){
+  fishes.length=0; parts.length=0; floats.length=0;
+  G.score=0; G.lives=3; G.level=1; G.xp=0; G.xpNeed=5; G.inv=2; G.over=false; G.running=true;
+  G.lmb=false;
+  player.x=0; player.y=0; player.vx=player.vy=0; player.angle=0;
+  player.size=TYPES[0].size;
+  for(let i=0;i<10;i++) spawnFish(true);
+  el.start.classList.remove('show'); el.over.classList.remove('show');
+  document.body.classList.add('playing');
+  updateHud();
+}
+$('startBtn').onclick = ()=>{ initAudio(); start(); };
+$('againBtn').onclick = ()=>{ initAudio(); start(); };
+
+function updateHud(){
+  el.score.textContent = G.score;
+  el.best.textContent = '最高 '+Math.max(G.best, G.score);
+  el.lv.textContent = G.level;
+  el.name.textContent = TYPES[G.level-1].name;
+  el.xp.style.width = (G.level>=8 ? 100 : G.xp/G.xpNeed*100)+'%';
+  el.lives.textContent = '♥'.repeat(Math.max(0,G.lives)) + '♡'.repeat(Math.max(0,3-G.lives));
+}
+
+/* ================= 特效更新 ================= */
+function updFx(dt){
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy-=26*dt; p.life-=dt;
+    if(p.life<=0) parts.splice(i,1);
+  }
+  for(let i=floats.length-1;i>=0;i--){
+    const t=floats[i]; t.y-=30*dt; t.life-=dt;
+    if(t.life<=0) floats.splice(i,1);
+  }
+  if(Math.random()<dt*2.2) bubbles.push({
+    x: player.x+(Math.random()-.5)*W, y: player.y+H/2+14,
+    r: 2+Math.random()*4, v: 26+Math.random()*32, w: Math.random()*6.28 });
+  for(let i=bubbles.length-1;i>=0;i--){
+    const b=bubbles[i]; b.y-=b.v*dt; b.x+=Math.sin(G.time*2+b.w)*12*dt;
+    if(b.y < player.y-H/2-18) bubbles.splice(i,1);
+  }
+}
+
+/* ================= 绘制：每种鱼独立造型 ================= */
+function vGrad(y0,y1,c0,c1){ const g=ctx.createLinearGradient(0,y0,0,y1); g.addColorStop(0,c0); g.addColorStop(1,c1); return g; }
+function ell(x,y,rx,ry,fill){ ctx.fillStyle=fill; ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,6.29); ctx.fill(); }
+function tri(x1,y1,x2,y2,x3,y3,fill){ ctx.fillStyle=fill; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3); ctx.closePath(); ctx.fill(); }
+function drawEye(x,y,r,pupil){
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,r,0,6.29); ctx.fill();
+  ctx.fillStyle=pupil||'#0d2233'; ctx.beginPath(); ctx.arc(x+r*.3,y,r*.55,0,6.29); ctx.fill();
+}
+
+/* Lv1 银鱼苗：细长半透明银蓝色小身板 + 小叉尾 */
+function paintLv1(s,tail,eye){
+  ctx.save(); ctx.translate(-s*1.25,0); ctx.rotate(Math.sin(tail)*.4);
+  tri(0,0, -s*.7,-s*.5, -s*.5,0, '#8fc3ea');
+  tri(0,0, -s*.7, s*.5, -s*.5,0, '#8fc3ea');
+  ctx.restore();
+  ctx.globalAlpha=.92;
+  ell(0,0, s*1.4, s*.4, vGrad(-s*.4,s*.4, '#f2faff','#86bde6'));
+  ctx.globalAlpha=1;
+  ctx.strokeStyle='rgba(70,120,170,.45)'; ctx.lineWidth=Math.max(1,s*.05);
+  ctx.beginPath(); ctx.moveTo(-s*.95,0); ctx.lineTo(s*1.1,0); ctx.stroke();
+  tri(s*.15,s*.1, -s*.15,s*.45, -s*.25,s*.1, 'rgba(140,195,234,.8)');
+  drawEye(s*.95,-s*.06, s*.16, eye);
+}
+
+/* Lv2 小黄鱼：金黄渐变、背鳍腹鳍齐全的经典鱼形 */
+function paintLv2(s,tail,eye){
+  ctx.save(); ctx.translate(-s*1.15,0); ctx.rotate(Math.sin(tail)*.35);
+  tri(0,0, -s*.75,-s*.62, -s*.45,0, '#e59a2f');
+  tri(0,0, -s*.75, s*.62, -s*.45,0, '#e59a2f');
+  ctx.restore();
+  tri(-s*.35,-s*.55, s*.05,-s*1.0, s*.45,-s*.5, '#d18a24');
+  tri(-s*.1,s*.6, s*.15,s*.95, s*.35,s*.55, 'rgba(209,138,36,.85)');
+  ell(0,0, s*1.2, s*.68, vGrad(-s*.68,s*.68, '#d99125','#ffe08a'));
+  ell(-s*.1,0, s*.85, s*.2, 'rgba(255,255,255,.18)');
+  ctx.strokeStyle='rgba(120,70,10,.35)'; ctx.lineWidth=Math.max(1,s*.06);
+  ctx.beginPath(); ctx.arc(s*.35,0,s*.5,-1.1,1.1); ctx.stroke();
+  ctx.beginPath(); ctx.arc(s*1.05,s*.12,s*.14,.3,Math.PI-.7); ctx.stroke();
+  drawEye(s*.62,-s*.16, s*.17, eye);
+}
+
+/* Lv3 小丑鱼：橙身 + 三条黑边白纹带 */
+function paintLv3(s,tail,eye){
+  ctx.save(); ctx.translate(-s*.95,0); ctx.rotate(Math.sin(tail)*.3);
+  ell(-s*.25,0, s*.45, s*.5, '#f5821f');
+  ell(-s*.45,0, s*.2, s*.42, '#ffffff');
+  ctx.restore();
+  ctx.fillStyle='#f5821f';
+  ctx.beginPath(); ctx.moveTo(-s*.55,-s*.55);
+  ctx.quadraticCurveTo(0,-s*1.15, s*.6,-s*.5); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=Math.max(1,s*.06); ctx.stroke();
+  ell(0,0, s*1.05, s*.72, vGrad(-s*.72,s*.72, '#ff9a3c','#ef6f10'));
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(0,0, s*1.05, s*.72, 0, 0, 6.29); ctx.clip();
+  const bands=[[s*.62,.16],[-s*.02,.2],[-s*.68,.14]];
+  for(const b of bands){
+    ctx.fillStyle='#ffffff';
+    ctx.fillRect(b[0]-b[1]*s, -s, b[1]*2*s, 2*s);
+    ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=s*.07;
+    ctx.strokeRect(b[0]-b[1]*s, -s, b[1]*2*s, 2*s);
+  }
+  ctx.restore();
+  ctx.fillStyle='#f5821f';
+  ctx.beginPath(); ctx.ellipse(s*.1,s*.35, s*.3, s*.16, .6, 0, 6.29); ctx.fill();
+  ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=Math.max(1,s*.05); ctx.stroke();
+  drawEye(s*.66,-s*.14, s*.17, eye);
+  ctx.strokeStyle='#1c1c1c'; ctx.lineWidth=Math.max(1,s*.04);
+  ctx.beginPath(); ctx.arc(s*.66,-s*.14, s*.17, 0, 6.29); ctx.stroke();
+}
+
+/* Lv4 河豚：滚圆身体 + 周身尖刺 + 大眼睛 */
+function paintLv4(s,tail,eye){
+  ctx.save(); ctx.translate(-s*.95,0); ctx.rotate(Math.sin(tail)*.3);
+  ell(-s*.15,0, s*.28, s*.3, '#7a9455');
+  ctx.restore();
+  for(let i=0;i<12;i++){
+    const a=i/12*Math.PI*2;
+    if(Math.cos(a)>.82 && Math.abs(Math.sin(a))<.45) continue; // 嘴前不留刺
+    const bx=Math.cos(a)*s*.92, by=Math.sin(a)*s*.86;
+    const tx=Math.cos(a)*s*1.14, ty=Math.sin(a)*s*1.08;
+    const px=-Math.sin(a)*s*.09, py=Math.cos(a)*s*.09;
+    tri(bx+px,by+py, tx,ty, bx-px,by-py, '#6d8448');
+  }
+  ell(0,0, s*.95, s*.88, vGrad(-s*.88,s*.88, '#7a9455','#f2ecd8'));
+  ctx.fillStyle='rgba(90,110,60,.45)';
+  const spots=[[-s*.3,-s*.35],[s*.1,-s*.45],[-s*.55,-s*.05],[s*.3,-s*.2]];
+  for(const p of spots){ ctx.beginPath(); ctx.arc(p[0],p[1],s*.09,0,6.29); ctx.fill(); }
+  ell(-s*.1,-s*.8, s*.18, s*.12, '#7a9455');
+  ctx.fillStyle='rgba(122,148,85,.9)';
+  ctx.beginPath(); ctx.ellipse(s*.15,s*.45, s*.22, s*.12, .5, 0, 6.29); ctx.fill();
+  drawEye(s*.45,-s*.28, s*.2, eye);
+  ctx.strokeStyle='rgba(60,70,40,.6)'; ctx.lineWidth=Math.max(1,s*.05);
+  ctx.beginPath(); ctx.arc(s*.88,s*.15, s*.07, 0, 6.29); ctx.stroke();
+}
+
+/* Lv5 石斑鱼：粗壮褐橙身体 + 深色斑驳 + 锯齿背鳍 + 大嘴 */
+function paintLv5(s,tail,eye){
+  ctx.save(); ctx.translate(-s*1.2,0); ctx.rotate(Math.sin(tail)*.28);
+  ell(-s*.2,0, s*.4, s*.62, '#a5531f');
+  ctx.restore();
+  ctx.fillStyle='#8a4a20';
+  ctx.beginPath(); ctx.moveTo(-s*.9,-s*.6);
+  for(let i=0;i<6;i++){
+    ctx.lineTo(-s*.9+(i+.5)*s*.3, -s*.95);
+    ctx.lineTo(-s*.9+(i+1)*s*.3, -s*.6);
+  }
+  ctx.closePath(); ctx.fill();
+  ell(0,0, s*1.25, s*.8, vGrad(-s*.8,s*.8, '#b15a24','#e8a25c'));
+  ctx.fillStyle='rgba(90,45,20,.35)';
+  const blotch=[[-s*.5,-s*.25,.3,.2],[s*.15,-s*.4,.25,.18],[s*.5,s*.1,.22,.16],[-s*.1,s*.3,.28,.15]];
+  for(const b of blotch){ ctx.beginPath(); ctx.ellipse(b[0],b[1],b[2]*s,b[3]*s,.4,0,6.29); ctx.fill(); }
+  ctx.fillStyle='rgba(255,220,170,.3)';
+  const pale=[[-s*.2,-s*.1],[s*.35,-s*.15],[-s*.7,s*.15]];
+  for(const p of pale){ ctx.beginPath(); ctx.arc(p[0],p[1],s*.1,0,6.29); ctx.fill(); }
+  ctx.strokeStyle='rgba(60,25,10,.7)'; ctx.lineWidth=Math.max(1.5,s*.09);
+  ctx.beginPath(); ctx.arc(s*.95,s*.2, s*.3, .25, Math.PI-.35); ctx.stroke();
+  ctx.lineWidth=Math.max(1,s*.06); ctx.strokeStyle='rgba(60,25,10,.4)';
+  ctx.beginPath(); ctx.arc(s*.35,0, s*.55, -1.1, 1.1); ctx.stroke();
+  drawEye(s*.66,-s*.24, s*.16, eye);
+}
+
+/* Lv6 龙鱼：修长金属紫身体 + 鳞弧 + 金色侧线 + 双触须 + 长背臀鳍 */
+function paintLv6(s,tail,eye){
+  ctx.save(); ctx.translate(-s*1.55,0); ctx.rotate(Math.sin(tail)*.3);
+  tri(0,0, -s*.6,-s*.55, -s*.4,0, '#8f5fe0');
+  tri(0,0, -s*.6, s*.55, -s*.4,0, '#8f5fe0');
+  ctx.restore();
+  ctx.fillStyle='rgba(143,95,224,.75)';
+  ctx.beginPath(); ctx.moveTo(-s*.3,-s*.42);
+  ctx.quadraticCurveTo(-s*.9,-s*.8, -s*1.5,-s*.3); ctx.lineTo(-s*1.4,-s*.1);
+  ctx.quadraticCurveTo(-s*.8,-s*.4, -s*.3,-s*.3); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-s*.3,s*.42);
+  ctx.quadraticCurveTo(-s*.9,s*.8, -s*1.5,s*.3); ctx.lineTo(-s*1.4,s*.1);
+  ctx.quadraticCurveTo(-s*.8,s*.4, -s*.3,s*.3); ctx.closePath(); ctx.fill();
+  ell(0,0, s*1.6, s*.48, vGrad(-s*.48,s*.48, '#b389f0','#6b3fc0'));
+  ell(-s*.1,0, s*1.3, s*.09, 'rgba(255,215,140,.4)');
+  ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=Math.max(1,s*.035);
+  for(let i=0;i<6;i++){
+    const x=-s*1.2+i*s*.42;
+    ctx.beginPath(); ctx.arc(x,0, s*.34, -1.2, 1.2); ctx.stroke();
+  }
+  ctx.strokeStyle='#e8d5a0'; ctx.lineWidth=Math.max(1,s*.05);
+  ctx.beginPath(); ctx.moveTo(s*1.35,s*.16);
+  ctx.quadraticCurveTo(s*1.7,s*.35, s*1.6,s*.55); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s*1.3,s*.2);
+  ctx.quadraticCurveTo(s*1.55,s*.45, s*1.4,s*.62); ctx.stroke();
+  drawEye(s*1.05,-s*.12, s*.14, eye);
+}
+
+/* Lv7 鲨鱼：尖吻鱼雷身 + 三角背鳍 + 上翘尾 + 鳃裂 + 背蓝腹白 */
+function paintLv7(s,tail,eye){
+  ctx.save(); ctx.translate(-s*1.45,0); ctx.rotate(Math.sin(tail)*.25);
+  tri(0,0, -s*.55,-s*.85, -s*.25,-s*.05, '#6d8fa8');
+  tri(0,0, -s*.4, s*.5, -s*.2, s*.05, '#6d8fa8');
+  ctx.restore();
+  tri(-s*.25,-s*.45, -s*.05,-s*1.15, s*.35,-s*.42, '#6d8fa8');
+  tri(s*.15,s*.3, -s*.35,s*.85, s*.5,s*.42, 'rgba(109,143,168,.9)');
+  ell(0,0, s*1.5, s*.55, vGrad(-s*.55,s*.55, '#7d9db4','#eef6fb'));
+  tri(s*1.05,-s*.32, s*1.72,0, s*1.05,s*.32, '#86a6bc');
+  ctx.strokeStyle='rgba(40,70,90,.5)'; ctx.lineWidth=Math.max(1,s*.045);
+  for(let i=0;i<4;i++){
+    const x=s*.5+i*s*.14;
+    ctx.beginPath(); ctx.moveTo(x,-s*.28); ctx.lineTo(x-s*.06,s*.28); ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(40,70,90,.6)'; ctx.lineWidth=Math.max(1,s*.06);
+  ctx.beginPath(); ctx.arc(s*1.0,-s*.02, s*.45, Math.PI*.35, Math.PI*.75); ctx.stroke();
+  drawEye(s*.95,-s*.14, s*.13, eye);
+}
+
+/* Lv8 深海鮟鱇：巨头血口尖牙 + 发光钓饵 */
+function paintLv8(s,tail,eye,glow){
+  ctx.save(); ctx.translate(-s*1.05,s*.05); ctx.rotate(Math.sin(tail)*.3);
+  tri(0,0, -s*.5,-s*.4, -s*.35,0, '#3a0d16');
+  tri(0,0, -s*.5, s*.4, -s*.35,0, '#3a0d16');
+  ctx.restore();
+  ell(-s*.55,s*.08, s*.65, s*.42, vGrad(-s*.3,s*.5, '#4a1018','#2a0a12'));
+  // 发光钓竿与钓饵
+  const gl=.6+.4*Math.sin(glow);
+  ctx.strokeStyle='rgba(150,120,130,.9)'; ctx.lineWidth=Math.max(1,s*.045);
+  ctx.beginPath(); ctx.moveTo(s*.05,-s*.55);
+  ctx.quadraticCurveTo(s*.5,-s*1.25, s*.95,-s*.95); ctx.stroke();
+  ctx.save();
+  ctx.shadowColor='rgba(150,240,255,'+gl.toFixed(2)+')';
+  ctx.shadowBlur=s*.35*gl+.001;
+  ctx.fillStyle='rgba(190,250,255,'+(.75+.25*gl).toFixed(2)+')';
+  ctx.beginPath(); ctx.arc(s*.97,-s*.92, s*.11, 0, 6.29); ctx.fill();
+  ctx.restore();
+  // 巨头
+  ell(s*.3,0, s*.8, s*.72, vGrad(-s*.72,s*.72, '#5a1420','#2a0a12'));
+  ctx.fillStyle='rgba(160,40,50,.35)';
+  const marks=[[s*.05,-s*.3],[s*.45,-s*.45],[s*.6,s*.35]];
+  for(const p of marks){ ctx.beginPath(); ctx.arc(p[0],p[1],s*.08,0,6.29); ctx.fill(); }
+  // 血盆大口 + 向内倒钩尖牙
+  ctx.fillStyle='#12060a';
+  ctx.beginPath(); ctx.arc(s*.42,s*.1, s*.5, Math.PI*.05, Math.PI*.95); ctx.closePath(); ctx.fill();
+  for(let i=0;i<7;i++){
+    const a=Math.PI*.12+i*(Math.PI*.76/6);
+    const mx=s*.42+Math.cos(a)*s*.5, my=s*.1+Math.sin(a)*s*.5;
+    const ix=s*.42+Math.cos(a)*s*.34, iy=s*.1+Math.sin(a)*s*.34;
+    const px=-Math.sin(a)*s*.05, py=Math.cos(a)*s*.05;
+    tri(mx+px,my+py, ix,iy, mx-px,my-py, '#e8e4da');
+  }
+  ctx.fillStyle='rgba(58,13,22,.9)';
+  ctx.beginPath(); ctx.ellipse(-s*.1,s*.45, s*.28, s*.14, .5, 0, 6.29); ctx.fill();
+  drawEye(s*.62,-s*.3, s*.13, eye||'#caa24a');
+}
+
+const PAINTERS = [paintLv1,paintLv2,paintLv3,paintLv4,paintLv5,paintLv6,paintLv7,paintLv8];
+
+/* 统一入口：平移旋转后按类型绘制；朝左时垂直镜像避免颠倒 */
+function drawFishBody(x,y,s,ti,angle,tail,eye,glow){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(angle);
+  if(Math.cos(angle)<0) ctx.scale(1,-1);
+  PAINTERS[ti](s, tail, eye, glow);
+  ctx.restore();
+}
+
+function draw(){
+  // 摄像机偏移：玩家永远绘制在屏幕正中央
+  const ox = W/2 - player.x, oy = H/2 - player.y;
+  // 背景
+  ctx.fillStyle=bgGrad; ctx.fillRect(0,0,W,H);
+  // 光柱
+  ctx.save();
+  ctx.globalAlpha=.05; ctx.fillStyle='#cfefff';
+  for(let i=0;i<3;i++){
+    const bx=W*(.15+.3*i)+Math.sin(G.time*.3+i*2)*50;
+    ctx.beginPath();
+    ctx.moveTo(bx,-60); ctx.lineTo(bx+170,-60);
+    ctx.lineTo(bx+420,H); ctx.lineTo(bx+140,H);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  // 浮游微粒（视差层，体现世界在移动）
+  ctx.fillStyle='rgba(180,220,255,.14)';
+  for(let i=0;i<70;i++){
+    const px=(((i*173.31 - player.x*.45) % (W+40)) + W+40) % (W+40) - 20;
+    const py=(((i*97.77  - player.y*.45) % (H+40)) + H+40) % (H+40) - 20;
+    ctx.fillRect(px, py, 2, 2);
+  }
+  ctx.fillStyle='rgba(140,190,235,.09)';
+  for(let i=0;i<46;i++){
+    const px=(((i*251.13 - player.x*.2) % (W+60)) + W+60) % (W+60) - 30;
+    const py=(((i*141.41 - player.y*.2) % (H+60)) + H+60) % (H+60) - 30;
+    ctx.fillRect(px, py, 3, 3);
+  }
+  // 气泡
+  ctx.strokeStyle='rgba(190,230,255,.35)';
+  ctx.lineWidth=1.5;
+  for(const b of bubbles){ ctx.beginPath(); ctx.arc(b.x+ox, b.y+oy, b.r, 0, 6.29); ctx.stroke(); }
+  // 敌鱼
+  for(const f of fishes){
+    let sx=f.x+ox, sy=f.y+oy;
+    if(sx<-f.t.size*3 || sx>W+f.t.size*3 || sy<-f.t.size*3 || sy>H+f.t.size*3) continue;
+    const bigger = G.running && !G.over && f.lv>G.level;
+    // 逃跑时受惊发抖
+    if(f.state==='flee'){ sx+=Math.sin(G.time*30+f.ph)*1.2; sy+=Math.cos(G.time*26+f.ph)*1.2; }
+    // 警告圈：比你大的鱼标红圈；正在追击时红圈更亮更粗
+    if(bigger){
+      const chasing = f.state==='chase';
+      const a = chasing ? (.38+.2*Math.sin(G.time*6)) : (.18+.1*Math.sin(G.time*4));
+      ctx.save();
+      ctx.strokeStyle='rgba(255,90,90,'+a.toFixed(3)+')';
+      ctx.lineWidth = chasing?3:2;
+      ctx.beginPath(); ctx.ellipse(sx, sy, f.t.size*1.5, f.t.size, f.angle, 0, 6.29); ctx.stroke();
+      ctx.restore();
+    }
+    // 攻击/逃跑状态标识：头顶跳动的 "!"（追击=红，逃跑=蓝）+ 尾部速度线
+    if(f.state){
+      const col = f.state==='chase' ? '#ff5d5d' : '#9fe8ff';
+      const bounce = Math.abs(Math.sin(G.time*6+f.ph))*4;
+      ctx.save();
+      ctx.textAlign='center';
+      ctx.font='bold '+Math.round(13+f.t.size*.32)+'px sans-serif';
+      ctx.strokeStyle='rgba(0,20,40,.75)'; ctx.lineWidth=3;
+      ctx.strokeText('!', sx, sy-f.t.size*1.1-bounce);
+      ctx.fillStyle=col;
+      ctx.fillText('!', sx, sy-f.t.size*1.1-bounce);
+      ctx.restore();
+      // 速度线（沿尾部向后）
+      const sp=Math.hypot(f.vx,f.vy)||1;
+      const ux=-f.vx/sp, uy=-f.vy/sp;
+      const pxx=-uy, pyy=ux;
+      ctx.strokeStyle = f.state==='chase' ? 'rgba(255,110,110,.5)' : 'rgba(205,240,255,.45)';
+      ctx.lineWidth=2;
+      for(let j=0;j<3;j++){
+        const off=(j-1)*f.t.size*.55;
+        const x1=sx+ux*f.t.size*1.35+pxx*off, y1=sy+uy*f.t.size*1.35+pyy*off;
+        const len=f.t.size*(.5+.22*Math.sin(G.time*10+j*2+f.ph));
+        ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x1+ux*len, y1+uy*len); ctx.stroke();
+      }
+    }
+    drawFishBody(sx, sy, f.t.size, f.lv-1, f.angle, f.tail,
+      f.state==='chase' ? '#d21f2f' : null, G.time*4+f.ph);
+  }
+  // 玩家（固定在屏幕正中央）
+  if(G.running && !G.over){
+    const cx=W/2, cy=H/2;
+    ctx.save();
+    if(G.inv>0){
+      ctx.globalAlpha=.4+.6*Math.abs(Math.sin(G.time*10));
+      ctx.strokeStyle='rgba(140,240,255,.6)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(cx, cy, player.size*1.6, 0, 6.29); ctx.stroke();
+    }
+    drawFishBody(cx, cy, player.size, G.level-1, player.angle, player.tail, null, G.time*4);
+    ctx.restore();
+    // 按住左键时：画出 中心→指针 的方向指引线
+    const mx=G.mouse.x, my=G.mouse.y;
+    if(G.lmb){
+      const dx=mx-cx, dy=my-cy, d=Math.hypot(dx,dy);
+      if(d>14){
+        ctx.strokeStyle='rgba(124,240,255,.35)'; ctx.lineWidth=2;
+        ctx.setLineDash([6,8]);
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(mx,my); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // 鼠标准星
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(mx,my,7,0,6.29); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(mx-12,my); ctx.lineTo(mx-4,my);
+    ctx.moveTo(mx+4,my);  ctx.lineTo(mx+12,my);
+    ctx.moveTo(mx,my-12); ctx.lineTo(mx,my-4);
+    ctx.moveTo(mx,my+4);  ctx.lineTo(mx,my+12);
+    ctx.stroke();
+  }
+  // 粒子
+  for(const p of parts){
+    ctx.globalAlpha=Math.max(0, Math.min(1, p.life*2));
+    ctx.fillStyle=p.c;
+    ctx.beginPath(); ctx.arc(p.x+ox, p.y+oy, p.r, 0, 6.29); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // 飘字
+  ctx.textAlign='center';
+  ctx.font='bold 17px "Microsoft YaHei",sans-serif';
+  for(const t of floats){
+    ctx.globalAlpha=Math.max(0, Math.min(1, t.life*1.6));
+    ctx.strokeStyle='rgba(0,20,40,.7)'; ctx.lineWidth=3;
+    ctx.strokeText(t.txt, t.x+ox, t.y+oy);
+    ctx.fillStyle=t.c;
+    ctx.fillText(t.txt, t.x+ox, t.y+oy);
+  }
+  ctx.globalAlpha=1;
+}
+
+/* ================= 主循环 ================= */
+let last=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(.05, (now-last)/1000); last=now;
+  G.time+=dt;
+  if(G.running){
+    if(G.inv>0) G.inv-=dt;
+    updPlayer(dt);
+  }
+  updFishes(dt);
+  if(G.running && !G.over) collide();
+  spawnTick(dt);
+  updFx(dt);
+  draw();
+}
+requestAnimationFrame(loop);
+
+// 开始界面的背景鱼群（覆盖全部 8 种造型）
+for(let i=0;i<8;i++) spawnFish(true, i+1);
+</script>
+</body>
+</html>
