@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>贪吃蛇大作战</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#05070d;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #game { display:block; cursor:crosshair; }
+
+  .overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(3,6,12,.68); backdrop-filter:blur(5px); z-index:20; transition:opacity .35s; }
+  .overlay.hidden { opacity:0; pointer-events:none; }
+  .panel { background:rgba(13,20,38,.94); border:1px solid rgba(120,160,255,.18); border-radius:18px;
+    padding:42px 58px; text-align:center; box-shadow:0 24px 80px rgba(0,0,0,.6); max-width:560px; }
+  .panel h1 { color:#eaf1ff; font-size:34px; letter-spacing:3px; margin-bottom:16px; }
+  .panel h1 span { color:#5eead4; }
+  .panel p { color:#9fb2d8; font-size:14px; line-height:2; }
+  .panel p b { color:#eaf1ff; }
+  .panel button { margin-top:26px; padding:12px 46px; font-size:16px; color:#04101f;
+    background:linear-gradient(135deg,#5eead4,#38bdf8); border:none; border-radius:999px;
+    cursor:pointer; font-weight:700; letter-spacing:3px; }
+  .panel button:hover { filter:brightness(1.12); }
+  #finalStats b { color:#7dfad2; font-size:16px; }
+
+  #hud { position:fixed; top:14px; left:14px; display:flex; gap:10px; z-index:5; }
+  .stat { background:rgba(10,16,32,.72); border:1px solid rgba(120,160,255,.15); border-radius:10px;
+    padding:7px 14px; color:#8fa8d8; font-size:12px; backdrop-filter:blur(6px); min-width:72px; }
+  .stat b { display:block; font-size:17px; color:#fff; margin-top:2px; }
+
+  #board { position:fixed; top:14px; right:14px; background:rgba(10,16,32,.72);
+    border:1px solid rgba(120,160,255,.15); border-radius:10px; padding:10px 14px;
+    min-width:180px; z-index:5; backdrop-filter:blur(6px); }
+  #board h3 { color:#8fa8d8; font-size:12px; font-weight:600; letter-spacing:2px; margin-bottom:6px; }
+  .row { display:flex; align-items:center; gap:8px; font-size:13px; color:#dbe6ff; padding:2px 0; }
+  .row .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .row.me { color:#7dfad2; font-weight:700; }
+  .row .sc { margin-left:auto; opacity:.85; }
+
+  #hint { position:fixed; bottom:14px; left:14px; color:rgba(200,215,245,.5); font-size:12px; z-index:5; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="stat">得分<b id="sScore">0</b></div>
+  <div class="stat">长度<b id="sLen">0</b></div>
+  <div class="stat">时间<b id="sTime">00:00</b></div>
+  <div class="stat">击杀<b id="sKill">0</b></div>
+</div>
+<div id="board"><h3>排行榜</h3></div>
+<div id="hint">移动鼠标控制方向 · 蛇头始终在画面中央 · 撞到其他蛇的身体或边界会死亡</div>
+
+<div id="startOverlay" class="overlay">
+  <div class="panel">
+    <h1>贪吃蛇<span>大作战</span></h1>
+    <p>移动鼠标控制你的蛇，吃掉发光的食物不断成长。<br>
+       你的蛇头始终位于画面中央，所有蛇永远在移动。<br>
+       <b>蛇头撞到其他蛇的身体（或边界）即死亡</b>，尸体将化为大量食物。<br>
+       你死亡则游戏结束，击败 AI 蛇登上排行榜吧！</p>
+    <button id="startBtn">开始游戏</button>
+  </div>
+</div>
+<div id="overOverlay" class="overlay hidden">
+  <div class="panel">
+    <h1>游戏结束</h1>
+    <p id="finalStats"></p>
+    <button id="restartBtn">再来一局</button>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+
+let cw = 0, ch = 0, dpr = 1;
+function resize(){
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cw = window.innerWidth; ch = window.innerHeight;
+  canvas.width = cw * dpr; canvas.height = ch * dpr;
+  canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- 常量 ----------
+const WORLD = 4200;          // 世界边长
+const FOOD_TARGET = 300;     // 场上食物数量
+const AI_COUNT = 6;          // AI 蛇数量
+const CELL = 120;            // 空间网格单元格
+const TURN_RATE = 4.6;       // 转向速率 (rad/s)
+const TAU = Math.PI * 2;
+
+const AI_NAMES = ['疾风','幻影','雷霆','蓝鲸','夜行者','闪电','毒牙','幽灵','猎手','暴走'];
+let nameIdx = 0;
+
+// ---------- 状态 ----------
+let snakes = [], foods = [], effects = [], respawnAt = [];
+let player = null;
+let running = false, over = false;
+let startTime = 0, elapsed = 0;
+let cam = { x: WORLD/2, y: WORLD/2 };
+let mouse = { x: cw/2 + 100, y: ch/2 };
+let lastHud = 0;
+
+const rand = (a, b) => a + Math.random() * (b - a);
+function normAngle(a){ while(a > Math.PI) a -= TAU; while(a < -Math.PI) a += TAU; return a; }
+const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+
+// ---------- 蛇 ----------
+class Snake {
+  constructor(x, y, hue, isPlayer, name){
+    this.x = x; this.y = y;
+    this.angle = Math.random() * TAU;
+    this.targetAngle = this.angle;
+    this.hue = hue;
+    this.isPlayer = isPlayer;
+    this.name = name;
+    this.mass = 0;
+    this.kills = 0;
+    this.alive = true;
+    this.wanderA = 0;
+    this.segs = [];
+    const n = 13;
+    for(let i = 0; i < n; i++)
+      this.segs.push({ x: x - Math.cos(this.angle) * i * 7, y: y - Math.sin(this.angle) * i * 7 });
+  }
+  get radius(){ return 7 + Math.min(9, Math.sqrt(this.mass + 1) * 0.9); }
+  get segCount(){ return 13 + Math.floor(this.mass * 0.6); }
+  get speed(){ return this.isPlayer ? 160 : 150; }
+  update(dt){
+    // 有限角速度转向，保证平滑轨迹
+    let d = normAngle(this.targetAngle - this.angle);
+    const mt = TURN_RATE * dt;
+    if (Math.abs(d) > mt) d = Math.sign(d) * mt;
+    this.angle = normAngle(this.angle + d);
+    // 永远保持移动
+    this.x += Math.cos(this.angle) * this.speed * dt;
+    this.y += Math.sin(this.angle) * this.speed * dt;
+    // 身体链式跟随（固定间距）
+    const sp = Math.max(3, this.radius * 0.45);
+    this.segs[0].x = this.x; this.segs[0].y = this.y;
+    for(let i = 1; i < this.segs.length; i++){
+      const p = this.segs[i], q = this.segs[i-1];
+      const dx = p.x - q.x, dy = p.y - q.y;
+      const dist = Math.hypot(dx, dy) || 0.0001;
+      const t = sp / dist;
+      p.x = q.x + dx * t; p.y = q.y + dy * t;
+    }
+    // 吃食物后身体变长
+    let add = Math.min(3, this.segCount - this.segs.length);
+    for(let i = 0; i < add; i++){
+      const t = this.segs[this.segs.length - 1];
+      this.segs.push({ x: t.x, y: t.y });
+    }
+  }
+}
+
+// ---------- 空间网格（蛇身索引，用于碰撞与AI感知） ----------
+const grid = new Map();
+function rebuildGrid(){
+  grid.clear();
+  for(const s of snakes){
+    if(!s.alive) continue;
+    const r = s.radius;
+    for(let i = 0; i < s.segs.length; i++){
+      const p = s.segs[i];
+      const k = ((p.x / CELL) | 0) * 100000 + ((p.y / CELL) | 0);
+      let arr = grid.get(k);
+      if(!arr){ arr = []; grid.set(k, arr); }
+      arr.push({ x: p.x, y: p.y, r, s });
+    }
+  }
+}
+function queryNear(x, y, r, out){
+  const c = Math.ceil(r / CELL);
+  const cx = (x / CELL) | 0, cy = (y / CELL) | 0;
+  for(let i = cx - c; i <= cx + c; i++)
+    for(let j = cy - c; j <= cy + c; j++){
+      const arr = grid.get(i * 100000 + j);
+      if(arr) for(const e of arr) out.push(e);
+    }
+}
+
+// ---------- 食物 ----------
+function spawnFood(){
+  const big = Math.random() < 0.12;
+  foods.push({
+    x: rand(60, WORLD - 60), y: rand(60, WORLD - 60),
+    r: big ? rand(6, 7.5) : rand(3, 4.5),
+    v: big ? 2 : 1,
+    hue: Math.random() * 360
+  });
+}
+
+// ---------- AI ----------
+function probeSafe(s, a){
+  const c = Math.cos(a), si = Math.sin(a), r = s.radius;
+  for(const d of [60, 125]){
+    const px = s.x + c * d, py = s.y + si * d;
+    if(px < 40 || py < 40 || px > WORLD - 40 || py > WORLD - 40) return false;
+    const near = [];
+    queryNear(px, py, r + 40, near);
+    for(const e of near){
+      if(e.s === s) continue;
+      const dx = e.x - px, dy = e.y - py;
+      const rr = e.r + r + 20;
+      if(dx*dx + dy*dy < rr*rr) return false;
+    }
+  }
+  return true;
+}
+function aiThink(s){
+  // 朝最近的食物移动，否则随机游走
+  let desired = null, bestD2 = 550 * 550;
+  for(const f of foods){
+    const dx = f.x - s.x, dy = f.y - s.y, d2 = dx*dx + dy*dy;
+    if(d2 < bestD2){ bestD2 = d2; desired = Math.atan2(dy, dx); }
+  }
+  if(desired === null){
+    s.wanderA += rand(-1, 1) * 1.8 * 0.016;
+    desired = normAngle(s.angle + Math.sin(s.wanderA) * 0.9);
+  }
+  // 靠近边界时朝中心走
+  const m = 260;
+  if(s.x < m || s.y < m || s.x > WORLD - m || s.y > WORLD - m)
+    desired = Math.atan2(WORLD/2 - s.y, WORLD/2 - s.x);
+  // 在候选方向里选：安全优先，其次贴合期望方向
+  const offs = [0, 0.45, -0.45, 0.9, -0.9, 1.4, -1.4, 2.0, -2.0, 2.6, -2.6, Math.PI];
+  let best = -1e9, bestOff = 0;
+  for(const o of offs){
+    const a = normAngle(s.angle + o);
+    const safe = probeSafe(s, a);
+    const align = Math.cos(normAngle(desired - a));
+    const sc = safe ? (align * 3 - Math.abs(o) * 0.55) : (-20 + Math.abs(o));
+    if(sc > best){ best = sc; bestOff = o; }
+  }
+  s.targetAngle = normAngle(s.angle + bestOff);
+}
+
+// ---------- 生成 / 死亡 ----------
+function spawnAI(){
+  let x = WORLD/2, y = WORLD/2;
+  for(let t = 0; t < 40; t++){
+    x = rand(300, WORLD - 300); y = rand(300, WORLD - 300);
+    let ok = true;
+    if(player && player.alive){
+      const dx = player.x - x, dy = player.y - y;
+      if(dx*dx + dy*dy < 600*600) ok = false;
+    }
+    if(ok){
+      const near = [];
+      queryNear(x, y, 320, near);
+      for(const e of near){
+        const dx = e.x - x, dy = e.y - y;
+        if(dx*dx + dy*dy < 300*300){ ok = false; break; }
+      }
+    }
+    if(ok) break;
+  }
+  const hue = Math.random() * 360;
+  snakes.push(new Snake(x, y, hue, false, AI_NAMES[nameIdx++ % AI_NAMES.length]));
+}
+
+function killSnake(s, killer){
+  s.alive = false;
+  effects.push({ x: s.x, y: s.y, r: s.radius, t: 0 });
+  // 尸体化作食物
+  for(let i = 0; i < s.segs.length; i += 2){
+    if(foods.length >= 950) break;
+    const p = s.segs[i];
+    foods.push({ x: p.x + rand(-6, 6), y: p.y + rand(-6, 6), r: rand(4.5, 6.5), v: 3, hue: s.hue });
+  }
+  if(killer && killer !== s) killer.kills++;
+  if(s.isPlayer){
+    over = true;
+    elapsed = (performance.now() - startTime) / 1000;
+    setTimeout(showGameOver, 900);
+  } else {
+    respawnAt.push(performance.now() / 1000 + 2);
+  }
+}
+
+function checkCollisions(){
+  const dead = [];
+  for(const s of snakes){
+    if(!s.alive) continue;
+    // 撞其他蛇的身体
+    const near = [];
+    queryNear(s.x, s.y, s.radius + 40, near);
+    for(const e of near){
+      if(e.s === s || !e.s.alive) continue;
+      const dx = e.x - s.x, dy = e.y - s.y;
+      const rr = e.r + s.radius;
+      if(dx*dx + dy*dy < rr*rr){ dead.push([s, e.s]); break; }
+    }
+    // 撞边界
+    if(s.alive && (s.x < s.radius || s.y < s.radius || s.x > WORLD - s.radius || s.y > WORLD - s.radius))
+      dead.push([s, null]);
+  }
+  for(const [s, k] of dead) if(s.alive) killSnake(s, k);
+}
+
+function eatFood(s){
+  for(let i = foods.length - 1; i >= 0; i--){
+    const f = foods[i];
+    const dx = f.x - s.x, dy = f.y - s.y;
+    const rr = s.radius + f.r + 4;
+    if(dx*dx + dy*dy < rr*rr){
+      s.mass += f.v;
+      foods[i] = foods[foods.length - 1];
+      foods.pop();
+    }
+  }
+}
+
+// ---------- 世界 ----------
+function initWorld(){
+  snakes = []; foods = []; effects = []; respawnAt = [];
+  nameIdx = 0;
+  player = new Snake(WORLD/2, WORLD/2, 150, true, '你');
+  snakes.push(player);
+  for(let i = 0; i < AI_COUNT; i++) spawnAI();
+  for(let i = 0; i < FOOD_TARGET; i++) spawnFood();
+  cam.x = player.x; cam.y = player.y;
+}
+
+// ---------- 渲染 ----------
+function drawSnake(s){
+  const n = s.segs.length, r = s.radius;
+  for(let i = n - 1; i >= 1; i--){
+    const p = s.segs[i];
+    const rr = r * (1 - 0.35 * (i / n));
+    ctx.fillStyle = `hsl(${s.hue},72%,${36 + 14 * (1 - i/n)}%)`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rr, 0, TAU);
+    ctx.fill();
+  }
+  // 蛇头
+  const h = s.segs[0];
+  ctx.fillStyle = `hsl(${s.hue},80%,55%)`;
+  ctx.beginPath(); ctx.arc(h.x, h.y, r, 0, TAU); ctx.fill();
+  // 眼睛
+  const px = Math.cos(s.angle), py = Math.sin(s.angle);
+  const lx = -py, ly = px;
+  for(const sg of [-1, 1]){
+    const ex = h.x + px * r * 0.35 + lx * r * 0.5 * sg;
+    const ey = h.y + py * r * 0.35 + ly * r * 0.5 * sg;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(ex, ey, r * 0.34, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#101418';
+    ctx.beginPath(); ctx.arc(ex + px * r * 0.14, ey + py * r * 0.14, r * 0.17, 0, TAU); ctx.fill();
+  }
+  if(!s.isPlayer){
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(s.name, h.x, h.y - r - 10);
+  }
+}
+
+function render(now){
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#05070d';
+  ctx.fillRect(0, 0, cw, ch);
+  if(!player) return;
+
+  const z = Math.max(0.72, Math.min(1.12, 1.12 - Math.sqrt(player.mass) * 0.02));
+  const vw = cw / z, vh = ch / z;
+  const xmin = cam.x - vw/2 - 60, xmax = cam.x + vw/2 + 60;
+  const ymin = cam.y - vh/2 - 60, ymax = cam.y + vh/2 + 60;
+
+  ctx.save();
+  ctx.translate(cw/2, ch/2);
+  ctx.scale(z, z);
+  ctx.translate(-cam.x, -cam.y);
+
+  // 世界背景与网格
+  ctx.fillStyle = '#0c1120';
+  ctx.fillRect(0, 0, WORLD, WORLD);
+  ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for(let gx = Math.max(0, Math.floor(xmin/120)*120); gx <= xmax; gx += 120){
+    if(gx > WORLD) break;
+    ctx.moveTo(gx, Math.max(0, ymin)); ctx.lineTo(gx, Math.min(WORLD, ymax));
+  }
+  for(let gy = Math.max(0, Math.floor(ymin/120)*120); gy <= ymax; gy += 120){
+    if(gy > WORLD) break;
+    ctx.moveTo(Math.max(0, xmin), gy); ctx.lineTo(Math.min(WORLD, xmax), gy);
+  }
+  ctx.stroke();
+
+  // 边界
+  ctx.strokeStyle = 'rgba(255,70,70,0.25)';
+  ctx.lineWidth = 22;
+  ctx.strokeRect(0, 0, WORLD, WORLD);
+  ctx.strokeStyle = 'rgba(255,80,80,0.9)';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(0, 0, WORLD, WORLD);
+
+  // 食物
+  for(const f of foods){
+    if(f.x < xmin || f.x > xmax || f.y < ymin || f.y > ymax) continue;
+    const fr = f.r * (1 + 0.12 * Math.sin(now * 0.003 + f.x * 0.05));
+    ctx.fillStyle = `hsla(${f.hue},85%,60%,0.16)`;
+    ctx.beginPath(); ctx.arc(f.x, f.y, fr * 2.4, 0, TAU); ctx.fill();
+    ctx.fillStyle = `hsl(${f.hue},85%,62%)`;
+    ctx.beginPath(); ctx.arc(f.x, f.y, fr, 0, TAU); ctx.fill();
+  }
+
+  // 死亡特效（扩散圆环）
+  for(const e of effects){
+    const p = e.t / 0.6;
+    ctx.strokeStyle = `rgba(255,255,255,${0.5 * (1 - p)})`;
+    ctx.lineWidth = 3 * (1 - p) + 1;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r + p * 130, 0, TAU); ctx.stroke();
+  }
+
+  // 蛇（按体型从小到大绘制，玩家在最上层）
+  const order = snakes.filter(s => s.alive).sort((a, b) => a.mass - b.mass);
+  for(const s of order) if(!s.isPlayer) drawSnake(s);
+  if(player.alive) drawSnake(player);
+
+  ctx.restore();
+
+  // 小地图（右下角）
+  const S = 150, pad = 16, mx = cw - S - pad, my = ch - S - pad, k = S / WORLD;
+  ctx.fillStyle = 'rgba(8,12,24,0.7)';
+  ctx.fillRect(mx, my, S, S);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx, my, S, S);
+  for(const s of snakes){
+    if(!s.alive) continue;
+    ctx.fillStyle = s.isPlayer ? '#ffffff' : `hsl(${s.hue},70%,55%)`;
+    ctx.beginPath();
+    ctx.arc(mx + s.x * k, my + s.y * k, s.isPlayer ? 3 : 2, 0, TAU);
+    ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.strokeRect(mx + (cam.x - vw/2) * k, my + (cam.y - vh/2) * k, vw * k, vh * k);
+}
+
+// ---------- HUD ----------
+function updateHud(){
+  if(player){
+    $('sScore').textContent = player.mass;
+    $('sLen').textContent = player.segs.length;
+    $('sTime').textContent = fmt(elapsed);
+    $('sKill').textContent = player.kills;
+  }
+  const list = snakes.filter(s => s.alive).sort((a, b) => b.mass - a.mass).slice(0, 6);
+  $('board').innerHTML = '<h3>排行榜</h3>' + list.map((s, i) =>
+    `<div class="row${s.isPlayer ? ' me' : ''}">` +
+    `<span class="dot" style="background:hsl(${s.hue},70%,55%)"></span>` +
+    `<span>${i + 1}. ${s.name}</span><span class="sc">${s.mass}</span></div>`
+  ).join('');
+}
+
+function showGameOver(){
+  $('finalStats').innerHTML =
+    `最终得分 <b>${player.mass}</b> · 长度 <b>${player.segs.length}</b><br>` +
+    `存活 <b>${fmt(elapsed)}</b> · 击杀 <b>${player.kills}</b>`;
+  $('overOverlay').classList.remove('hidden');
+}
+
+// ---------- 输入 ----------
+window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+window.addEventListener('touchmove', e => {
+  if(e.touches[0]){ mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; }
+  e.preventDefault();
+}, { passive: false });
+
+function startGame(){
+  initWorld();
+  over = false;
+  running = true;
+  startTime = performance.now();
+  elapsed = 0;
+}
+$('startBtn').addEventListener('click', () => { $('startOverlay').classList.add('hidden'); startGame(); });
+$('restartBtn').addEventListener('click', () => { $('overOverlay').classList.add('hidden'); startGame(); });
+
+// ---------- 主循环 ----------
+let last = performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.033, (now - last) / 1000);
+  last = now;
+
+  if(running){
+    const t = now / 1000;
+    // AI 阵亡后延时重生，保持 AI 数量
+    for(let i = respawnAt.length - 1; i >= 0; i--)
+      if(t >= respawnAt[i]){ respawnAt.splice(i, 1); spawnAI(); }
+
+    // 玩家：蛇头固定在画面中央，鼠标相对中心的方向即前进方向
+    if(player.alive){
+      const dx = mouse.x - cw/2, dy = mouse.y - ch/2;
+      if(dx*dx + dy*dy > 144) player.targetAngle = Math.atan2(dy, dx);
+    }
+
+    rebuildGrid();
+    for(const s of snakes) if(s.alive && !s.isPlayer) aiThink(s);
+    for(const s of snakes) if(s.alive) s.update(dt);
+
+    rebuildGrid();
+    for(const s of snakes) if(s.alive) eatFood(s);
+    checkCollisions();
+    while(foods.length < FOOD_TARGET) spawnFood();
+
+    for(const e of effects) e.t += dt;
+    effects = effects.filter(e => e.t < 0.6);
+
+    // 摄像机平滑跟随玩家蛇头
+    if(player.alive){
+      const k = Math.min(1, dt * 10);
+      cam.x += (player.x - cam.x) * k;
+      cam.y += (player.y - cam.y) * k;
+    }
+    if(!over) elapsed = (performance.now() - startTime) / 1000;
+  }
+
+  render(now);
+  if(now - lastHud > 400){ updateHud(); lastHud = now; }
+}
+
+initWorld();
+updateHud();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
