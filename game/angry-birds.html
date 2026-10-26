@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>愤怒的小鸟 · Angry Birds</title>
+<style>
+  :root { --u: 12.8px; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(120% 120% at 50% 0%, #24425c 0%, #0b1118 70%);
+    display: grid; place-items: center; overflow: hidden;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    color: #fff; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .stage {
+    position: relative;
+    width: min(100vw, 177.78vh);
+    aspect-ratio: 16 / 9;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.07);
+    background: #9fd8f5;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .hud { position: absolute; inset: 0; pointer-events: none; }
+
+  .hud-top {
+    position: absolute;
+    top: calc(var(--u) * 1.6); left: calc(var(--u) * 1.6); right: calc(var(--u) * 1.6);
+    display: flex; gap: calc(var(--u) * 0.8); align-items: center;
+  }
+  .chip {
+    display: flex; align-items: center; gap: calc(var(--u) * 0.5);
+    background: rgba(9, 24, 36, .40);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.20);
+    border-radius: 999px;
+    padding: calc(var(--u) * 0.55) calc(var(--u) * 1.25);
+    font-size: calc(var(--u) * 1.05);
+    font-weight: 600; letter-spacing: .02em;
+    text-shadow: 0 1px 2px rgba(0,0,0,.35);
+    white-space: nowrap;
+  }
+  .chip b { color: #ffe066; font-size: calc(var(--u) * 1.35); font-weight: 800; }
+  .spacer { flex: 1; }
+
+  .btn {
+    pointer-events: auto; cursor: pointer; border: none; font-family: inherit;
+    font-weight: 700; color: #fff; letter-spacing: .04em;
+    transition: transform .12s ease, filter .12s ease, background .12s ease;
+  }
+  .btn:active { transform: scale(.94); }
+  .btn.ghost {
+    background: rgba(9, 24, 36, .40);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 999px;
+    padding: calc(var(--u) * 0.55) calc(var(--u) * 1.35);
+    font-size: calc(var(--u) * 1.02);
+  }
+  .btn.ghost:hover { background: rgba(255,255,255,.18); }
+  .btn.icon { padding: calc(var(--u) * 0.5) calc(var(--u) * 0.85); font-size: calc(var(--u) * 1.1); }
+
+  .overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(6, 16, 26, .45);
+    -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+    opacity: 0; visibility: hidden;
+    transition: opacity .3s ease, visibility .3s;
+  }
+  .overlay.show { opacity: 1; visibility: visible; }
+  .panel {
+    pointer-events: auto;
+    min-width: calc(var(--u) * 26);
+    padding: calc(var(--u) * 3) calc(var(--u) * 4);
+    border-radius: calc(var(--u) * 2);
+    text-align: center;
+    background: linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.06));
+    border: 1px solid rgba(255,255,255,.28);
+    box-shadow: 0 24px 60px rgba(0,0,0,.45);
+    transform: translateY(14px) scale(.96);
+    transition: transform .35s cubic-bezier(.2,1.3,.4,1);
+  }
+  .overlay.show .panel { transform: translateY(0) scale(1); }
+  .panel-emoji { font-size: calc(var(--u) * 5); line-height: 1; margin-bottom: calc(var(--u) * 0.6); }
+  .panel h1 { margin: 0 0 calc(var(--u) * 0.8); font-size: calc(var(--u) * 2.6); letter-spacing: .06em; }
+  .panel p { margin: 0 0 calc(var(--u) * 2); font-size: calc(var(--u) * 1.35); opacity: .9; line-height: 1.7; }
+  .panel p b { color: #ffe066; font-size: calc(var(--u) * 1.9); font-weight: 800; }
+  .btn.primary {
+    background: linear-gradient(180deg, #ffcf3d, #f5a623);
+    color: #4a2b00;
+    border-radius: 999px;
+    padding: calc(var(--u) * 1.05) calc(var(--u) * 3);
+    font-size: calc(var(--u) * 1.3);
+    box-shadow: 0 8px 22px rgba(245,166,35,.45), inset 0 -3px 0 rgba(0,0,0,.14);
+  }
+  .btn.primary:hover { filter: brightness(1.06); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="game" width="1280" height="720"></canvas>
+  <div class="hud">
+    <div class="hud-top">
+      <div class="chip">分数 <b id="scoreVal">0</b></div>
+      <div class="chip">第 <b id="levelVal">1</b> 关</div>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="restartBtn">重开</button>
+      <button class="btn ghost icon" id="muteBtn">🔊</button>
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="panel">
+        <div class="panel-emoji" id="ovEmoji">🎉</div>
+        <h1 id="ovTitle">通关！</h1>
+        <p id="ovSub"></p>
+        <button class="btn primary" id="ovBtn">下一关</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     1. 基础常量与工具
+     ============================================================ */
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = 1280, H = 720;
+  const GROUND_Y = 620;
+
+  const GRAVITY = 1600;        // 重力加速度 px/s²
+  const FIXED = 1 / 120;       // 固定物理步长（每帧最多跑 10 步）
+  const BIRD_R = 18;
+
+  const ANCHOR = { x: 200, y: 412 };   // 弹弓上皮筋交汇点（小鸟静止位）
+  const MAX_PULL = 118;                // 最大拉伸距离
+  const LAUNCH_MUL = 13;               // 拉伸距离 → 初速度倍率
+  const QUEUE_X = 124;                 // 排队小鸟第一只的位置
+  const QUEUE_GAP = 44;
+
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const easeOut = t => 1 - (1 - t) * (1 - t);
+
+  function rr(x, y, w, h, r) {
+    r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  /* ============================================================
+     2. 简易音效（WebAudio 合成，无需外部资源）
+     ============================================================ */
+  let audioCtx = null;
+  let muted = false;
+
+  function sfx(type) {
+    if (muted) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const t = audioCtx.currentTime;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.connect(g);
+      g.connect(audioCtx.destination);
+
+      if (type === 'launch') {
+        o.type = 'sine';
+        o.frequency.setValueAtTime(620, t);
+        o.frequency.exponentialRampToValueAtTime(150, t + 0.18);
+        g.gain.setValueAtTime(0.12, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        o.start(t); o.stop(t + 0.22);
+      } else if (type === 'pop') {
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(880, t);
+        o.frequency.exponentialRampToValueAtTime(220, t + 0.12);
+        g.gain.setValueAtTime(0.16, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+        o.start(t); o.stop(t + 0.16);
+      } else if (type === 'break') {
+        o.type = 'square';
+        o.frequency.setValueAtTime(240, t);
+        o.frequency.exponentialRampToValueAtTime(70, t + 0.1);
+        g.gain.setValueAtTime(0.1, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+        o.start(t); o.stop(t + 0.13);
+      } else if (type === 'win') {
+        o.type = 'sine';
+        o.frequency.setValueAtTime(520, t);
+        o.frequency.setValueAtTime(660, t + 0.12);
+        o.frequency.setValueAtTime(790, t + 0.24);
+        g.gain.setValueAtTime(0.14, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+        o.start(t); o.stop(t + 0.45);
+      }
+    } catch (e) { /* 忽略音频错误 */ }
+  }
+
+  /* ============================================================
+     3. 刚体与物理
+     ============================================================ */
+  let bodySeq = 0;
+  const bodies = [];
+
+  function boxInertia(m, w, h) {
+    return Math.max(0.001, m * (w * w + h * h) / 12);
+  }
+
+  // 地面（静态盒子，顶面恰好等于 GROUND_Y）
+  const ground = {
+    id: -1, shape: 'box', kind: 'ground',
+    x: W / 2, y: GROUND_Y + 400, w: W * 4, h: 800,
+    hw: W * 2, hh: 400,
+    vx: 0, vy: 0, angle: 0, angVel: 0,
+    ax: { x: 1, y: 0 }, ay: { x: 0, y: 1 }, verts: [],
+    static: true, invMass: 0, mass: Infinity, inertia: Infinity, invInertia: 0,
+    restitution: 0.14, friction: 0.92,
+    hp: Infinity, maxHp: Infinity, dmgCd: 0, hitFlash: 0, dead: false
+  };
+
+  function updateGeometry(b) {
+    if (b.shape !== 'box') return;
+    const c = Math.cos(b.angle), s = Math.sin(b.angle);
+    b.ax.x = c; b.ax.y = s;
+    b.ay.x = -s; b.ay.y = c;
+    const hw = b.hw, hh = b.hh;
+    b.verts[0] = { x: b.x + b.ax.x * hw + b.ay.x * hh, y: b.y + b.ax.y * hw + b.ay.y * hh };
+    b.verts[1] = { x: b.x - b.ax.x * hw + b.ay.x * hh, y: b.y - b.ax.y * hw + b.ay.y * hh };
+    b.verts[2] = { x: b.x - b.ax.x * hw - b.ay.x * hh, y: b.y - b.ax.y * hw - b.ay.y * hh };
+    b.verts[3] = { x: b.x + b.ax.x * hw - b.ay.x * hh, y: b.y + b.ax.y * hw - b.ay.y * hh };
+  }
+
+  function makeBox(x, y, w, h, type) {
+    const stone = type === 'stone';
+    const mass = stone ? (w * h) / 900 : (w * h) / 1400;
+    const b = {
+      id: ++bodySeq, shape: 'box', kind: 'block', type,
+      x, y, w, h, hw: w / 2, hh: h / 2,
+      vx: 0, vy: 0, angle: 0, angVel: 0,
+      mass, invMass: 1 / mass,
+      inertia: boxInertia(mass, w, h), invInertia: 0,
+      static: false,
+      restitution: stone ? 0.04 : 0.08,
+      friction: 0.80,
+      hp: stone ? 320 : 150,
+      maxHp: stone ? 320 : 150,
+      hitFlash: 0, dmgCd: 0, dead: false,
+      ax: { x: 1, y: 0 }, ay: { x: 0, y: 1 }, verts: []
+    };
+    b.invInertia = 1 / b.inertia;
+    updateGeometry(b);
+    return b;
+  }
+
+  // 碎裂产生的小木块 / 石块
+  function makeDebris(x, y, w, h, type, angle) {
+    const stone = type === 'stone';
+    const mass = Math.max(0.4, (w * h) / 1400);
+    const b = {
+      id: ++bodySeq, shape: 'box', kind: 'debris', type,
+      x, y, w, h, hw: w / 2, hh: h / 2,
+      vx: 0, vy: 0, angle: angle || 0, angVel: 0,
+      mass, invMass: 1 / mass,
+      inertia: boxInertia(mass, w, h), invInertia: 0,
+      static: false,
+      restitution: 0.10, friction: 0.62,
+      hp: Infinity, maxHp: Infinity,
+      hitFlash: 0, dmgCd: 0, dead: false,
+      debris: true, life: 2.6,
+      ax: { x: 1, y: 0 }, ay: { x: 0, y: 1 }, verts: []
+    };
+    b.invInertia = 1 / b.inertia;
+    updateGeometry(b);
+    return b;
+  }
+
+  function makePig(x, y, r) {
+    return {
+      id: ++bodySeq, shape: 'circle', kind: 'pig',
+      x, y, r,
+      vx: 0, vy: 0, angle: 0, angVel: 0,
+      mass: 5, invMass: 1 / 5,
+      invInertia: 0, inertia: Infinity,
+      restitution: 0.10, friction: 0.62,
+      hp: 100, maxHp: 100,
+      hitFlash: 0, dmgCd: 0, dead: false,
+      blink: rand(0, 3)
+    };
+  }
+
+  function makeBird(x, y, vx, vy) {
+    return {
+      id: ++bodySeq, shape: 'circle', kind: 'bird',
+      x, y, r: BIRD_R, vx, vy, angle: 0, angVel: 0,
+      mass: 4.5, invMass: 1 / 4.5,
+      invInertia: 0, inertia: Infinity,
+      restitution: 0.34, friction: 0.5,
+      hp: Infinity, maxHp: Infinity,
+      hitFlash: 0, dmgCd: 0, dead: false,
+      impacted: false, trail: [], restTime: 0
+    };
+  }
+
+  /* ---- 碰撞检测：返回从 a 指向 b 的法线 + 穿透深度 + 接触点 ---- */
+  function circleCircle(a, b) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.hypot(dx, dy);
+    const rad = a.r + b.r;
+    if (d >= rad) return null;
+    const nx = d > 1e-6 ? dx / d : 1;
+    const ny = d > 1e-6 ? dy / d : 0;
+    const pen = rad - d;
+    return {
+      nx, ny, pen,
+      contacts: [{ x: a.x + nx * (a.r - pen * 0.5), y: a.y + ny * (a.r - pen * 0.5) }]
+    };
+  }
+
+  // 圆 a 与（可旋转）盒 b 的碰撞
+  function circleBox(a, b) {
+    const dx = a.x - b.x, dy = a.y - b.y;
+    const lx = dx * b.ax.x + dy * b.ax.y;
+    const ly = dx * b.ay.x + dy * b.ay.y;
+    const clx = clamp(lx, -b.hw, b.hw);
+    const cly = clamp(ly, -b.hh, b.hh);
+    const ddx = lx - clx, ddy = ly - cly;
+    const d2 = ddx * ddx + ddy * ddy;
+
+    let nlx, nly, pen, plx, ply;
+
+    if (d2 > 1e-8) {
+      const d = Math.sqrt(d2);
+      if (d >= a.r) return null;
+      nlx = -ddx / d; nly = -ddy / d;     // 由圆指向盒
+      pen = a.r - d;
+      plx = clx; ply = cly;
+    } else {
+      // 圆心已在盒内：沿最近的一面推出去
+      const ox = b.hw - Math.abs(lx);
+      const oy = b.hh - Math.abs(ly);
+      if (ox < oy) {
+        const s = lx >= 0 ? 1 : -1;
+        nlx = -s; nly = 0; pen = a.r + ox;
+        plx = s * b.hw; ply = ly;
+      } else {
+        const s = ly >= 0 ? 1 : -1;
+        nlx = 0; nly = -s; pen = a.r + oy;
+        plx = lx; ply = s * b.hh;
+      }
+    }
+
+    const nx = b.ax.x * nlx + b.ay.x * nly;
+    const ny = b.ax.y * nlx + b.ay.y * nly;
+    return {
+      nx, ny, pen,
+      contacts: [{
+        x: b.x + b.ax.x * plx + b.ay.x * ply,
+        y: b.y + b.ax.y * plx + b.ay.y * ply
+      }]
+    };
+  }
+
+  function projRadius(b, nx, ny) {
+    return Math.abs(b.hw * (b.ax.x * nx + b.ax.y * ny)) +
+           Math.abs(b.hh * (b.ay.x * nx + b.ay.y * ny));
+  }
+
+  function pointInBox(px, py, b, tol) {
+    const dx = px - b.x, dy = py - b.y;
+    const lx = dx * b.ax.x + dy * b.ax.y;
+    const ly = dx * b.ay.x + dy * b.ay.y;
+    return Math.abs(lx) <= b.hw + tol && Math.abs(ly) <= b.hh + tol;
+  }
+
+  // 两个可旋转盒（SAT + 顶点接触）
+  function obbObb(a, b) {
+    const axes = [a.ax, a.ay, b.ax, b.ay];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    let best = Infinity, bnx = 0, bny = 0;
+
+    for (let i = 0; i < 4; i++) {
+      const nx = axes[i].x, ny = axes[i].y;
+      const overlap = projRadius(a, nx, ny) + projRadius(b, nx, ny) -
+                      Math.abs(dx * nx + dy * ny);
+      if (overlap <= 0) return null;
+      if (overlap < best) { best = overlap; bnx = nx; bny = ny; }
+    }
+
+    if (dx * bnx + dy * bny < 0) { bnx = -bnx; bny = -bny; }
+
+    const pts = [];
+    const tol = 1.1;
+    for (let i = 0; i < 4; i++) {
+      const v = a.verts[i];
+      if (pointInBox(v.x, v.y, b, tol)) pts.push(v);
+    }
+    for (let i = 0; i < 4; i++) {
+      const v = b.verts[i];
+      if (pointInBox(v.x, v.y, a, tol)) pts.push(v);
+    }
+
+    if (pts.length === 0) {
+      // 深穿透时顶点都在外面，取最“深”的顶点兜底
+      let deepest = a.verts[0], bestD = -Infinity;
+      for (let i = 0; i < 4; i++) {
+        const v = b.verts[i];
+        const d = (v.x - a.x) * bnx + (v.y - a.y) * bny;
+        if (d > bestD) { bestD = d; deepest = v; }
+      }
+      pts.push(deepest);
+    }
+
+    // 去重 + 最多保留两个接触点
+    const merged = [];
+    for (const p of pts) {
+      let dup = false;
+      for (const q of merged) {
+        if (Math.abs(p.x - q.x) < 3 && Math.abs(p.y - q.y) < 3) { dup = true; break; }
+      }
+      if (!dup) merged.push(p);
+    }
+    let contacts = merged;
+    if (merged.length > 2) {
+      const tx = -bny, ty = bnx;
+      let lo = merged[0], hi = merged[0], lv = Infinity, hv = -Infinity;
+      for (const p of merged) {
+        const v = p.x * tx + p.y * ty;
+        if (v < lv) { lv = v; lo = p; }
+        if (v > hv) { hv = v; hi = p; }
+      }
+      contacts = [lo, hi];
+    }
+
+    return { nx: bnx, ny: bny, pen: best, contacts };
+  }
+
+  function collide(a, b) {
+    if (a.shape === 'circle') {
+      if (b.shape === 'circle') return circleCircle(a, b);
+      return circleBox(a, b);
+    }
+    if (b.shape === 'circle') {
+      const h = circleBox(b, a);
+      if (!h) return null;
+      return { nx: -h.nx, ny: -h.ny, pen: h.pen, contacts: h.contacts };
+    }
+    return obbObb(a, b);
+  }
+
+  /* ---- 冲量法解算（累积冲量，多点接触才稳定；含转动惯量，木头会被撞倒） ---- */
+  function prepareManifold(a, b, m) {
+    m.an = [];
+    m.at = [];
+    m.vn0 = [];
+    for (let ci = 0; ci < m.contacts.length; ci++) {
+      const c = m.contacts[ci];
+      const rax = c.x - a.x, ray = c.y - a.y;
+      const rbx = c.x - b.x, rby = c.y - b.y;
+      const vax = a.vx - a.angVel * ray;
+      const vay = a.vy + a.angVel * rax;
+      const vbx = b.vx - b.angVel * rby;
+      const vby = b.vy + b.angVel * rbx;
+      m.vn0.push((vbx - vax) * m.nx + (vby - vay) * m.ny);
+      m.an.push(0);
+      m.at.push(0);
+    }
+  }
+
+  function applyImpulse(a, b, m) {
+    const nx = m.nx, ny = m.ny;
+    const e = (a.restitution + b.restitution) * 0.5;
+
+    for (let ci = 0; ci < m.contacts.length; ci++) {
+      const c = m.contacts[ci];
+      const rax = c.x - a.x, ray = c.y - a.y;
+      const rbx = c.x - b.x, rby = c.y - b.y;
+
+      const vax = a.vx - a.angVel * ray;
+      const vay = a.vy + a.angVel * rax;
+      const vbx = b.vx - b.angVel * rby;
+      const vby = b.vy + b.angVel * rbx;
+      const vn = (vbx - vax) * nx + (vby - vay) * ny;
+
+      const raCn = rax * ny - ray * nx;
+      const rbCn = rbx * ny - rby * nx;
+      const k = a.invMass + b.invMass +
+                raCn * raCn * a.invInertia + rbCn * rbCn * b.invInertia;
+      if (k <= 0) continue;
+
+      // 只有明显撞击才回弹，静止堆放时不要“弹”
+      const vn0 = Math.min(m.vn0[ci], 0);
+      const rest = vn0 < -60 ? -e * vn0 : 0;
+      let lam = (rest - vn) / k;
+      const prev = m.an[ci];
+      m.an[ci] = Math.max(prev + lam, 0);
+      lam = m.an[ci] - prev;
+
+      a.vx -= nx * lam * a.invMass;
+      a.vy -= ny * lam * a.invMass;
+      a.angVel -= raCn * lam * a.invInertia;
+      b.vx += nx * lam * b.invMass;
+      b.vy += ny * lam * b.invMass;
+      b.angVel += rbCn * lam * b.invInertia;
+    }
+  }
+
+  // 法向收敛后单独解摩擦，避免“顺序求解的残余切向速度”被当成滑动
+  function applyFriction(a, b, m) {
+    const nx = m.nx, ny = m.ny;
+    const tx = -ny, ty = nx;
+
+    for (let ci = 0; ci < m.contacts.length; ci++) {
+      const c = m.contacts[ci];
+      const rax = c.x - a.x, ray = c.y - a.y;
+      const rbx = c.x - b.x, rby = c.y - b.y;
+
+      const vax = a.vx - a.angVel * ray;
+      const vay = a.vy + a.angVel * rax;
+      const vbx = b.vx - b.angVel * rby;
+      const vby = b.vy + b.angVel * rbx;
+      const vt = (vbx - vax) * tx + (vby - vay) * ty;
+
+      const raCt = rax * ty - ray * tx;
+      const rbCt = rbx * ty - rby * tx;
+      const kt = a.invMass + b.invMass +
+                 raCt * raCt * a.invInertia + rbCt * rbCt * b.invInertia;
+      if (kt <= 0) continue;
+
+      const mu = Math.sqrt(a.friction * b.friction);
+      const lim = mu * m.an[ci];
+      let lamT = -vt / kt;
+      const prevT = m.at[ci];
+      m.at[ci] = clamp(prevT + lamT, -lim, lim);
+      lamT = m.at[ci] - prevT;
+
+      a.vx -= tx * lamT * a.invMass;
+      a.vy -= ty * lamT * a.invMass;
+      a.angVel -= raCt * lamT * a.invInertia;
+      b.vx += tx * lamT * b.invMass;
+      b.vy += ty * lamT * b.invMass;
+      b.angVel += rbCt * lamT * b.invInertia;
+    }
+  }
+
+  function approachSpeed(a, b, m) {
+    let best = 0;
+    for (let ci = 0; ci < m.contacts.length; ci++) {
+      const c = m.contacts[ci];
+      const rax = c.x - a.x, ray = c.y - a.y;
+      const rbx = c.x - b.x, rby = c.y - b.y;
+      const vax = a.vx - a.angVel * ray;
+      const vay = a.vy + a.angVel * rax;
+      const vbx = b.vx - b.angVel * rby;
+      const vby = b.vy + b.angVel * rbx;
+      const vn = (vbx - vax) * m.nx + (vby - vay) * m.ny;
+      if (-vn > best) best = -vn;
+    }
+    return best;
+  }
+
+  function correctPositions(a, b, m) {
+    const invSum = a.invMass + b.invMass;
+    if (invSum <= 0) return;
+    const corr = Math.max(m.pen - 0.4, 0) * 0.55 / invSum;
+    a.x -= m.nx * corr * a.invMass;
+    a.y -= m.ny * corr * a.invMass;
+    b.x += m.nx * corr * b.invMass;
+    b.y += m.ny * corr * b.invMass;
+  }
+
+  /* ---- 撞击处理：伤害 + 小鸟落点回报 ---- */
+  function handleImpact(a, b, speed) {
+    const bird = a.kind === 'bird' ? a : (b.kind === 'bird' ? b : null);
+    if (bird && !bird.impacted && speed > 30) onBirdImpact(bird);
+
+    damage(a, speed);
+    damage(b, speed);
+  }
+
+  function damage(b, speed) {
+    if (b.kind === 'pig') {
+      if (b.dmgCd > 0 || speed < 200) return;
+      const dmg = (speed - 200) * 0.45;
+      if (dmg <= 0) return;
+      b.hp -= dmg;
+      b.dmgCd = 0.12;
+      b.hitFlash = 0.16;
+    } else if (b.kind === 'block') {
+      if (b.dmgCd > 0) return;
+      const th = b.type === 'stone' ? 280 : 190;
+      if (speed < th) return;
+      const f = b.type === 'stone' ? 0.26 : 0.30;
+      const dmg = (speed - th) * f;
+      if (dmg <= 0) return;
+      b.hp -= dmg;
+      b.dmgCd = 0.12;
+      b.hitFlash = 0.12;
+      // 掉点木屑 / 石屑，让“破裂”有过程感
+      if (dmg > 6) {
+        chipBurst(b, Math.min(5, 1 + Math.floor(dmg / 25)));
+      }
+    }
+  }
+
+  /* ---- 坠落伤害：支撑物消失后摔到地面 / 木头上也要扣血 ---- */
+  function fallDamage(b) {
+    if (b.dmgCd > 0) return;
+    const fall = b.pvy > 0 ? b.pvy : 0;   // 解算前的下坠速度
+    if (fall < 260) return;
+    if (b.vy > fall * 0.5) return;        // 仍在继续下坠，还没撞到东西
+    const dmg = (fall - 260) * 0.35;
+    b.hp -= dmg;
+    b.dmgCd = 0.12;
+    b.hitFlash = 0.16;
+    if (dmg > 8) burst(b.x, b.y, '#c6f27a', Math.min(4, 1 + Math.floor(dmg / 30)), 160);
+  }
+
+  function chipBurst(b, n) {
+    const col = b.type === 'stone' ? '#c3c9cf' : '#d9a05b';
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, Math.PI * 2);
+      const sp = rand(60, 220);
+      G.particles.push({
+        x: b.x + rand(-b.hw, b.hw) * 0.8,
+        y: b.y + rand(-b.hh, b.hh) * 0.8,
+        vx: Math.cos(a) * sp + b.vx * 0.3,
+        vy: Math.sin(a) * sp + b.vy * 0.3 - 60,
+        life: rand(0.35, 0.8),
+        maxLife: 0.8,
+        size: rand(2, 5),
+        rot: rand(0, 6.28),
+        vr: rand(-10, 10),
+        color: col
+      });
+    }
+  }
+
+  /* ---- 木头被打爆：拆成几块带速度的碎块掉落，而不是原地消失 ---- */
+  function shatterBlock(b) {
+    const along = b.w >= b.h;              // 沿长边切
+    const n = along ? 4 : 3;
+    const ax = b.ax, ay = b.ay;
+
+    for (let i = 0; i < n; i++) {
+      const pw = along ? b.w / n * 0.92 : b.w * rand(0.55, 0.8);
+      const ph = along ? b.h * rand(0.55, 0.8) : b.h / n * 0.92;
+      const lx = along ? (-b.w / 2 + (b.w / n) * (i + 0.5)) : rand(-b.w * 0.15, b.w * 0.15);
+      const ly = along ? rand(-b.h * 0.12, b.h * 0.12) : (-b.h / 2 + (b.h / n) * (i + 0.5));
+
+      const wx = b.x + ax.x * lx + ay.x * ly;
+      const wy = b.y + ax.y * lx + ay.y * ly;
+
+      const p = makeDebris(wx, wy, pw, ph, b.type, b.angle);
+      const dir = (ly >= 0 ? 1 : -1) * (along ? 0 : 1) + (along ? 0 : 0);
+      p.vx = b.vx * 0.55 + rand(-70, 70) + ax.x * dir * 40;
+      p.vy = b.vy * 0.55 + rand(-130, -40);
+      p.angVel = rand(-6, 6);
+      bodies.push(p);
+    }
+
+    burst(b.x, b.y, b.type === 'stone' ? '#b6bcc2' : '#d9a05b', 10, 200);
+  }
+
+  function physicsStep(dt) {
+    // 1. 积分 + 更新几何
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.static) continue;
+      b.vy += GRAVITY * dt;
+      b.vx *= 0.9992;
+      b.vy *= 0.9992;
+      b.angVel *= 0.990;
+      // 限速，避免数值爆炸
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp > 2400) { b.vx *= 2400 / sp; b.vy *= 2400 / sp; }
+      if (b.angVel > 22) b.angVel = 22;
+      if (b.angVel < -22) b.angVel = -22;
+      if (b.kind === 'pig') b.pvy = b.vy;   // 解算前下坠速度，用于坠落伤害
+
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.angle += b.angVel * dt;
+      if (b.dmgCd > 0) b.dmgCd -= dt;
+      if (b.hitFlash > 0) b.hitFlash -= dt;
+      updateGeometry(b);
+    }
+
+    // 2. 生成碰撞流形
+    const manifolds = [];
+    for (let i = 0; i < bodies.length; i++) {
+      const a = bodies[i];
+      const m = collide(a, ground);
+      if (m) { prepareManifold(a, ground, m); manifolds.push({ a, b: ground, m, speed: approachSpeed(a, ground, m) }); }
+    }
+    for (let i = 0; i < bodies.length; i++) {
+      const a = bodies[i];
+      for (let j = i + 1; j < bodies.length; j++) {
+        const b = bodies[j];
+        const m = collide(a, b);
+        if (m) { prepareManifold(a, b, m); manifolds.push({ a, b, m, speed: approachSpeed(a, b, m) }); }
+      }
+    }
+
+    // 3. 速度求解（法向迭代收敛后再解摩擦，支撑结构才稳）
+    for (let it = 0; it < 10; it++) {
+      for (let i = 0; i < manifolds.length; i++) {
+        const mm = manifolds[i];
+        applyImpulse(mm.a, mm.b, mm.m);
+      }
+    }
+    for (let it = 0; it < 4; it++) {
+      for (let i = 0; i < manifolds.length; i++) {
+        const mm = manifolds[i];
+        applyFriction(mm.a, mm.b, mm.m);
+      }
+    }
+
+    // 4. 位置修正
+    for (let pass = 0; pass < 2; pass++) {
+      for (let i = 0; i < manifolds.length; i++) {
+        const mm = manifolds[i];
+        correctPositions(mm.a, mm.b, mm.m);
+      }
+    }
+
+    // 5. 撞击判定 + 坠落伤害
+    for (let i = 0; i < manifolds.length; i++) {
+      const mm = manifolds[i];
+      if (mm.speed > 40) handleImpact(mm.a, mm.b, mm.speed);
+    }
+    for (let i = 0; i < bodies.length; i++) {
+      if (bodies[i].kind === 'pig') fallDamage(bodies[i]);
+    }
+
+    // 6. 低速阻尼，帮助结构稳定下来
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.static) continue;
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp < 12 && Math.abs(b.angVel) < 0.8) {
+        b.vx *= 0.85;
+        b.vy *= 0.85;
+        b.angVel *= 0.85;
+      }
+    }
+
+    // 7. 结算死亡
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.dead || b.hp > 0) continue;
+      b.dead = true;
+      if (b.kind === 'pig') {
+        burst(b.x, b.y, '#7ac943', 18, 260);
+        burst(b.x, b.y, '#c6f27a', 8, 200);
+        addScore(5000, b.x, b.y);
+        G.shake = Math.min(14, G.shake + 7);
+        sfx('pop');
+      } else if (b.kind === 'block') {
+        shatterBlock(b);
+        addScore(500, 0, 0, true);
+        sfx('break');
+      }
+    }
+  }
+
+  function cleanupBodies(dt) {
+    for (let i = bodies.length - 1; i >= 0; i--) {
+      const b = bodies[i];
+      // 碎块寿命
+      if (b.kind === 'debris') {
+        b.life -= dt;
+        if (b.life <= 0) b.dead = true;
+      }
+      // 小鸟退场
+      if (b.kind === 'bird') {
+        const sp = Math.hypot(b.vx, b.vy);
+        if (sp < 40) b.restTime += dt; else b.restTime = 0;
+        if (b.restTime > 3 || b.x < -220 || b.x > W + 220 || b.y > H + 240) {
+          b.dead = true;
+        }
+      }
+      if (b.dead) {
+        bodies.splice(i, 1);
+      }
+    }
+  }
+
+  /* ============================================================
+     4. 游戏状态
+     ============================================================ */
+  const G = {
+    level: 0,
+    score: 0,
+    queue: [],            // 排队的小鸟（纯视觉）
+    sling: null,          // { mode:'ready'|'hop'|'empty', t, from, dur }
+    dragging: false,
+    dragPos: { x: ANCHOR.x, y: ANCHOR.y },
+    particles: [],
+    popups: [],
+    shake: 0,
+    time: 0,
+    ended: false,
+    winTimer: -1,
+    loseTimer: 0,
+    reloadQueued: false,
+    reloadDelay: 0,
+    hint: true,
+    tremble: 0
+  };
+
+  /* ============================================================
+     5. 关卡数据
+     ============================================================ */
+  const LEVELS = [
+    {
+      birds: 4,
+      blocks: [
+        // 左侧木塔
+        { x: 820, y: 560, w: 24, h: 120, t: 'wood' },
+        { x: 920, y: 560, w: 24, h: 120, t: 'wood' },
+        { x: 870, y: 488, w: 148, h: 24, t: 'wood' },
+        // 右侧小木屋
+        { x: 1040, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1120, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1080, y: 508, w: 120, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 870, y: 598, r: 22 },
+        { x: 870, y: 454, r: 22 },
+        { x: 1080, y: 598, r: 22 },
+        { x: 1080, y: 474, r: 22 }
+      ]
+    },
+    {
+      birds: 5,
+      blocks: [
+        // 主塔底层
+        { x: 770, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 910, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 840, y: 488, w: 170, h: 24, t: 'wood' },
+        // 二层
+        { x: 800, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 880, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 840, y: 368, w: 150, h: 24, t: 'stone' },
+        // 右侧石屋
+        { x: 1040, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1140, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1090, y: 508, w: 130, h: 24, t: 'stone' }
+      ],
+      pigs: [
+        { x: 840, y: 598, r: 22 },
+        { x: 840, y: 454, r: 22 },
+        { x: 840, y: 334, r: 22 },
+        { x: 1090, y: 598, r: 22 },
+        { x: 1090, y: 474, r: 22 }
+      ]
+    },
+    {
+      birds: 5,
+      blocks: [
+        // 左侧木塔
+        { x: 760, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 880, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 820, y: 488, w: 160, h: 24, t: 'stone' },
+        // 中央高塔
+        { x: 1000, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 1120, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 1060, y: 488, w: 170, h: 24, t: 'wood' },
+        { x: 1020, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 1100, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 1060, y: 368, w: 130, h: 24, t: 'stone' }
+      ],
+      pigs: [
+        { x: 820, y: 598, r: 22 },
+        { x: 820, y: 454, r: 22 },
+        { x: 1060, y: 598, r: 22 },
+        { x: 1060, y: 454, r: 22 },
+        { x: 1060, y: 334, r: 22 }
+      ]
+    }
+  ];
+
+  /* ============================================================
+     6. 关卡载入
+     ============================================================ */
+  function loadLevel(index) {
+    G.level = clamp(index, 0, LEVELS.length - 1);
+    const lv = LEVELS[G.level];
+
+    bodies.length = 0;
+    G.queue.length = 0;
+    G.particles.length = 0;
+    G.popups.length = 0;
+    G.score = 0;
+    G.shake = 0;
+    G.dragging = false;
+    G.ended = false;
+    G.winTimer = -1;
+    G.loseTimer = 0;
+    G.reloadQueued = false;
+    G.reloadDelay = 0;
+    G.hint = true;
+    acc = 0;
+
+    for (const b of lv.blocks) bodies.push(makeBox(b.x, b.y, b.w, b.h, b.t));
+    for (const p of lv.pigs) bodies.push(makePig(p.x, p.y, p.r || 22));
+
+    for (let i = 0; i < lv.birds - 1; i++) {
+      G.queue.push({
+        x: QUEUE_X - i * QUEUE_GAP,
+        y: GROUND_Y - BIRD_R,
+        bob: rand(0, Math.PI * 2)
+      });
+    }
+
+    G.sling = { mode: 'ready', t: 0, from: { x: ANCHOR.x, y: ANCHOR.y }, dur: 0.5 };
+
+    hideOverlay();
+    updateHUD();
+  }
+
+  /* ============================================================
+     7. 弹弓 / 小鸟调度
+     ============================================================ */
+  function slingBirdPos() {
+    if (!G.sling) return null;
+    if (G.sling.mode === 'ready') return { x: ANCHOR.x, y: ANCHOR.y };
+    if (G.sling.mode === 'hop') {
+      const raw = clamp(G.sling.t, 0, 1);
+      const t = easeOut(raw);
+      const f = G.sling.from;
+      return {
+        x: lerp(f.x, ANCHOR.x, t),
+        y: lerp(f.y, ANCHOR.y, t) - Math.sin(Math.PI * raw) * 90
+      };
+    }
+    return null;
+  }
+
+  function startReload() {
+    if (!G.queue.length || !G.sling || G.sling.mode !== 'empty') return;
+    const front = G.queue.shift();
+    G.sling = {
+      mode: 'hop', t: 0, dur: 0.5,
+      from: { x: front.x, y: front.y }
+    };
+  }
+
+  function onBirdImpact(bird) {
+    if (bird.impacted) return;
+    bird.impacted = true;
+    G.shake = Math.min(12, G.shake + 4);
+    // 击中小猪 / 地面 / 障碍后，后排的小鸟准备跳上弹弓
+    if (G.queue.length && G.sling && G.sling.mode === 'empty') {
+      G.reloadQueued = true;
+      G.reloadDelay = 0.2;
+    }
+  }
+
+  function launchBird(pos) {
+    const vx = (ANCHOR.x - pos.x) * LAUNCH_MUL;
+    const vy = (ANCHOR.y - pos.y) * LAUNCH_MUL;
+    const bird = makeBird(pos.x, pos.y, vx, vy);
+    bodies.push(bird);
+    G.sling = { mode: 'empty', t: 0, from: null, dur: 0.5 };
+    G.hint = false;
+    sfx('launch');
+    // 尾迹
+    bird.trail.push({ x: pos.x, y: pos.y });
+  }
+
+  /* ============================================================
+     8. 粒子 / 分数
+     ============================================================ */
+  function burst(x, y, color, count, power) {
+    for (let i = 0; i < count; i++) {
+      const a = rand(0, Math.PI * 2);
+      const sp = rand(0.25, 1) * power;
+      G.particles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 80,
+        life: rand(0.5, 1.1),
+        maxLife: 1.1,
+        size: rand(2.5, 7),
+        rot: rand(0, Math.PI * 2),
+        vr: rand(-8, 8),
+        color
+      });
+    }
+  }
+
+  function addScore(pts, x, y, silentPopup) {
+    G.score += pts;
+    updateHUD();
+    if (!silentPopup) {
+      G.popups.push({ x, y: y - 20, text: '+' + pts, life: 1.1, maxLife: 1.1 });
+    }
+  }
+
+  /* ============================================================
+     9. 输入
+     ============================================================ */
+  function toWorld(e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * (W / r.width),
+      y: (e.clientY - r.top) * (H / r.height)
+    };
+  }
+
+  function canAim() {
+    return !G.ended && G.sling && G.sling.mode === 'ready';
+  }
+
+  function clampDrag(p) {
+    let dx = p.x - ANCHOR.x;
+    let dy = p.y - ANCHOR.y;
+    const d = Math.hypot(dx, dy);
+    if (d > MAX_PULL) {
+      dx = (dx / d) * MAX_PULL;
+      dy = (dy / d) * MAX_PULL;
+    }
+    return { x: ANCHOR.x + dx, y: ANCHOR.y + dy };
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    if (!canAim()) return;
+    const p = toWorld(e);
+    if (Math.hypot(p.x - ANCHOR.x, p.y - ANCHOR.y) > 120) return;
+    G.dragging = true;
+    G.dragPos = clampDrag(p);
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    if (!G.dragging) return;
+    G.dragPos = clampDrag(toWorld(e));
+    e.preventDefault();
+  });
+
+  function releaseDrag() {
+    if (!G.dragging) return;
+    G.dragging = false;
+    const pull = Math.hypot(G.dragPos.x - ANCHOR.x, G.dragPos.y - ANCHOR.y);
+    if (pull > 16 && canAim()) {
+      launchBird(G.dragPos);
+    } else {
+      G.dragPos = { x: ANCHOR.x, y: ANCHOR.y };
+    }
+  }
+
+  canvas.addEventListener('pointerup', e => {
+    releaseDrag();
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointercancel', releaseDrag);
+
+  /* ============================================================
+     10. 更新逻辑
+     ============================================================ */
+  let acc = 0;
+
+  function update(dt) {
+    G.time += dt;
+
+    if (!G.ended) {
+      // 排队小鸟向自己的位置靠拢
+      for (let i = 0; i < G.queue.length; i++) {
+        const b = G.queue[i];
+        const tx = QUEUE_X - i * QUEUE_GAP;
+        b.x += (tx - b.x) * Math.min(1, dt * 9);
+      }
+
+      // 弹弓装填动画
+      if (G.sling && G.sling.mode === 'hop') {
+        G.sling.t += dt / G.sling.dur;
+        if (G.sling.t >= 1) {
+          G.sling.t = 1;
+          G.sling.mode = 'ready';
+          G.tremble = 0.25;
+        }
+      }
+
+      // 延迟装填（撞击后再跳上来）
+      if (G.reloadQueued) {
+        G.reloadDelay -= dt;
+        if (G.reloadDelay <= 0) {
+          if (G.sling.mode === 'empty' && G.queue.length) {
+            startReload();
+            G.reloadQueued = false;
+          }
+        }
+      }
+
+      // 物理
+      acc += dt;
+      let steps = 0;
+      while (acc >= FIXED && steps < 10) {
+        physicsStep(FIXED);
+        acc -= FIXED;
+        steps++;
+      }
+      if (acc > FIXED) acc = 0;
+
+      cleanupBodies(dt);
+
+      // 更新尾迹
+      for (const b of bodies) {
+        if (b.kind !== 'bird' || b.impacted === undefined) continue;
+        if (!b.impacted) {
+          b.trail.push({ x: b.x, y: b.y });
+          if (b.trail.length > 18) b.trail.shift();
+        }
+      }
+
+      checkOutcome(dt);
+    } else {
+      // 结束后仍让场面继续沉降
+      acc += dt;
+      let steps = 0;
+      while (acc >= FIXED && steps < 10) {
+        physicsStep(FIXED);
+        acc -= FIXED;
+        steps++;
+      }
+    }
+
+    // 粒子
+    for (let i = G.particles.length - 1; i >= 0; i--) {
+      const p = G.particles[i];
+      p.vy += 1400 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.rot += p.vr * dt;
+      p.life -= dt;
+      if (p.life <= 0) G.particles.splice(i, 1);
+    }
+
+    // 分数飘字
+    for (let i = G.popups.length - 1; i >= 0; i--) {
+      const p = G.popups[i];
+      p.y -= 42 * dt;
+      p.life -= dt;
+      if (p.life <= 0) G.popups.splice(i, 1);
+    }
+
+    // 屏幕震动衰减
+    G.shake *= Math.pow(0.02, dt);
+    if (G.shake < 0.3) G.shake = 0;
+    if (G.tremble > 0) G.tremble -= dt;
+  }
+
+  function checkOutcome(dt) {
+    const pigs = bodies.filter(b => b.kind === 'pig').length;
+
+    if (pigs === 0) {
+      if (G.winTimer < 0) G.winTimer = 1.0;
+      G.winTimer -= dt;
+      if (G.winTimer <= 0) doWin();
+      return;
+    }
+
+    const noBirds = G.queue.length === 0 &&
+                    (!G.sling || G.sling.mode === 'empty') &&
+                    !bodies.some(b => b.kind === 'bird');
+
+    if (noBirds) {
+      const settled = bodies.every(b => Math.hypot(b.vx, b.vy) < 30);
+      if (settled) {
+        G.loseTimer += dt;
+        if (G.loseTimer > 1.0) doLose();
+      } else {
+        G.loseTimer = 0;
+      }
+    } else {
+      G.loseTimer = 0;
+    }
+  }
+
+  /* ============================================================
+     11. 渲染 —— 背景
+     ============================================================ */
+  const clouds = [
+    { x: 150, y: 108, s: 1.15, v: 7 },
+    { x: 520, y: 72, s: 0.85, v: 5 },
+    { x: 900, y: 148, s: 1.0, v: 9 },
+    { x: 1180, y: 66, s: 0.7, v: 4 }
+  ];
+
+  function drawCloud(x, y, s) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.beginPath();
+    ctx.arc(-38, 6, 26, 0, 7);
+    ctx.arc(-6, -10, 34, 0, 7);
+    ctx.arc(34, 4, 26, 0, 7);
+    ctx.arc(0, 16, 26, 0, 7);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBackground(t) {
+    // 天空
+    const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+    sky.addColorStop(0, '#3f9ddb');
+    sky.addColorStop(0.55, '#9fd8f5');
+    sky.addColorStop(1, '#dff3ff');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // 太阳
+    const sun = ctx.createRadialGradient(1090, 118, 8, 1090, 118, 170);
+    sun.addColorStop(0, 'rgba(255,248,205,1)');
+    sun.addColorStop(0.35, 'rgba(255,238,160,0.55)');
+    sun.addColorStop(1, 'rgba(255,238,160,0)');
+    ctx.fillStyle = sun;
+    ctx.beginPath();
+    ctx.arc(1090, 118, 170, 0, 7);
+    ctx.fill();
+
+    // 云
+    for (const c of clouds) {
+      c.x += c.v * (1 / 60);
+      if (c.x > W + 120) c.x = -120;
+      drawCloud(c.x, c.y, c.s);
+    }
+
+    // 远山
+    ctx.fillStyle = 'rgba(120, 190, 190, 0.55)';
+    ctx.beginPath();
+    ctx.moveTo(-50, GROUND_Y);
+    ctx.quadraticCurveTo(120, 400, 300, GROUND_Y);
+    ctx.quadraticCurveTo(420, 430, 560, GROUND_Y);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(139, 205, 150, 0.65)';
+    ctx.beginPath();
+    ctx.moveTo(300, GROUND_Y);
+    ctx.quadraticCurveTo(480, 380, 660, GROUND_Y);
+    ctx.quadraticCurveTo(800, 440, 940, GROUND_Y);
+    ctx.quadraticCurveTo(1080, 420, 1300, GROUND_Y);
+    ctx.lineTo(1300, GROUND_Y + 10);
+    ctx.lineTo(300, GROUND_Y + 10);
+    ctx.fill();
+
+    // 远处小树
+    for (const tx of [700, 980, 1230]) {
+      drawTree(tx, GROUND_Y - 4, 0.8);
+    }
+
+    // 地面
+    const dirt = ctx.createLinearGradient(0, GROUND_Y, 0, H);
+    dirt.addColorStop(0, '#a9743f');
+    dirt.addColorStop(1, '#6b4526');
+    ctx.fillStyle = dirt;
+    ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+    // 草地上层
+    const grass = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 24);
+    grass.addColorStop(0, '#86d14b');
+    grass.addColorStop(1, '#4f9e2f');
+    ctx.fillStyle = grass;
+    ctx.fillRect(0, GROUND_Y, W, 24);
+
+    // 草尖
+    ctx.fillStyle = '#5cb534';
+    for (let x = 0; x < W; x += 16) {
+      const hgt = 5 + ((x * 37) % 9);
+      ctx.beginPath();
+      ctx.moveTo(x, GROUND_Y + 1);
+      ctx.lineTo(x + 5, GROUND_Y - hgt);
+      ctx.lineTo(x + 10, GROUND_Y + 1);
+      ctx.fill();
+    }
+
+    // 泥土小石子
+    ctx.fillStyle = 'rgba(0,0,0,0.10)';
+    for (let i = 0; i < 70; i++) {
+      const x = ((i * 173) % W) + 8;
+      const y = GROUND_Y + 34 + ((i * 97) % (H - GROUND_Y - 50));
+      ctx.beginPath();
+      ctx.ellipse(x, y, 3 + (i % 3), 2 + (i % 2), 0, 0, 7);
+      ctx.fill();
+    }
+
+    // 前景草丛
+    for (const bx of [40, 380, 620, 860, 1180]) {
+      drawBush(bx, GROUND_Y + 6, 0.9);
+    }
+  }
+
+  function drawTree(x, y, s) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    ctx.fillStyle = '#6b4a2b';
+    ctx.fillRect(-7, -46, 14, 46);
+    ctx.fillStyle = '#4f9e2f';
+    ctx.beginPath();
+    ctx.arc(0, -62, 34, 0, 7);
+    ctx.arc(-26, -48, 24, 0, 7);
+    ctx.arc(26, -48, 24, 0, 7);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.16)';
+    ctx.beginPath();
+    ctx.arc(-8, -72, 18, 0, 7);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBush(x, y, s) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    ctx.fillStyle = '#3f8f28';
+    ctx.beginPath();
+    ctx.arc(0, 0, 22, Math.PI, 0);
+    ctx.arc(-20, 2, 16, Math.PI, 0);
+    ctx.arc(20, 2, 16, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.13)';
+    ctx.beginPath();
+    ctx.arc(-4, -12, 12, 0, 7);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /* ============================================================
+     12. 渲染 —— 弹弓与小鸟
+     ============================================================ */
+  function drawSlingWood() {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // 地面阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath();
+    ctx.ellipse(200, GROUND_Y + 4, 46, 10, 0, 0, 7);
+    ctx.fill();
+
+    // 主干
+    ctx.strokeStyle = '#5a3a1e';
+    ctx.lineWidth = 24;
+    ctx.beginPath();
+    ctx.moveTo(200, GROUND_Y);
+    ctx.lineTo(200, 476);
+    ctx.stroke();
+
+    // 左叉
+    ctx.beginPath();
+    ctx.moveTo(200, 486);
+    ctx.quadraticCurveTo(192, 450, 182, 416);
+    ctx.stroke();
+
+    // 右叉
+    ctx.beginPath();
+    ctx.moveTo(200, 486);
+    ctx.quadraticCurveTo(208, 450, 218, 416);
+    ctx.stroke();
+
+    // 高光
+    ctx.strokeStyle = 'rgba(255,220,160,0.28)';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(194, GROUND_Y - 12);
+    ctx.lineTo(194, 486);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(192, 476);
+    ctx.quadraticCurveTo(186, 448, 178, 424);
+    ctx.stroke();
+
+    // 皮筋绑扎
+    ctx.strokeStyle = '#3a2412';
+    ctx.lineWidth = 5;
+    for (const yy of [440, 452, 464]) {
+      ctx.beginPath();
+      ctx.moveTo(188, yy);
+      ctx.lineTo(212, yy - 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawBand(from, to, width, color) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    // 亮边
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+    ctx.lineWidth = width * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBird(x, y, r, rot, squish) {
+    ctx.save();
+    ctx.translate(x, y);
+    if (rot) ctx.rotate(rot);
+    if (squish && squish !== 1) ctx.scale(1 / squish, squish);
+
+    // 尾羽
+    ctx.fillStyle = '#2f2f34';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.78, -r * 0.30);
+    ctx.lineTo(-r * 1.55, -r * 0.62);
+    ctx.lineTo(-r * 1.38, -r * 0.10);
+    ctx.lineTo(-r * 1.58, r * 0.30);
+    ctx.lineTo(-r * 0.78, r * 0.16);
+    ctx.closePath();
+    ctx.fill();
+
+    // 头顶呆毛
+    ctx.strokeStyle = '#8d0801';
+    ctx.lineWidth = r * 0.13;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.05, -r * 0.96);
+    ctx.quadraticCurveTo(r * 0.02, -r * 1.34, r * 0.26, -r * 1.24);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.30, -r * 0.92);
+    ctx.quadraticCurveTo(-r * 0.40, -r * 1.24, -r * 0.14, -r * 1.22);
+    ctx.stroke();
+
+    // 身体
+    const g = ctx.createRadialGradient(-r * 0.32, -r * 0.38, r * 0.15, 0, 0, r * 1.18);
+    g.addColorStop(0, '#ff7b6b');
+    g.addColorStop(0.55, '#e02b20');
+    g.addColorStop(1, '#a50e0e');
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, 7);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.4, r * 0.1);
+    ctx.strokeStyle = '#7d0605';
+    ctx.stroke();
+
+    // 肚皮
+    ctx.beginPath();
+    ctx.ellipse(-r * 0.02, r * 0.48, r * 0.54, r * 0.34, 0, 0, 7);
+    ctx.fillStyle = '#ffd8bd';
+    ctx.fill();
+
+    // 眼睛
+    const eyes = [
+      { cx: r * 0.02, cy: -r * 0.30 },
+      { cx: r * 0.44, cy: -r * 0.28 }
+    ];
+    for (const e of eyes) {
+      ctx.beginPath();
+      ctx.arc(e.cx, e.cy, r * 0.25, 0, 7);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(e.cx + r * 0.06, e.cy + r * 0.02, r * 0.115, 0, 7);
+      ctx.fillStyle = '#151515';
+      ctx.fill();
+    }
+
+    // 愤怒的眉毛
+    ctx.strokeStyle = '#4a0404';
+    ctx.lineWidth = r * 0.16;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.22, -r * 0.62);
+    ctx.lineTo(r * 0.18, -r * 0.44);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r * 0.62, -r * 0.62);
+    ctx.lineTo(r * 0.30, -r * 0.44);
+    ctx.stroke();
+
+    // 喙
+    ctx.beginPath();
+    ctx.moveTo(r * 0.50, r * 0.02);
+    ctx.lineTo(r * 1.28, r * 0.14);
+    ctx.lineTo(r * 0.50, r * 0.34);
+    ctx.closePath();
+    ctx.fillStyle = '#f9a825';
+    ctx.fill();
+    ctx.strokeStyle = '#c77800';
+    ctx.lineWidth = r * 0.07;
+    ctx.stroke();
+    // 下喙分界
+    ctx.beginPath();
+    ctx.moveTo(r * 0.52, r * 0.18);
+    ctx.lineTo(r * 1.16, r * 0.16);
+    ctx.strokeStyle = 'rgba(140,80,0,0.55)';
+    ctx.lineWidth = r * 0.05;
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawPig(p) {
+    const r = p.r;
+    const x = p.x, y = p.y;
+    const dmg = 1 - clamp(p.hp / p.maxHp, 0, 1);
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    // 地面阴影
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath();
+    ctx.ellipse(0, r * 0.98, r * 0.9, r * 0.22, 0, 0, 7);
+    ctx.fill();
+
+    // 耳朵
+    ctx.fillStyle = '#3f8f28';
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(s * r * 0.42, -r * 0.86);
+      ctx.lineTo(s * r * 0.86, -r * 1.16);
+      ctx.lineTo(s * r * 0.82, -r * 0.62);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // 身体
+    const g = ctx.createRadialGradient(-r * 0.32, -r * 0.36, r * 0.12, 0, 0, r * 1.15);
+    g.addColorStop(0, '#b9ec7b');
+    g.addColorStop(0.55, '#7ac943');
+    g.addColorStop(1, '#3f8f28');
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, 7);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.2, r * 0.08);
+    ctx.strokeStyle = '#2e6b1c';
+    ctx.stroke();
+
+    // 受伤变红
+    if (dmg > 0.15) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, 7);
+      ctx.fillStyle = 'rgba(180,30,20,' + (dmg * 0.22) + ')';
+      ctx.fill();
+    }
+    if (p.hitFlash > 0) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, 7);
+      ctx.fillStyle = 'rgba(255,255,255,' + (p.hitFlash * 1.6) + ')';
+      ctx.fill();
+    }
+
+    // 眼睛
+    const blink = Math.sin(G.time * 1.6 + (p.blink || 0)) > 0.985;
+    for (const s of [-1, 1]) {
+      const ex = s * r * 0.34;
+      const ey = -r * 0.30;
+      if (blink) {
+        ctx.strokeStyle = '#1d3b12';
+        ctx.lineWidth = r * 0.09;
+        ctx.beginPath();
+        ctx.moveTo(ex - r * 0.16, ey);
+        ctx.lineTo(ex + r * 0.16, ey);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(ex, ey, r * 0.26, 0, 7);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.beginPath();
+        // 受伤时瞳孔变“晕”
+        const px = ex + (dmg > 0.5 ? 0 : r * 0.03);
+        ctx.arc(px, ey + r * 0.02, r * 0.11, 0, 7);
+        ctx.fillStyle = '#20340f';
+        ctx.fill();
+      }
+    }
+
+    // 眉毛（受伤后皱眉）
+    if (dmg > 0.35) {
+      ctx.strokeStyle = '#204d0f';
+      ctx.lineWidth = r * 0.10;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.55, -r * 0.62);
+      ctx.lineTo(-r * 0.16, -r * 0.50);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(r * 0.55, -r * 0.62);
+      ctx.lineTo(r * 0.16, -r * 0.50);
+      ctx.stroke();
+    }
+
+    // 猪鼻子
+    ctx.beginPath();
+    ctx.ellipse(0, r * 0.26, r * 0.42, r * 0.32, 0, 0, 7);
+    ctx.fillStyle = '#a5e264';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(40,90,20,0.35)';
+    ctx.lineWidth = r * 0.05;
+    ctx.stroke();
+    ctx.fillStyle = '#2b5c17';
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(s * r * 0.15, r * 0.26, r * 0.075, r * 0.10, 0, 0, 7);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawBlock(b) {
+    const w = b.w;
+    const h = b.h;
+    const wood = b.type !== 'stone';
+    const isDebris = !!b.debris;
+
+    ctx.save();
+
+    // 阴影（不随物体旋转）
+    if (!isDebris) {
+      ctx.fillStyle = 'rgba(0,0,0,0.10)';
+      rr(b.x - b.hw + 3, b.y - b.hh + 4, w, h, 4);
+      ctx.fill();
+    }
+
+    // 以物体中心为原点，按物理角度旋转
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.angle);
+    if (isDebris) ctx.globalAlpha = clamp(b.life / 0.6, 0, 1);
+
+    const x = -b.hw;
+    const y = -b.hh;
+
+    // 碎块：简化外观
+    if (isDebris) {
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      if (wood) {
+        g.addColorStop(0, '#e0a869');
+        g.addColorStop(1, '#a86a33');
+      } else {
+        g.addColorStop(0, '#cdd2d7');
+        g.addColorStop(1, '#868d93');
+      }
+      rr(x, y, w, h, 2.5);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = wood ? 'rgba(120,70,25,0.55)' : 'rgba(90,95,100,0.55)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
+    if (wood) {
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, '#e0a869');
+      g.addColorStop(0.5, '#cf9150');
+      g.addColorStop(1, '#a86a33');
+      rr(x, y, w, h, 4);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = '#7c4a1f';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 木纹
+      ctx.save();
+      rr(x, y, w, h, 4);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(120,70,25,0.35)';
+      ctx.lineWidth = 1.4;
+      if (w > h) {
+        for (let i = 1; i < 4; i++) {
+          const yy = y + (h / 4) * i;
+          ctx.beginPath();
+          ctx.moveTo(x + 5, yy);
+          ctx.bezierCurveTo(x + w * 0.35, yy - 2, x + w * 0.65, yy + 2, x + w - 5, yy);
+          ctx.stroke();
+        }
+      } else {
+        for (let i = 1; i < 4; i++) {
+          const xx = x + (w / 4) * i;
+          ctx.beginPath();
+          ctx.moveTo(xx, y + 5);
+          ctx.bezierCurveTo(xx - 2, y + h * 0.35, xx + 2, y + h * 0.65, xx, y + h - 5);
+          ctx.stroke();
+        }
+      }
+      // 木节
+      ctx.fillStyle = 'rgba(130,78,30,0.45)';
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.32, y + h * 0.46, 3.2, 2.4, 0, 0, 7);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, '#cdd2d7');
+      g.addColorStop(0.5, '#a9b0b6');
+      g.addColorStop(1, '#868d93');
+      rr(x, y, w, h, 4);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = '#5f666c';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.save();
+      rr(x, y, w, h, 4);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(70,78,84,0.5)';
+      ctx.lineWidth = 1.3;
+      for (let i = -h; i < w; i += 16) {
+        ctx.beginPath();
+        ctx.moveTo(x + i, y);
+        ctx.lineTo(x + i + h, y + h);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 裂纹
+    const dmg = 1 - clamp(b.hp / b.maxHp, 0, 1);
+    if (dmg > 0.22) {
+      ctx.save();
+      rr(x, y, w, h, 4);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(30,20,10,' + (0.30 + dmg * 0.45) + ')';
+      ctx.lineWidth = 1.6;
+      const cx = x + w * 0.5;
+      const cy = y + h * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - w * 0.3, y + h * 0.2);
+      ctx.lineTo(cx - w * 0.05, cy);
+      ctx.lineTo(cx - w * 0.2, y + h * 0.75);
+      ctx.stroke();
+      if (dmg > 0.5) {
+        ctx.beginPath();
+        ctx.moveTo(cx + w * 0.28, y + h * 0.15);
+        ctx.lineTo(cx + w * 0.08, cy + h * 0.1);
+        ctx.lineTo(cx + w * 0.32, y + h * 0.72);
+        ctx.stroke();
+      }
+      if (dmg > 0.75) {
+        ctx.beginPath();
+        ctx.moveTo(cx - w * 0.05, cy);
+        ctx.lineTo(cx + w * 0.16, y + h * 0.88);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 受击闪白
+    if (b.hitFlash > 0) {
+      rr(x, y, w, h, 4);
+      ctx.fillStyle = 'rgba(255,255,255,' + (b.hitFlash * 2.4) + ')';
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawBodies() {
+    for (const b of bodies) {
+      if (b.dead) continue;
+      if (b.kind === 'block' || b.kind === 'debris') {
+        drawBlock(b);
+      } else if (b.kind === 'pig') {
+        drawPig(b);
+      } else if (b.kind === 'bird') {
+        // 尾迹
+        if (b.trail && b.trail.length > 1) {
+          for (let i = 0; i < b.trail.length; i++) {
+            const p = b.trail[i];
+            const a = (i / b.trail.length) * 0.35;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, b.r * (0.25 + (i / b.trail.length) * 0.55), 0, 7);
+            ctx.fillStyle = 'rgba(255,190,190,' + a + ')';
+            ctx.fill();
+          }
+        }
+        let rot = 0;
+        const sp = Math.hypot(b.vx, b.vy);
+        if (sp > 60) rot = clamp(Math.atan2(b.vy, Math.abs(b.vx) + 1) * (b.vx > 0 ? 0.85 : 0), -0.9, 0.9);
+        drawBird(b.x, b.y, b.r, rot, 1);
+      }
+    }
+  }
+
+  function drawQueueBirds() {
+    for (let i = 0; i < G.queue.length; i++) {
+      const b = G.queue[i];
+      const bob = Math.abs(Math.sin(G.time * 2.4 + b.bob)) * 3;
+      drawBird(b.x, b.y - bob, BIRD_R, 0, 1);
+      // 小影子
+      ctx.fillStyle = 'rgba(0,0,0,0.13)';
+      ctx.beginPath();
+      ctx.ellipse(b.x, GROUND_Y + 2, BIRD_R * 0.85, 4, 0, 0, 7);
+      ctx.fill();
+    }
+  }
+
+  function drawSlingshot() {
+    if (!G.sling) return;
+    const pos = G.dragging ? G.dragPos : slingBirdPos();
+
+    drawSlingWood();
+
+    if (pos) {
+      // 后侧皮筋
+      drawBand({ x: 182, y: 418 }, pos, 9, '#4a2c17');
+      // 小鸟
+      const stretch = Math.hypot(pos.x - ANCHOR.x, pos.y - ANCHOR.y);
+      const rot = Math.atan2(ANCHOR.y - pos.y, ANCHOR.x - pos.x) * 0.25;
+      drawBird(pos.x, pos.y, BIRD_R, rot, 1 + stretch / 900);
+      // 前侧皮筋
+      drawBand({ x: 218, y: 418 }, pos, 9, '#5c3720');
+    }
+
+    // 弹弓被拉拽时的轻微抖动
+    if (G.tremble > 0) {
+      ctx.save();
+      ctx.globalAlpha = G.tremble * 0.6;
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ANCHOR.x, ANCHOR.y, 26, 0, 7);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function drawTrajectory() {
+    if (!G.dragging) return;
+    const sx = G.dragPos.x;
+    const sy = G.dragPos.y;
+    let vx = (ANCHOR.x - sx) * LAUNCH_MUL;
+    let vy = (ANCHOR.y - sy) * LAUNCH_MUL;
+    if (Math.hypot(vx, vy) < 120) return;
+
+    const step = 0.055;
+    let x = sx, y = sy;
+
+    for (let i = 0; i < 26; i++) {
+      vy += GRAVITY * step;
+      x += vx * step;
+      y += vy * step;
+      if (y > GROUND_Y || x > W + 40) break;
+      const t = i / 26;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.6 - t * 2, 0, 7);
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.55 - t * 0.42) + ')';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, 5.2 - t * 2.6, 0, 7);
+      ctx.strokeStyle = 'rgba(60,90,110,' + (0.16 - t * 0.12) + ')';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  function drawParticles() {
+    for (const p of G.particles) {
+      const a = clamp(p.life / p.maxLife, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.restore();
+    }
+  }
+
+  function drawPopups() {
+    for (const p of G.popups) {
+      const a = clamp(p.life / p.maxLife, 0, 1);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.font = 'bold 30px "PingFang SC", "Microsoft YaHei", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+      ctx.strokeText(p.text, p.x, p.y);
+      ctx.fillStyle = '#ffe066';
+      ctx.fillText(p.text, p.x, p.y);
+      ctx.restore();
+    }
+  }
+
+  function drawHint() {
+    if (!G.hint || G.ended) return;
+    const a = 0.55 + Math.sin(G.time * 3) * 0.15;
+    const x = 200, y = 300;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(8, 26, 40, 0.55)';
+    rr(x - 118, y - 26, 236, 44, 22);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 19px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('按住小鸟往后拉，松手发射', x, y - 2);
+
+    // 箭头
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x + 16, y + 34);
+    ctx.lineTo(x + 62, y + 34);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 52, y + 27);
+    ctx.lineTo(x + 62, y + 34);
+    ctx.lineTo(x + 52, y + 41);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ============================================================
+     13. 主渲染
+     ============================================================ */
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+
+    if (G.shake > 0.3) {
+      ctx.translate(rand(-G.shake, G.shake) * 0.5, rand(-G.shake, G.shake) * 0.5);
+    }
+
+    drawBackground(G.time);
+    drawQueueBirds();
+    drawSlingshot();
+    drawBodies();
+    drawTrajectory();
+    drawParticles();
+    drawPopups();
+    drawHint();
+
+    ctx.restore();
+  }
+
+  /* ============================================================
+     14. HUD / 结算
+     ============================================================ */
+  const scoreEl = document.getElementById('scoreVal');
+  const levelEl = document.getElementById('levelVal');
+  const overlayEl = document.getElementById('overlay');
+  const ovEmoji = document.getElementById('ovEmoji');
+  const ovTitle = document.getElementById('ovTitle');
+  const ovSub = document.getElementById('ovSub');
+  const ovBtn = document.getElementById('ovBtn');
+
+  let ovAction = null;
+
+  function updateHUD() {
+    scoreEl.textContent = G.score.toLocaleString('en-US');
+    levelEl.textContent = String(G.level + 1);
+  }
+
+  function hideOverlay() {
+    overlayEl.classList.remove('show');
+  }
+
+  function showOverlay(emoji, title, sub, btnText, action) {
+    ovEmoji.textContent = emoji;
+    ovTitle.textContent = title;
+    ovSub.innerHTML = sub;
+    ovBtn.textContent = btnText;
+    ovAction = action;
+    overlayEl.classList.add('show');
+  }
+
+  ovBtn.addEventListener('click', () => {
+    if (ovAction) ovAction();
+  });
+
+  function doWin() {
+    if (G.ended) return;
+    G.ended = true;
+
+    // 剩余小鸟奖励
+    const left = G.queue.length + (G.sling && G.sling.mode === 'ready' ? 1 : 0);
+    const bonus = left * 10000;
+    G.score += bonus;
+    updateHUD();
+    G.queue.length = 0;
+    G.sling = { mode: 'empty', t: 0, from: null, dur: 0.5 };
+    sfx('win');
+
+    const isLast = G.level >= LEVELS.length - 1;
+    const sub = '本关得分 <b>' + G.score.toLocaleString('en-US') + '</b>' +
+      (bonus > 0 ? '<br>剩余小鸟奖励 +' + bonus.toLocaleString('en-US') : '');
+    showOverlay(
+      '🎉',
+      isLast ? '全部通关！' : '通关！',
+      sub,
+      isLast ? '再玩一次' : '下一关',
+      () => { loadLevel(isLast ? 0 : G.level + 1); }
+    );
+  }
+
+  function doLose() {
+    if (G.ended) return;
+    G.ended = true;
+    showOverlay(
+      '🐷',
+      '小猪们还在笑…',
+      '还有小猪没被消灭<br>本关得分 <b>' + G.score.toLocaleString('en-US') + '</b>',
+      '再试一次',
+      () => { loadLevel(G.level); }
+    );
+  }
+
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    loadLevel(G.level);
+  });
+
+  const muteBtn = document.getElementById('muteBtn');
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+  });
+
+  /* ============================================================
+     15. 主循环 & 自适应
+     ============================================================ */
+  const stage = document.getElementById('stage');
+
+  function resize() {
+    const w = stage.clientWidth;
+    stage.style.setProperty('--u', (w / 100) + 'px');
+    // 用 --u 驱动 HUD，同时确保 stage 尺寸失效时仍可用
+    document.documentElement.style.setProperty('--u', (w / 100) + 'px');
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+
+  let lastT = performance.now();
+
+  function frame(now) {
+    let dt = (now - lastT) / 1000;
+    lastT = now;
+    if (dt > 0.05) dt = 0.05;
+    if (dt < 0) dt = 0;
+
+    update(dt);
+    render();
+
+    requestAnimationFrame(frame);
+  }
+
+  resize();
+  updateGeometry(ground);
+  loadLevel(0);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
