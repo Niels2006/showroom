@@ -24,6 +24,8 @@
     --accent-e:#b78aff;
     --accent-f:#5eead4;
     --accent-g:#ff8ad8;
+    --accent-h:#ffa53e;
+    --accent-i:#38bdf8;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
@@ -400,6 +402,8 @@
   .card:nth-child(4){animation-delay:.23s}
   .card:nth-child(5){animation-delay:.29s}
   .card:nth-child(6){animation-delay:.35s}
+  .card:nth-child(7){animation-delay:.41s}
+  .card:nth-child(8){animation-delay:.47s}
 
   @media (max-width:640px){
     header.hero{padding:60px 0 34px}
@@ -427,19 +431,19 @@
     </div>
     <h1 class="title">作品展厅</h1>
     <p class="hero-sub">
-      街机游戏、飞行射击、多人对战与群体行为模拟 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
+      街机游戏、物理弹射、深海生存、多人对战与群体行为模拟 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
     </p>
     <div class="hero-meta">
-      <div class="stat"><b>7</b><span>件作品</span></div>
+      <div class="stat"><b>9</b><span>件作品</span></div>
       <div class="stat"><b>2</b><span>个分类</span></div>
-      <div class="stat"><b>6</b><span>纯前端 · 免安装</span></div>
+      <div class="stat"><b>8</b><span>纯前端 · 免安装</span></div>
     </div>
   </header>
 
   <!-- ══════════ 游戏 ══════════ -->
   <div class="section-head">
     <h2>游戏 Game</h2>
-    <span class="count">6</span>
+    <span class="count">8</span>
     <div class="line"></div>
   </div>
 
@@ -628,6 +632,66 @@
       </div>
     </a>
 
+    <!-- 愤怒的小鸟 -->
+    <a class="card" href="game/angry-birds.html" target="_blank" rel="noopener" style="--accent:var(--accent-h)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 21v-7L4 7"/>
+            <path d="M17 21v-7l3-7"/>
+            <path d="M12 12v9"/>
+            <circle cx="12" cy="7" r="2.5"/>
+          </svg>
+        </div>
+        <span class="card-index">07</span>
+      </div>
+      <h3>愤怒的小鸟<span class="en">Angry Birds</span></h3>
+      <p class="desc">
+        拉弹弓打猪的物理益智游戏。按住小鸟向后拖拽、松手发射，真实的重力与碰撞让木塔、石屋轰然倒塌。每关小鸟数量有限（4~5 只），清除全部小猪才能过关，共 3 关层层加码。
+      </p>
+      <div class="tags">
+        <span class="tag">物理弹射</span>
+        <span class="tag">拖拽瞄准</span>
+        <span class="tag">3 关关卡</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">game/angry-birds.html</span>
+      </div>
+    </a>
+
+    <!-- 饥饿鲨 -->
+    <a class="card" href="game/hungry-shark.html" target="_blank" rel="noopener" style="--accent:var(--accent-i)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 17c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2"/>
+            <path d="M10 15c.5-4 3-7 7-9-1 3.5-2 6.5-4 9"/>
+          </svg>
+        </div>
+        <span class="card-index">08</span>
+      </div>
+      <h3>饥饿鲨<span class="en">Hungry Shark</span></h3>
+      <p class="desc">
+        深海生存进化。按住鼠标左键朝光标方向游动，A 键消耗体力冲刺；只能吞下等级不高于自己的生物，进食回血并积累经验。血量随时间流失，停止进食就会被饿死；从大陆架一路深入海沟，水雷与潜艇鱼雷随时致命。
+      </p>
+      <div class="tags">
+        <span class="tag">深海生存</span>
+        <span class="tag">等级进化</span>
+        <span class="tag">5 片海域</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">game/hungry-shark.html</span>
+      </div>
+    </a>
+
   </section>
 
   <!-- ══════════ 模拟 ══════════ -->
@@ -648,7 +712,7 @@
             <path d="M6.5 7.5 9 10M17.5 7.5 15 10"/>
           </svg>
         </div>
-        <span class="card-index">07</span>
+        <span class="card-index">09</span>
       </div>
       <h3>鸟群涌现<span class="en">Emergence · Boids</span></h3>
       <p class="desc">
