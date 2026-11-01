@@ -138,12 +138,15 @@
   const GRAVITY = 1600;        // 重力加速度 px/s²
   const FIXED = 1 / 120;       // 固定物理步长（每帧最多跑 10 步）
   const BIRD_R = 18;
+  const BLUE_R = 15;           // 蓝色小鸟略小一圈
+  const BLACK_R = 36;          // 黑色炸弹鸟：红鸟的两倍
 
-  const ANCHOR = { x: 200, y: 412 };   // 弹弓上皮筋交汇点（小鸟静止位）
-  const MAX_PULL = 118;                // 最大拉伸距离
-  const LAUNCH_MUL = 13;               // 拉伸距离 → 初速度倍率
-  const QUEUE_X = 124;                 // 排队小鸟第一只的位置
-  const QUEUE_GAP = 44;
+  const ANCHOR = { x: 200, y: 374 };   // 弹弓上皮筋交汇点（小鸟静止位）
+  const MAX_PULL = 124;                // 最大拉伸距离
+  const LAUNCH_MUL = 12.5;             // 拉伸距离 → 初速度倍率
+  const QUEUE_X = 126;                 // 排队小鸟第一只的位置
+  const BOMB_RADIUS = 210;             // 黑鸟爆炸波及半径
+  const FUSE_TIME = 1.0;               // 黑鸟落地后引信燃烧时间（秒）
 
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -199,6 +202,37 @@
         g.gain.setValueAtTime(0.1, t);
         g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
         o.start(t); o.stop(t + 0.13);
+      } else if (type === 'fuse') {
+        // 引信点燃的“嘶嘶”声
+        o.type = 'square';
+        o.frequency.setValueAtTime(1200, t);
+        o.frequency.exponentialRampToValueAtTime(380, t + 0.28);
+        g.gain.setValueAtTime(0.06, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        o.start(t); o.stop(t + 0.32);
+      } else if (type === 'boom') {
+        // 低频轰鸣 + 噪声爆裂
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(150, t);
+        o.frequency.exponentialRampToValueAtTime(36, t + 0.45);
+        g.gain.setValueAtTime(0.3, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+        o.start(t); o.stop(t + 0.62);
+
+        const len = Math.floor(audioCtx.sampleRate * 0.42);
+        const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) {
+          data[i] = (Math.random() * 2 - 1) * (1 - i / len) * (1 - i / len);
+        }
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf;
+        const ng = audioCtx.createGain();
+        ng.gain.setValueAtTime(0.26, t);
+        ng.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+        src.connect(ng);
+        ng.connect(audioCtx.destination);
+        src.start(t);
       } else if (type === 'win') {
         o.type = 'sine';
         o.frequency.setValueAtTime(520, t);
@@ -303,16 +337,30 @@
     };
   }
 
-  function makeBird(x, y, vx, vy) {
+  function birdRadius(type) {
+    if (type === 'blue') return BLUE_R;
+    if (type === 'black') return BLACK_R;
+    return BIRD_R;                 // 黄鸟与红鸟同尺寸
+  }
+
+  function makeBird(x, y, vx, vy, type) {
+    type = type || 'red';
+    const r = birdRadius(type);
+    const mass = type === 'blue' ? 3.0 : (type === 'black' ? 12.0 : 4.5);
     return {
-      id: ++bodySeq, shape: 'circle', kind: 'bird',
-      x, y, r: BIRD_R, vx, vy, angle: 0, angVel: 0,
-      mass: 4.5, invMass: 1 / 4.5,
+      id: ++bodySeq, shape: 'circle', kind: 'bird', type,
+      x, y, r, vx, vy, angle: 0, angVel: 0,
+      mass, invMass: 1 / mass,
       invInertia: 0, inertia: Infinity,
       restitution: 0.34, friction: 0.5,
       hp: Infinity, maxHp: Infinity,
       hitFlash: 0, dmgCd: 0, dead: false,
-      impacted: false, trail: [], restTime: 0
+      impacted: false, trail: [], restTime: 0, landed: false,
+      splitUsed: false,          // 蓝鸟技能是否已用（每只只能用一次）
+      boosted: false,            // 黄鸟加速是否已用
+      exploded: false,           // 黑鸟是否已自爆
+      fuse: -1,                  // 黑鸟引信剩余时间（-1 表示未点燃）
+      fuseArmed: false           // 黑鸟是否已触地并点燃引信
     };
   }
 
@@ -467,6 +515,11 @@
     m.an = [];
     m.at = [];
     m.vn0 = [];
+    // 休眠刚体在解算里当作不动的支撑
+    m.imA = a.asleep ? 0 : a.invMass;
+    m.imB = b.asleep ? 0 : b.invMass;
+    m.iiA = a.asleep ? 0 : a.invInertia;
+    m.iiB = b.asleep ? 0 : b.invInertia;
     for (let ci = 0; ci < m.contacts.length; ci++) {
       const c = m.contacts[ci];
       const rax = c.x - a.x, ray = c.y - a.y;
@@ -498,8 +551,8 @@
 
       const raCn = rax * ny - ray * nx;
       const rbCn = rbx * ny - rby * nx;
-      const k = a.invMass + b.invMass +
-                raCn * raCn * a.invInertia + rbCn * rbCn * b.invInertia;
+      const k = m.imA + m.imB +
+                raCn * raCn * m.iiA + rbCn * rbCn * m.iiB;
       if (k <= 0) continue;
 
       // 只有明显撞击才回弹，静止堆放时不要“弹”
@@ -510,12 +563,12 @@
       m.an[ci] = Math.max(prev + lam, 0);
       lam = m.an[ci] - prev;
 
-      a.vx -= nx * lam * a.invMass;
-      a.vy -= ny * lam * a.invMass;
-      a.angVel -= raCn * lam * a.invInertia;
-      b.vx += nx * lam * b.invMass;
-      b.vy += ny * lam * b.invMass;
-      b.angVel += rbCn * lam * b.invInertia;
+      a.vx -= nx * lam * m.imA;
+      a.vy -= ny * lam * m.imA;
+      a.angVel -= raCn * lam * m.iiA;
+      b.vx += nx * lam * m.imB;
+      b.vy += ny * lam * m.imB;
+      b.angVel += rbCn * lam * m.iiB;
     }
   }
 
@@ -537,8 +590,8 @@
 
       const raCt = rax * ty - ray * tx;
       const rbCt = rbx * ty - rby * tx;
-      const kt = a.invMass + b.invMass +
-                 raCt * raCt * a.invInertia + rbCt * rbCt * b.invInertia;
+      const kt = m.imA + m.imB +
+                 raCt * raCt * m.iiA + rbCt * rbCt * m.iiB;
       if (kt <= 0) continue;
 
       const mu = Math.sqrt(a.friction * b.friction);
@@ -548,12 +601,12 @@
       m.at[ci] = clamp(prevT + lamT, -lim, lim);
       lamT = m.at[ci] - prevT;
 
-      a.vx -= tx * lamT * a.invMass;
-      a.vy -= ty * lamT * a.invMass;
-      a.angVel -= raCt * lamT * a.invInertia;
-      b.vx += tx * lamT * b.invMass;
-      b.vy += ty * lamT * b.invMass;
-      b.angVel += rbCt * lamT * b.invInertia;
+      a.vx -= tx * lamT * m.imA;
+      a.vy -= ty * lamT * m.imA;
+      a.angVel -= raCt * lamT * m.iiA;
+      b.vx += tx * lamT * m.imB;
+      b.vy += ty * lamT * m.imB;
+      b.angVel += rbCt * lamT * m.iiB;
     }
   }
 
@@ -574,22 +627,26 @@
   }
 
   function correctPositions(a, b, m) {
-    const invSum = a.invMass + b.invMass;
+    const invSum = m.imA + m.imB;
     if (invSum <= 0) return;
     const corr = Math.max(m.pen - 0.4, 0) * 0.55 / invSum;
-    a.x -= m.nx * corr * a.invMass;
-    a.y -= m.ny * corr * a.invMass;
-    b.x += m.nx * corr * b.invMass;
-    b.y += m.ny * corr * b.invMass;
+    a.x -= m.nx * corr * m.imA;
+    a.y -= m.ny * corr * m.imA;
+    b.x += m.nx * corr * m.imB;
+    b.y += m.ny * corr * m.imB;
   }
 
   /* ---- 撞击处理：伤害 + 小鸟落点回报 ---- */
   function handleImpact(a, b, speed) {
     const bird = a.kind === 'bird' ? a : (b.kind === 'bird' ? b : null);
     if (bird && !bird.impacted && speed > 30) onBirdImpact(bird);
+    // 落地标记：蓝鸟触地后不能再分裂
+    if (bird && speed > 20 && (a.kind === 'ground' || b.kind === 'ground')) bird.landed = true;
 
-    damage(a, speed);
-    damage(b, speed);
+    // 黄鸟加速后撞击力翻倍
+    const hit = bird && bird.boosted ? speed * 2 : speed;
+    damage(a, hit);
+    damage(b, hit);
   }
 
   function damage(b, speed) {
@@ -619,7 +676,7 @@
 
   /* ---- 坠落伤害：支撑物消失后摔到地面 / 木头上也要扣血 ---- */
   function fallDamage(b) {
-    if (b.dmgCd > 0) return;
+    if (b.asleep || b.dmgCd > 0) return;
     const fall = b.pvy > 0 ? b.pvy : 0;   // 解算前的下坠速度
     if (fall < 260) return;
     if (b.vy > fall * 0.5) return;        // 仍在继续下坠，还没撞到东西
@@ -676,11 +733,19 @@
     burst(b.x, b.y, b.type === 'stone' ? '#b6bcc2' : '#d9a05b', 10, 200);
   }
 
+  /* ---- 唤醒整关（支撑被毁 / 有东西被打爆时，睡着的结构必须重新受力） ---- */
+  function wakeAll() {
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.asleep) { b.asleep = false; b.sleepT = 0; }
+    }
+  }
+
   function physicsStep(dt) {
     // 1. 积分 + 更新几何
     for (let i = 0; i < bodies.length; i++) {
       const b = bodies[i];
-      if (b.static) continue;
+      if (b.static || b.asleep) continue;
       b.vy += GRAVITY * dt;
       b.vx *= 0.9992;
       b.vy *= 0.9992;
@@ -713,6 +778,39 @@
         const b = bodies[j];
         const m = collide(a, b);
         if (m) { prepareManifold(a, b, m); manifolds.push({ a, b, m, speed: approachSpeed(a, b, m) }); }
+      }
+    }
+
+    // 2b. 休眠唤醒：有实际速度的接触会唤醒整串相连的结构（例如小鸟撞到木塔）
+    let wakeSeeds = null;
+    for (let i = 0; i < manifolds.length; i++) {
+      const mm = manifolds[i];
+      if (mm.speed > 20 && (mm.a.asleep || mm.b.asleep)) {
+        if (!wakeSeeds) wakeSeeds = [];
+        wakeSeeds.push(mm.a, mm.b);
+      }
+    }
+    if (wakeSeeds) {
+      const seen = new Set();
+      const stack = wakeSeeds.slice();
+      while (stack.length) {
+        const b = stack.pop();
+        if (b.static || seen.has(b)) continue;
+        seen.add(b);
+        if (b.asleep) { b.asleep = false; b.sleepT = 0; b.pvy = 0; }
+        for (let k = 0; k < manifolds.length; k++) {
+          const mm = manifolds[k];
+          if (mm.a === b) stack.push(mm.b);
+          else if (mm.b === b) stack.push(mm.a);
+        }
+      }
+      // 唤醒后这些接触不再当作“不可动支撑”
+      for (let i = 0; i < manifolds.length; i++) {
+        const mm = manifolds[i];
+        mm.m.imA = mm.a.asleep ? 0 : mm.a.invMass;
+        mm.m.imB = mm.b.asleep ? 0 : mm.b.invMass;
+        mm.m.iiA = mm.a.asleep ? 0 : mm.a.invInertia;
+        mm.m.iiB = mm.b.asleep ? 0 : mm.b.invInertia;
       }
     }
 
@@ -759,11 +857,29 @@
       }
     }
 
+    // 6b. 静止一段时间后休眠：结构最后一次坐稳后就完全静止，不再慢慢漂移
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.static || b.asleep) continue;
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp < 10 && Math.abs(b.angVel) < 0.25) {
+        b.sleepT = (b.sleepT || 0) + dt;
+        if (b.sleepT > 0.5) {
+          b.asleep = true;
+          b.vx = 0; b.vy = 0; b.angVel = 0;
+          b.pvy = 0;
+        }
+      } else {
+        b.sleepT = 0;
+      }
+    }
+
     // 7. 结算死亡
     for (let i = 0; i < bodies.length; i++) {
       const b = bodies[i];
       if (b.dead || b.hp > 0) continue;
       b.dead = true;
+      wakeAll();
       if (b.kind === 'pig') {
         burst(b.x, b.y, '#7ac943', 18, 260);
         burst(b.x, b.y, '#c6f27a', 8, 200);
@@ -806,11 +922,14 @@
   const G = {
     level: 0,
     score: 0,
+    birdType: 'red',      // 本关装机的小鸟类型
     queue: [],            // 排队的小鸟（纯视觉）
     sling: null,          // { mode:'ready'|'hop'|'empty', t, from, dur }
     dragging: false,
     dragPos: { x: ANCHOR.x, y: ANCHOR.y },
     particles: [],
+    fx: [],               // 爆炸冲击波 / 闪光等特效层
+    flash: 0,             // 全屏白闪强度
     popups: [],
     shake: 0,
     time: 0,
@@ -892,6 +1011,603 @@
         { x: 1060, y: 454, r: 22 },
         { x: 1060, y: 334, r: 22 }
       ]
+    },
+    {
+      birds: 4,
+      blocks: [
+        // 左塔
+        { x: 760, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 880, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 820, y: 488, w: 150, h: 24, t: 'stone' },
+        // 右塔
+        { x: 1010, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 1130, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 1070, y: 488, w: 150, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 820, y: 598, r: 22 },
+        { x: 820, y: 454, r: 22 },
+        { x: 1070, y: 598, r: 22 },
+        { x: 1070, y: 454, r: 22 }
+      ]
+    },
+    {
+      birds: 5,
+      blocks: [
+        // 左矮塔
+        { x: 700, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 800, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 750, y: 488, w: 140, h: 24, t: 'wood' },
+        // 中央三层塔
+        { x: 900, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 1020, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 960, y: 488, w: 150, h: 24, t: 'wood' },
+        { x: 920, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 1000, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 960, y: 368, w: 120, h: 24, t: 'stone' },
+        // 右侧小屋
+        { x: 1140, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1220, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1180, y: 508, w: 120, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 750, y: 598, r: 22 },
+        { x: 750, y: 454, r: 22 },
+        { x: 960, y: 598, r: 22 },
+        { x: 960, y: 334, r: 22 },
+        { x: 1180, y: 598, r: 22 },
+        { x: 1180, y: 474, r: 22 }
+      ]
+    },
+    {
+      birds: 5,
+      birdTypes: ['blue', 'red', 'blue', 'red', 'blue'],
+      blocks: [
+        // 中央四层塔
+        { x: 860, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 1000, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 930, y: 488, w: 180, h: 24, t: 'wood' },
+        { x: 890, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 970, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 930, y: 368, w: 160, h: 24, t: 'stone' },
+        { x: 900, y: 332, w: 22, h: 48, t: 'wood' },
+        { x: 960, y: 332, w: 22, h: 48, t: 'wood' },
+        { x: 930, y: 296, w: 120, h: 24, t: 'wood' },
+        // 左侧小院
+        { x: 710, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 790, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 750, y: 508, w: 130, h: 24, t: 'wood' },
+        // 右侧小院
+        { x: 1130, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1210, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1170, y: 508, w: 130, h: 24, t: 'stone' }
+      ],
+      pigs: [
+        { x: 930, y: 598, r: 22 },
+        { x: 930, y: 454, r: 22 },
+        { x: 930, y: 262, r: 22 },
+        { x: 750, y: 598, r: 22 },
+        { x: 750, y: 474, r: 22 },
+        { x: 1170, y: 598, r: 22 },
+        { x: 1170, y: 474, r: 22 }
+      ]
+    },
+    {
+      birds: 5,
+      birdTypes: ['blue', 'blue', 'red', 'red', 'blue'],
+      blocks: [
+        // 左双层塔
+        { x: 720, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 840, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 780, y: 488, w: 150, h: 24, t: 'wood' },
+        { x: 740, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 820, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 780, y: 368, w: 130, h: 24, t: 'wood' },
+        // 中央小石屋
+        { x: 890, y: 575, w: 24, h: 90, t: 'stone' },
+        { x: 960, y: 575, w: 24, h: 90, t: 'stone' },
+        { x: 925, y: 518, w: 100, h: 24, t: 'wood' },
+        // 右双层塔
+        { x: 1010, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 1130, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 1070, y: 488, w: 150, h: 24, t: 'wood' },
+        { x: 1030, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 1110, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 1070, y: 368, w: 130, h: 24, t: 'stone' }
+      ],
+      pigs: [
+        { x: 780, y: 598, r: 22 },
+        { x: 780, y: 334, r: 22 },
+        { x: 925, y: 598, r: 22 },
+        { x: 925, y: 484, r: 22 },
+        { x: 1070, y: 598, r: 22 },
+        { x: 1070, y: 334, r: 22 }
+      ]
+    },
+    {
+      birds: 6,
+      birdTypes: ['blue', 'red', 'blue', 'red', 'blue', 'red'],
+      blocks: [
+        // 中央四层塔
+        { x: 830, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 970, y: 560, w: 26, h: 120, t: 'wood' },
+        { x: 900, y: 488, w: 180, h: 24, t: 'wood' },
+        { x: 860, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 940, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 900, y: 368, w: 150, h: 24, t: 'stone' },
+        { x: 880, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 920, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 900, y: 296, w: 110, h: 24, t: 'wood' },
+        // 左侧小屋
+        { x: 700, y: 575, w: 24, h: 90, t: 'wood' },
+        { x: 780, y: 575, w: 24, h: 90, t: 'wood' },
+        { x: 740, y: 518, w: 120, h: 24, t: 'wood' },
+        // 右侧小屋
+        { x: 1140, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1240, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1190, y: 508, w: 120, h: 24, t: 'stone' }
+      ],
+      pigs: [
+        { x: 900, y: 598, r: 22 },
+        { x: 900, y: 454, r: 22 },
+        { x: 900, y: 262, r: 22 },
+        { x: 740, y: 598, r: 22 },
+        { x: 740, y: 484, r: 22 },
+        { x: 1190, y: 598, r: 22 },
+        { x: 1190, y: 474, r: 22 }
+      ]
+    },
+    {
+      birds: 6,
+      birdTypes: ['red', 'blue', 'red', 'blue', 'red', 'blue'],
+      blocks: [
+        // 左侧小院
+        { x: 660, y: 575, w: 24, h: 90, t: 'wood' },
+        { x: 735, y: 575, w: 24, h: 90, t: 'wood' },
+        { x: 700, y: 518, w: 120, h: 24, t: 'wood' },
+        // 左石拱门 + 上层木塔
+        { x: 780, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 900, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 840, y: 488, w: 180, h: 24, t: 'stone' },
+        { x: 800, y: 428, w: 22, h: 96, t: 'wood' },
+        { x: 880, y: 428, w: 22, h: 96, t: 'wood' },
+        { x: 840, y: 368, w: 120, h: 24, t: 'wood' },
+        // 右石拱门
+        { x: 1040, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1160, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1100, y: 488, w: 180, h: 24, t: 'stone' }
+      ],
+      pigs: [
+        { x: 700, y: 484, r: 22 },
+        { x: 840, y: 598, r: 22 },
+        { x: 840, y: 454, r: 22 },
+        { x: 840, y: 334, r: 22 },
+        { x: 1100, y: 598, r: 22 },
+        { x: 1100, y: 454, r: 22 }
+      ]
+    },
+    {
+      birds: 6,
+      birdTypes: ['blue', 'red', 'blue', 'blue', 'red', 'blue'],
+      blocks: [
+        // 中央四层塔
+        { x: 860, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 980, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 920, y: 488, w: 180, h: 24, t: 'wood' },
+        { x: 880, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 960, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 920, y: 368, w: 140, h: 24, t: 'stone' },
+        { x: 920, y: 320, w: 22, h: 72, t: 'wood' },
+        { x: 920, y: 272, w: 90, h: 24, t: 'wood' },
+        // 左侧石屋
+        { x: 680, y: 565, w: 24, h: 110, t: 'stone' },
+        { x: 780, y: 565, w: 24, h: 110, t: 'stone' },
+        { x: 730, y: 498, w: 130, h: 24, t: 'stone' },
+        // 右侧木屋
+        { x: 1150, y: 560, w: 24, h: 120, t: 'wood' },
+        { x: 1250, y: 560, w: 24, h: 120, t: 'wood' },
+        { x: 1200, y: 488, w: 130, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 920, y: 598, r: 22 },
+        { x: 920, y: 454, r: 22 },
+        { x: 880, y: 334, r: 22 },
+        { x: 920, y: 238, r: 22 },
+        { x: 730, y: 464, r: 22 },
+        { x: 1200, y: 598, r: 22 },
+        { x: 1200, y: 454, r: 22 }
+      ]
+    },
+    {
+      birds: 6,
+      birdTypes: ['yellow', 'blue', 'yellow', 'red', 'yellow', 'blue'],
+      blocks: [
+        // 左三层塔
+        { x: 690, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 790, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 740, y: 498, w: 160, h: 24, t: 'wood' },
+        { x: 715, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 765, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 740, y: 378, w: 130, h: 24, t: 'stone' },
+        // 中央四层塔
+        { x: 900, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1020, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 960, y: 488, w: 160, h: 24, t: 'wood' },
+        { x: 920, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 1000, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 960, y: 368, w: 150, h: 24, t: 'stone' },
+        { x: 960, y: 320, w: 22, h: 72, t: 'wood' },
+        { x: 960, y: 272, w: 100, h: 24, t: 'wood' },
+        // 右三层塔
+        { x: 1160, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 1240, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 1200, y: 498, w: 160, h: 24, t: 'wood' },
+        { x: 1170, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 1230, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 1200, y: 378, w: 130, h: 24, t: 'stone' }
+      ],
+      pigs: [
+        { x: 740, y: 598, r: 22 },
+        { x: 740, y: 344, r: 22 },
+        { x: 960, y: 598, r: 22 },
+        { x: 915, y: 334, r: 22 },
+        { x: 960, y: 238, r: 22 },
+        { x: 1200, y: 598, r: 22 },
+        { x: 1200, y: 344, r: 22 }
+      ]
+    },
+    {
+      birds: 6,
+      birdTypes: ['yellow', 'blue', 'red', 'yellow', 'blue', 'red'],
+      blocks: [
+        // 中央四层塔
+        { x: 880, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1000, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 940, y: 488, w: 180, h: 24, t: 'stone' },
+        { x: 900, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 980, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 940, y: 368, w: 140, h: 24, t: 'wood' },
+        { x: 912, y: 332, w: 22, h: 48, t: 'wood' },
+        { x: 968, y: 332, w: 22, h: 48, t: 'wood' },
+        { x: 940, y: 296, w: 110, h: 24, t: 'wood' },
+        // 左侧石拱门
+        { x: 700, y: 565, w: 26, h: 110, t: 'stone' },
+        { x: 820, y: 565, w: 26, h: 110, t: 'stone' },
+        { x: 760, y: 498, w: 160, h: 24, t: 'stone' },
+        // 右侧木屋
+        { x: 1160, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1240, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1200, y: 508, w: 130, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 940, y: 598, r: 22 },
+        { x: 940, y: 454, r: 22 },
+        { x: 940, y: 262, r: 22 },
+        { x: 760, y: 598, r: 22 },
+        { x: 760, y: 464, r: 22 },
+        { x: 1200, y: 598, r: 22 },
+        { x: 1200, y: 474, r: 22 }
+      ]
+    },
+    {
+      birds: 6,
+      birdTypes: ['yellow', 'yellow', 'blue', 'red', 'blue', 'yellow'],
+      blocks: [
+        // 左侧小院
+        { x: 650, y: 575, w: 24, h: 90, t: 'wood' },
+        { x: 720, y: 575, w: 24, h: 90, t: 'wood' },
+        { x: 685, y: 518, w: 110, h: 24, t: 'wood' },
+        // 左石拱门 + 上层木塔
+        { x: 760, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 880, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 820, y: 488, w: 180, h: 24, t: 'stone' },
+        { x: 780, y: 428, w: 22, h: 96, t: 'wood' },
+        { x: 860, y: 428, w: 22, h: 96, t: 'wood' },
+        { x: 820, y: 368, w: 120, h: 24, t: 'wood' },
+        // 右石拱门 + 上层木塔
+        { x: 1000, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1120, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1060, y: 488, w: 180, h: 24, t: 'stone' },
+        { x: 1024, y: 428, w: 22, h: 96, t: 'wood' },
+        { x: 1096, y: 428, w: 22, h: 96, t: 'wood' },
+        { x: 1060, y: 368, w: 120, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 685, y: 484, r: 22 },
+        { x: 820, y: 598, r: 22 },
+        { x: 820, y: 454, r: 22 },
+        { x: 820, y: 334, r: 22 },
+        { x: 1060, y: 598, r: 22 },
+        { x: 1060, y: 454, r: 22 },
+        { x: 1060, y: 334, r: 22 }
+      ]
+    },
+    {
+      birds: 6,
+      birdTypes: ['yellow', 'blue', 'yellow', 'red', 'blue', 'yellow'],
+      blocks: [
+        // 中央四层塔
+        { x: 900, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1020, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 960, y: 488, w: 160, h: 24, t: 'wood' },
+        { x: 920, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 1000, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 960, y: 368, w: 150, h: 24, t: 'stone' },
+        { x: 960, y: 320, w: 22, h: 72, t: 'wood' },
+        { x: 960, y: 272, w: 100, h: 24, t: 'wood' },
+        // 左石拱门
+        { x: 680, y: 565, w: 28, h: 110, t: 'stone' },
+        { x: 800, y: 565, w: 28, h: 110, t: 'stone' },
+        { x: 740, y: 498, w: 150, h: 24, t: 'stone' },
+        // 右双层塔
+        { x: 1130, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1250, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1190, y: 488, w: 160, h: 24, t: 'wood' },
+        { x: 1160, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 1220, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 1190, y: 368, w: 140, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 960, y: 598, r: 22 },
+        { x: 960, y: 454, r: 22 },
+        { x: 915, y: 334, r: 22 },
+        { x: 960, y: 238, r: 22 },
+        { x: 740, y: 598, r: 22 },
+        { x: 740, y: 464, r: 22 },
+        { x: 1190, y: 598, r: 22 },
+        { x: 1190, y: 334, r: 22 }
+      ]
+    },
+    {
+      birds: 7,
+      birdTypes: ['yellow', 'blue', 'yellow', 'blue', 'red', 'yellow', 'blue'],
+      blocks: [
+        // 中央五层塔
+        { x: 900, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1020, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 960, y: 488, w: 170, h: 24, t: 'stone' },
+        { x: 920, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 1000, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 960, y: 368, w: 160, h: 24, t: 'stone' },
+        { x: 960, y: 332, w: 24, h: 48, t: 'wood' },
+        { x: 960, y: 296, w: 120, h: 24, t: 'wood' },
+        { x: 960, y: 260, w: 22, h: 48, t: 'wood' },
+        { x: 960, y: 224, w: 90, h: 24, t: 'wood' },
+        // 左双层塔
+        { x: 700, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 800, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 750, y: 488, w: 160, h: 24, t: 'stone' },
+        { x: 720, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 780, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 750, y: 368, w: 140, h: 24, t: 'wood' },
+        // 右双层塔
+        { x: 1140, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1240, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1190, y: 488, w: 160, h: 24, t: 'stone' },
+        { x: 1155, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 1225, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 1190, y: 368, w: 140, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 960, y: 598, r: 22 },
+        { x: 960, y: 454, r: 22 },
+        { x: 904, y: 334, r: 22 },
+        { x: 960, y: 190, r: 22 },
+        { x: 750, y: 598, r: 22 },
+        { x: 750, y: 334, r: 22 },
+        { x: 1190, y: 598, r: 22 },
+        { x: 1190, y: 334, r: 22 }
+      ]
+    },
+    {
+      birds: 7,
+      birdTypes: ['black', 'yellow', 'blue', 'yellow', 'red', 'blue', 'yellow'],
+      blocks: [
+        // 前哨石墙
+        { x: 830, y: 580, w: 20, h: 80, t: 'stone' },
+        // 中央四层塔
+        { x: 900, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1020, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 960, y: 488, w: 170, h: 24, t: 'stone' },
+        { x: 920, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 1000, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 960, y: 368, w: 160, h: 24, t: 'stone' },
+        { x: 960, y: 320, w: 22, h: 72, t: 'wood' },
+        { x: 960, y: 272, w: 100, h: 24, t: 'wood' },
+        // 左双层塔
+        { x: 700, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 800, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 750, y: 488, w: 160, h: 24, t: 'stone' },
+        { x: 720, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 780, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 750, y: 368, w: 140, h: 24, t: 'wood' },
+        // 右双层塔
+        { x: 1140, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1240, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1190, y: 488, w: 160, h: 24, t: 'stone' },
+        { x: 1155, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 1225, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 1190, y: 368, w: 140, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 960, y: 598, r: 22 },
+        { x: 960, y: 454, r: 22 },
+        { x: 915, y: 334, r: 22 },
+        { x: 960, y: 238, r: 22 },
+        { x: 750, y: 598, r: 22 },
+        { x: 750, y: 334, r: 22 },
+        { x: 1190, y: 598, r: 22 },
+        { x: 1190, y: 334, r: 22 }
+      ]
+    },
+    {
+      birds: 7,
+      birdTypes: ['black', 'blue', 'yellow', 'black', 'red', 'blue', 'yellow'],
+      blocks: [
+        // 左四层塔
+        { x: 700, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 820, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 760, y: 488, w: 160, h: 24, t: 'wood' },
+        { x: 720, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 800, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 760, y: 368, w: 150, h: 24, t: 'stone' },
+        { x: 745, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 775, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 760, y: 296, w: 110, h: 24, t: 'wood' },
+        // 中前哨石屋
+        { x: 890, y: 575, w: 24, h: 90, t: 'stone' },
+        { x: 970, y: 575, w: 24, h: 90, t: 'stone' },
+        { x: 930, y: 518, w: 110, h: 24, t: 'stone' },
+        // 右四层塔
+        { x: 1040, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1200, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 1120, y: 488, w: 200, h: 24, t: 'stone' },
+        { x: 1070, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 1170, y: 428, w: 24, h: 96, t: 'stone' },
+        { x: 1120, y: 368, w: 180, h: 24, t: 'stone' },
+        { x: 1085, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 1155, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 1120, y: 296, w: 140, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 760, y: 598, r: 22 },
+        { x: 760, y: 454, r: 22 },
+        { x: 760, y: 262, r: 22 },
+        { x: 930, y: 598, r: 22 },
+        { x: 930, y: 484, r: 22 },
+        { x: 1120, y: 598, r: 22 },
+        { x: 1120, y: 454, r: 22 },
+        { x: 1120, y: 334, r: 22 }
+      ]
+    },
+    {
+      birds: 8,
+      birdTypes: ['black', 'yellow', 'black', 'blue', 'red', 'yellow', 'blue', 'yellow'],
+      blocks: [
+        // 中央五层塔
+        { x: 900, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1020, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 960, y: 488, w: 170, h: 24, t: 'stone' },
+        { x: 920, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 1000, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 960, y: 368, w: 160, h: 24, t: 'stone' },
+        { x: 940, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 980, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 960, y: 296, w: 120, h: 24, t: 'wood' },
+        { x: 960, y: 260, w: 22, h: 48, t: 'wood' },
+        { x: 960, y: 224, w: 90, h: 24, t: 'wood' },
+        // 左三层塔
+        { x: 690, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 790, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 740, y: 498, w: 160, h: 24, t: 'wood' },
+        { x: 715, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 765, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 740, y: 378, w: 130, h: 24, t: 'stone' },
+        // 右三层塔
+        { x: 1160, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 1240, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 1200, y: 498, w: 150, h: 24, t: 'wood' },
+        { x: 1175, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 1225, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 1200, y: 378, w: 120, h: 24, t: 'stone' }
+      ],
+      pigs: [
+        { x: 960, y: 598, r: 22 },
+        { x: 960, y: 454, r: 22 },
+        { x: 904, y: 334, r: 22 },
+        { x: 960, y: 190, r: 22 },
+        { x: 740, y: 598, r: 22 },
+        { x: 740, y: 344, r: 22 },
+        { x: 1200, y: 598, r: 22 },
+        { x: 1200, y: 344, r: 22 }
+      ]
+    },
+    {
+      birds: 8,
+      birdTypes: ['black', 'blue', 'yellow', 'black', 'blue', 'red', 'yellow', 'blue'],
+      blocks: [
+        // 前哨石屋
+        { x: 620, y: 575, w: 24, h: 90, t: 'stone' },
+        { x: 700, y: 575, w: 24, h: 90, t: 'stone' },
+        { x: 660, y: 518, w: 110, h: 24, t: 'stone' },
+        // 左双层塔
+        { x: 790, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 890, y: 560, w: 28, h: 120, t: 'wood' },
+        { x: 840, y: 488, w: 140, h: 24, t: 'wood' },
+        { x: 810, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 870, y: 428, w: 24, h: 96, t: 'wood' },
+        { x: 840, y: 368, w: 120, h: 24, t: 'stone' },
+        // 中央四层塔
+        { x: 990, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1110, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1050, y: 488, w: 170, h: 24, t: 'stone' },
+        { x: 1010, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 1090, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 1050, y: 368, w: 160, h: 24, t: 'stone' },
+        { x: 1050, y: 320, w: 22, h: 72, t: 'wood' },
+        { x: 1050, y: 272, w: 100, h: 24, t: 'wood' },
+        // 右小屋
+        { x: 1170, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1250, y: 570, w: 24, h: 100, t: 'wood' },
+        { x: 1210, y: 508, w: 110, h: 24, t: 'wood' }
+      ],
+      pigs: [
+        { x: 660, y: 484, r: 22 },
+        { x: 660, y: 598, r: 22 },
+        { x: 840, y: 598, r: 22 },
+        { x: 840, y: 334, r: 22 },
+        { x: 1050, y: 598, r: 22 },
+        { x: 1050, y: 454, r: 22 },
+        { x: 1050, y: 238, r: 22 },
+        { x: 1210, y: 598, r: 22 },
+        { x: 1210, y: 474, r: 22 }
+      ]
+    },
+    {
+      birds: 9,
+      birdTypes: ['black', 'yellow', 'black', 'blue', 'yellow', 'red', 'blue', 'yellow', 'black'],
+      blocks: [
+        // 中央五层塔
+        { x: 900, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 1020, y: 560, w: 30, h: 120, t: 'stone' },
+        { x: 960, y: 488, w: 170, h: 24, t: 'stone' },
+        { x: 920, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 1000, y: 428, w: 26, h: 96, t: 'stone' },
+        { x: 960, y: 368, w: 160, h: 24, t: 'stone' },
+        { x: 940, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 980, y: 332, w: 20, h: 48, t: 'wood' },
+        { x: 960, y: 296, w: 120, h: 24, t: 'wood' },
+        { x: 960, y: 260, w: 22, h: 48, t: 'wood' },
+        { x: 960, y: 224, w: 90, h: 24, t: 'wood' },
+        // 左三层塔
+        { x: 690, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 790, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 740, y: 498, w: 160, h: 24, t: 'wood' },
+        { x: 715, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 765, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 740, y: 378, w: 130, h: 24, t: 'stone' },
+        // 右三层塔
+        { x: 1160, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 1240, y: 565, w: 26, h: 110, t: 'wood' },
+        { x: 1200, y: 498, w: 150, h: 24, t: 'wood' },
+        { x: 1175, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 1225, y: 438, w: 24, h: 96, t: 'wood' },
+        { x: 1200, y: 378, w: 120, h: 24, t: 'stone' },
+        // 前哨石墙
+        { x: 850, y: 585, w: 20, h: 70, t: 'stone' },
+        { x: 1075, y: 585, w: 20, h: 70, t: 'stone' }
+      ],
+      pigs: [
+        { x: 960, y: 598, r: 22 },
+        { x: 960, y: 454, r: 22 },
+        { x: 904, y: 334, r: 22 },
+        { x: 960, y: 190, r: 22 },
+        { x: 740, y: 598, r: 22 },
+        { x: 740, y: 344, r: 22 },
+        { x: 1200, y: 598, r: 22 },
+        { x: 1200, y: 344, r: 22 },
+        { x: 850, y: 528, r: 22 }
+      ]
     }
   ];
 
@@ -905,6 +1621,8 @@
     bodies.length = 0;
     G.queue.length = 0;
     G.particles.length = 0;
+    G.fx.length = 0;
+    G.flash = 0;
     G.popups.length = 0;
     G.score = 0;
     G.shake = 0;
@@ -915,23 +1633,44 @@
     G.reloadQueued = false;
     G.reloadDelay = 0;
     G.hint = true;
+    // 本关小鸟类型序列：birdTypes 可混合蓝/红/黄，否则用 bird 统一填充
+    const birdTypes = lv.birdTypes
+      || new Array(lv.birds).fill(lv.bird || 'red');
+    G.birdType = birdTypes[0] || 'red';
     acc = 0;
 
     for (const b of lv.blocks) bodies.push(makeBox(b.x, b.y, b.w, b.h, b.t));
     for (const p of lv.pigs) bodies.push(makePig(p.x, p.y, p.r || 22));
+    // 关卡结构一进场就休眠，绝不会自己塌下来；被撞或支撑被毁时才唤醒
+    for (const b of bodies) { b.asleep = true; b.sleepT = 0; }
 
     for (let i = 0; i < lv.birds - 1; i++) {
+      const t = birdTypes[i + 1] || 'red';
       G.queue.push({
-        x: QUEUE_X - i * QUEUE_GAP,
-        y: GROUND_Y - BIRD_R,
+        x: QUEUE_X,
+        y: GROUND_Y - birdRadius(t),
+        type: t,
         bob: rand(0, Math.PI * 2)
       });
     }
+    for (let i = 0; i < G.queue.length; i++) G.queue[i].x = queueTargetX(i);
 
     G.sling = { mode: 'ready', t: 0, from: { x: ANCHOR.x, y: ANCHOR.y }, dur: 0.5 };
 
     hideOverlay();
     updateHUD();
+  }
+
+  // 排队小鸟的水平位置：按各自半径累加，避免大号黑鸟互相重叠
+  function queueTargetX(i) {
+    let x = QUEUE_X;
+    for (let k = 0; k < i; k++) {
+      const a = G.queue[k], b = G.queue[k + 1];
+      const ra = birdRadius(a ? a.type : 'red');
+      const rb = birdRadius(b ? b.type : 'red');
+      x -= ra + rb + 10;
+    }
+    return x;
   }
 
   /* ============================================================
@@ -955,6 +1694,7 @@
   function startReload() {
     if (!G.queue.length || !G.sling || G.sling.mode !== 'empty') return;
     const front = G.queue.shift();
+    if (front.type) G.birdType = front.type;   // 装机的小鸟换成它自己的颜色
     G.sling = {
       mode: 'hop', t: 0, dur: 0.5,
       from: { x: front.x, y: front.y }
@@ -975,13 +1715,215 @@
   function launchBird(pos) {
     const vx = (ANCHOR.x - pos.x) * LAUNCH_MUL;
     const vy = (ANCHOR.y - pos.y) * LAUNCH_MUL;
-    const bird = makeBird(pos.x, pos.y, vx, vy);
+    const bird = makeBird(pos.x, pos.y, vx, vy, G.birdType);
     bodies.push(bird);
     G.sling = { mode: 'empty', t: 0, from: null, dur: 0.5 };
     G.hint = false;
     sfx('launch');
     // 尾迹
     bird.trail.push({ x: pos.x, y: pos.y });
+  }
+
+  /* ---- 蓝色小鸟技能：飞行中（落地前）分裂成三只 ---- */
+  function splittableBird() {
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.kind === 'bird' && b.type === 'blue' && !b.splitUsed &&
+          !b.landed && b.y + b.r < GROUND_Y) return b;
+    }
+    return null;
+  }
+
+  function splitBlueBird(b) {
+    b.splitUsed = true;
+    const spd = Math.hypot(b.vx, b.vy);
+    const ang = Math.atan2(b.vy, b.vx);
+    for (const da of [-0.24, 0.24]) {
+      const a2 = ang + da;
+      const nx = Math.cos(a2), ny = Math.sin(a2);
+      // 沿垂直方向错开一点，避免三只鸟瞬间重叠
+      const nb = makeBird(
+        b.x - ny * b.r * 1.1, b.y + nx * b.r * 1.1,
+        nx * spd, ny * spd, 'blue'
+      );
+      nb.splitUsed = true;
+      nb.trail.push({ x: nb.x, y: nb.y });
+      bodies.push(nb);
+    }
+    G.shake = Math.min(10, G.shake + 2);
+    burst(b.x, b.y, '#8fd6ff', 14, 240);
+    sfx('pop');
+  }
+
+  /* ---- 黄色小鸟技能：飞行中按下左键，速度翻两倍、撞击力翻倍 ---- */
+  function boostableBird() {
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.kind === 'bird' && b.type === 'yellow' && !b.boosted &&
+          !b.landed && b.y + b.r < GROUND_Y) return b;
+    }
+    return null;
+  }
+
+  function boostBird(b) {
+    b.boosted = true;
+    b.vx *= 2;
+    b.vy *= 2;
+    G.shake = Math.min(12, G.shake + 4);
+    burst(b.x, b.y, '#ffe066', 18, 320);
+    sfx('launch');
+  }
+
+  /* ---- 黑色小鸟：飞行中按左键原地自爆；触地未引爆则点引信，1 秒后爆炸 ---- */
+  function bombableBird() {
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.kind === 'bird' && b.type === 'black' && !b.exploded &&
+          !b.fuseArmed && !b.landed && b.y + b.r < GROUND_Y) return b;
+    }
+    return null;
+  }
+
+  // 引信正在燃烧的黑鸟（用于 HUD 提示）
+  function fusingBird() {
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.kind === 'bird' && b.type === 'black' && !b.exploded && b.fuseArmed) return b;
+    }
+    return null;
+  }
+
+  function armFuse(b) {
+    if (b.fuseArmed) return;
+    b.fuseArmed = true;
+    b.fuse = FUSE_TIME;
+    b.landed = true;
+    G.shake = Math.min(12, G.shake + 3);
+    // 点燃引信的火星
+    for (let i = 0; i < 12; i++) {
+      const a = rand(0, Math.PI * 2), sp = rand(80, 280);
+      G.particles.push({
+        x: b.x + rand(-b.r, b.r) * 0.6, y: b.y - b.r * 0.9,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120,
+        life: rand(0.25, 0.6), maxLife: 0.6,
+        size: rand(2, 4), rot: 0, vr: 0,
+        kind: 'spark', grav: 700, drag: 3,
+        color: i % 2 ? '255,235,160' : '255,150,50'
+      });
+    }
+    sfx('fuse');
+  }
+
+  function updateFuses(dt) {
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i];
+      if (b.kind !== 'bird' || b.type !== 'black' || b.exploded) continue;
+      if (!b.fuseArmed) {
+        // 发射后触地（还没按左键）→ 点燃引信
+        if (b.y + b.r >= GROUND_Y - 2) armFuse(b);
+        continue;
+      }
+      b.fuse -= dt;
+      if (b.fuse <= 0) explodeBird(b);
+    }
+  }
+
+  function explodeBird(b) {
+    b.exploded = true;
+    const cx = b.x, cy = b.y;
+
+    /* ---------------- 视觉 1：闪光 + 三层冲击波环 ---------------- */
+    G.shake = Math.min(42, G.shake + 30);
+    G.flash = Math.max(G.flash, 0.7);
+    G.fx.push({ kind: 'flash', x: cx, y: cy, r0: b.r * 1.2, r1: b.r * 3.6,
+                life: 0.22, maxLife: 0.22 });
+    G.fx.push({ kind: 'ring', x: cx, y: cy, r0: b.r * 0.6, r1: BOMB_RADIUS * 1.22,
+                life: 0.5, maxLife: 0.5, width: 32, color: '255,242,196' });
+    G.fx.push({ kind: 'ring', x: cx, y: cy, r0: b.r * 0.4, r1: BOMB_RADIUS * 0.86,
+                life: 0.36, maxLife: 0.36, width: 17, color: '255,152,62' });
+    G.fx.push({ kind: 'ring', x: cx, y: cy, r0: b.r * 0.2, r1: BOMB_RADIUS * 0.52,
+                life: 0.26, maxLife: 0.26, width: 8, color: '255,255,255' });
+
+    /* ---------------- 视觉 2：火球核心 ---------------- */
+    for (let i = 0; i < 14; i++) {
+      const a = rand(0, Math.PI * 2), d = rand(0, b.r * 0.75);
+      G.particles.push({
+        x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d,
+        vx: Math.cos(a) * rand(40, 210), vy: Math.sin(a) * rand(40, 210) - 100,
+        life: rand(0.28, 0.52), maxLife: 0.52,
+        size: rand(b.r * 0.7, b.r * 2.0), rot: rand(0, 6.28), vr: rand(-6, 6),
+        kind: 'flame', grav: -170, drag: 3.4, grow: 34,
+        color: i % 3 === 0 ? '255,248,222' : (i % 3 === 1 ? '255,178,74' : '255,96,30')
+      });
+    }
+
+    /* ---------------- 视觉 3：放射状火花 ---------------- */
+    for (let i = 0; i < 52; i++) {
+      const a = rand(0, Math.PI * 2), sp = rand(360, 1180);
+      G.particles.push({
+        x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 70,
+        life: rand(0.22, 0.62), maxLife: 0.62,
+        size: rand(2.5, 5.5), rot: 0, vr: 0,
+        kind: 'spark', grav: 900, drag: 3.6,
+        color: i % 4 === 0 ? '255,255,255' : (i % 4 === 1 ? '255,228,142' : '255,148,48')
+      });
+    }
+
+    /* ---------------- 视觉 4：翻滚烟雾 ---------------- */
+    for (let i = 0; i < 22; i++) {
+      const a = rand(0, Math.PI * 2), d = rand(b.r * 0.2, BOMB_RADIUS * 0.55);
+      G.particles.push({
+        x: cx + Math.cos(a) * d * 0.5, y: cy + Math.sin(a) * d * 0.5,
+        vx: Math.cos(a) * rand(30, 160), vy: Math.sin(a) * rand(30, 160) - 140,
+        life: rand(0.7, 1.6), maxLife: 1.6,
+        size: rand(b.r * 0.9, b.r * 2.6), rot: rand(0, 6.28), vr: rand(-1.4, 1.4),
+        kind: 'smoke', grav: -430, drag: 2.6, grow: 70,
+        color: i % 3 === 0 ? '92,86,80' : (i % 3 === 1 ? '54,50,47' : '120,112,102')
+      });
+    }
+
+    /* ---------------- 视觉 5：飞溅碎屑 ---------------- */
+    for (let i = 0; i < 18; i++) {
+      const a = rand(0, Math.PI * 2), sp = rand(190, 680);
+      G.particles.push({
+        x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 170,
+        life: rand(0.5, 1.15), maxLife: 1.15,
+        size: rand(3, 8), rot: rand(0, 6.28), vr: rand(-12, 12),
+        color: i % 2 ? '#3a342f' : '#7c6b58'
+      });
+    }
+
+    sfx('boom');
+
+    /* ---------------- 范围伤害 + 冲击波推力 ---------------- */
+    for (let i = 0; i < bodies.length; i++) {
+      const o = bodies[i];
+      if (o === b || o.kind === 'ground' || o.static) continue;
+      const dx = o.x - cx, dy = o.y - cy;
+      const d = Math.hypot(dx, dy);
+      if (d > BOMB_RADIUS) continue;
+      const k = 1 - d / BOMB_RADIUS;           // 越近越强
+      const nx = d > 1e-4 ? dx / d : 0;
+      const ny = d > 1e-4 ? dy / d : -1;
+
+      if (o.kind === 'pig') {
+        o.hp -= 380 * k;
+        o.hitFlash = 0.24;
+      } else if (o.kind === 'block') {
+        o.hp -= (o.type === 'stone' ? 660 : 500) * k;
+        o.hitFlash = 0.18;
+        if (o.hp > 0) chipBurst(o, Math.min(7, 1 + Math.floor(12 * k)));
+      }
+
+      if (o.invMass > 0) {
+        const mul = Math.min(0.68, o.invMass * 1.3);
+        o.vx += nx * 1650 * k * mul;
+        o.vy += ny * 1650 * k * mul - 300 * k;
+      }
+    }
+
+    wakeAll();
+    b.dead = true;
   }
 
   /* ============================================================
@@ -1040,9 +1982,30 @@
   }
 
   canvas.addEventListener('pointerdown', e => {
+    // 飞行中的小鸟：按下鼠标左键（或触屏）触发技能
+    if (e.button === 0) {
+      const target = splittableBird();
+      if (target) {
+        splitBlueBird(target);
+        e.preventDefault();
+        return;
+      }
+      const yellow = boostableBird();
+      if (yellow) {
+        boostBird(yellow);
+        e.preventDefault();
+        return;
+      }
+      const bomb = bombableBird();
+      if (bomb) {
+        explodeBird(bomb);
+        e.preventDefault();
+        return;
+      }
+    }
     if (!canAim()) return;
     const p = toWorld(e);
-    if (Math.hypot(p.x - ANCHOR.x, p.y - ANCHOR.y) > 120) return;
+    if (Math.hypot(p.x - ANCHOR.x, p.y - ANCHOR.y) > 130) return;
     G.dragging = true;
     G.dragPos = clampDrag(p);
     canvas.setPointerCapture(e.pointerId);
@@ -1084,7 +2047,7 @@
       // 排队小鸟向自己的位置靠拢
       for (let i = 0; i < G.queue.length; i++) {
         const b = G.queue[i];
-        const tx = QUEUE_X - i * QUEUE_GAP;
+        const tx = queueTargetX(i);
         b.x += (tx - b.x) * Math.min(1, dt * 9);
       }
 
@@ -1130,6 +2093,7 @@
         }
       }
 
+      updateFuses(dt);
       checkOutcome(dt);
     } else {
       // 结束后仍让场面继续沉降
@@ -1145,12 +2109,28 @@
     // 粒子
     for (let i = G.particles.length - 1; i >= 0; i--) {
       const p = G.particles[i];
-      p.vy += 1400 * dt;
+      p.vy += (p.grav !== undefined ? p.grav : 1400) * dt;
+      if (p.drag) {
+        const k = Math.max(0, 1 - p.drag * dt);
+        p.vx *= k;
+        p.vy *= k;
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.rot += p.vr * dt;
+      if (p.grow) p.size += p.grow * dt;
       p.life -= dt;
       if (p.life <= 0) G.particles.splice(i, 1);
+    }
+
+    // 爆炸特效层（闪光 / 冲击波环）
+    for (let i = G.fx.length - 1; i >= 0; i--) {
+      const f = G.fx[i];
+      f.life -= dt;
+      if (f.life <= 0) G.fx.splice(i, 1);
+    }
+    if (G.flash > 0) {
+      G.flash = Math.max(0, G.flash - dt * 5.5);
     }
 
     // 分数飘字
@@ -1352,51 +2332,56 @@
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
+    const baseY = GROUND_Y;
+    const trunkTop = 516;      // 主干顶端
+    const forkY = 386;         // 叉尖高度
+    const forkL = 152, forkR = 248;
+
     // 地面阴影
     ctx.fillStyle = 'rgba(0,0,0,0.18)';
     ctx.beginPath();
-    ctx.ellipse(200, GROUND_Y + 4, 46, 10, 0, 0, 7);
+    ctx.ellipse(200, baseY + 5, 62, 12, 0, 0, 7);
     ctx.fill();
 
     // 主干
     ctx.strokeStyle = '#5a3a1e';
-    ctx.lineWidth = 24;
+    ctx.lineWidth = 34;
     ctx.beginPath();
-    ctx.moveTo(200, GROUND_Y);
-    ctx.lineTo(200, 476);
+    ctx.moveTo(200, baseY);
+    ctx.lineTo(200, trunkTop);
     ctx.stroke();
 
     // 左叉
     ctx.beginPath();
-    ctx.moveTo(200, 486);
-    ctx.quadraticCurveTo(192, 450, 182, 416);
+    ctx.moveTo(200, trunkTop + 16);
+    ctx.quadraticCurveTo(188, 448, forkL + 6, forkY);
     ctx.stroke();
 
     // 右叉
     ctx.beginPath();
-    ctx.moveTo(200, 486);
-    ctx.quadraticCurveTo(208, 450, 218, 416);
+    ctx.moveTo(200, trunkTop + 16);
+    ctx.quadraticCurveTo(212, 448, forkR - 6, forkY);
     ctx.stroke();
 
     // 高光
     ctx.strokeStyle = 'rgba(255,220,160,0.28)';
-    ctx.lineWidth = 7;
+    ctx.lineWidth = 9;
     ctx.beginPath();
-    ctx.moveTo(194, GROUND_Y - 12);
-    ctx.lineTo(194, 486);
+    ctx.moveTo(190, baseY - 14);
+    ctx.lineTo(190, trunkTop + 20);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(192, 476);
-    ctx.quadraticCurveTo(186, 448, 178, 424);
+    ctx.moveTo(190, trunkTop + 12);
+    ctx.quadraticCurveTo(184, 450, forkL + 14, forkY + 10);
     ctx.stroke();
 
     // 皮筋绑扎
     ctx.strokeStyle = '#3a2412';
-    ctx.lineWidth = 5;
-    for (const yy of [440, 452, 464]) {
+    ctx.lineWidth = 6;
+    for (const yy of [452, 470, 488]) {
       ctx.beginPath();
-      ctx.moveTo(188, yy);
-      ctx.lineTo(212, yy - 4);
+      ctx.moveTo(184, yy);
+      ctx.lineTo(216, yy - 4);
       ctx.stroke();
     }
     ctx.restore();
@@ -1421,14 +2406,111 @@
     ctx.restore();
   }
 
-  function drawBird(x, y, r, rot, squish) {
+  /* 黄色小鸟：三角形身体 */
+  function drawYellowBird(r) {
+    // 尾羽
+    ctx.fillStyle = '#3a2a05';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.80, 0);
+    ctx.lineTo(-r * 1.52, -r * 0.50);
+    ctx.lineTo(-r * 1.36, 0);
+    ctx.lineTo(-r * 1.52, r * 0.50);
+    ctx.closePath();
+    ctx.fill();
+
+    // 三角形身体
+    const g = ctx.createLinearGradient(-r * 0.9, -r * 0.9, r * 1.1, r * 0.9);
+    g.addColorStop(0, '#fff2ab');
+    g.addColorStop(0.5, '#ffd429');
+    g.addColorStop(1, '#e09a00');
+    ctx.beginPath();
+    ctx.moveTo(r * 1.20, 0);
+    ctx.lineTo(-r * 0.95, -r * 1.05);
+    ctx.lineTo(-r * 0.95, r * 1.05);
+    ctx.closePath();
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.4, r * 0.09);
+    ctx.strokeStyle = '#a86a00';
+    ctx.stroke();
+
+    // 眼睛
+    const eyes = [
+      { cx: r * 0.06, cy: -r * 0.26 },
+      { cx: r * 0.46, cy: -r * 0.14 }
+    ];
+    for (const e of eyes) {
+      ctx.beginPath();
+      ctx.arc(e.cx, e.cy, r * 0.20, 0, 7);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(e.cx + r * 0.05, e.cy + r * 0.02, r * 0.095, 0, 7);
+      ctx.fillStyle = '#151515';
+      ctx.fill();
+    }
+
+    // 眉毛
+    ctx.strokeStyle = '#7a4a00';
+    ctx.lineWidth = r * 0.14;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.14, -r * 0.56);
+    ctx.lineTo(r * 0.22, -r * 0.44);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r * 0.52, -r * 0.32);
+    ctx.lineTo(r * 0.30, -r * 0.26);
+    ctx.stroke();
+
+    // 喙
+    ctx.beginPath();
+    ctx.moveTo(r * 0.96, r * 0.04);
+    ctx.lineTo(r * 1.52, r * 0.20);
+    ctx.lineTo(r * 0.96, r * 0.36);
+    ctx.closePath();
+    ctx.fillStyle = '#f28c1c';
+    ctx.fill();
+    ctx.strokeStyle = '#b85500';
+    ctx.lineWidth = r * 0.06;
+    ctx.stroke();
+  }
+
+  function drawBird(x, y, r, rot, squish, type, fuse) {
+    const blue = type === 'blue';
+    const black = type === 'black';
+    const armed = black && fuse !== undefined && fuse >= 0;   // 引信已点燃
+    const urgency = armed ? clamp(1 - fuse / FUSE_TIME, 0, 1) : 0;
     ctx.save();
     ctx.translate(x, y);
     if (rot) ctx.rotate(rot);
     if (squish && squish !== 1) ctx.scale(1 / squish, squish);
 
+    if (type === 'yellow') {
+      drawYellowBird(r);
+      ctx.restore();
+      return;
+    }
+
+    // 引信燃烧时的橙红热气光环
+    if (armed) {
+      const pulse = 0.5 + Math.abs(Math.sin(G.time * (10 + urgency * 26))) * 0.5;
+      const gr = r * (1.55 + urgency * 0.55);
+      const rg = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, gr);
+      rg.addColorStop(0, 'rgba(255,150,60,' + (0.45 * pulse).toFixed(3) + ')');
+      rg.addColorStop(0.6, 'rgba(255,80,20,' + (0.22 * pulse).toFixed(3) + ')');
+      rg.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.arc(0, 0, gr, 0, 7);
+      ctx.fill();
+      ctx.restore();
+    }
+
     // 尾羽
-    ctx.fillStyle = '#2f2f34';
+    ctx.fillStyle = blue ? '#1c3348' : (black ? (armed ? '#7a1b06' : '#101114') : '#2f2f34');
     ctx.beginPath();
     ctx.moveTo(-r * 0.78, -r * 0.30);
     ctx.lineTo(-r * 1.55, -r * 0.62);
@@ -1438,36 +2520,91 @@
     ctx.closePath();
     ctx.fill();
 
-    // 头顶呆毛
-    ctx.strokeStyle = '#8d0801';
-    ctx.lineWidth = r * 0.13;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.05, -r * 0.96);
-    ctx.quadraticCurveTo(r * 0.02, -r * 1.34, r * 0.26, -r * 1.24);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.30, -r * 0.92);
-    ctx.quadraticCurveTo(-r * 0.40, -r * 1.24, -r * 0.14, -r * 1.22);
-    ctx.stroke();
+    // 头顶呆毛（黑鸟改画引线与火花）
+    if (black) {
+      ctx.strokeStyle = armed ? '#8a2b0c' : '#6b533c';
+      ctx.lineWidth = r * 0.10;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.98);
+      ctx.quadraticCurveTo(r * 0.10, -r * 1.30, r * 0.32, -r * 1.32);
+      ctx.stroke();
+      // 引信火星：点燃后跳动更快更大
+      const speed = armed ? (16 + urgency * 30) : 9;
+      const pulse = (armed ? 0.13 : 0.10) + Math.abs(Math.sin(G.time * speed)) * 0.07;
+      const sparkCol = armed ? (urgency > 0.55 ? '#ffffff' : '#ff7a2a') : '#ffd166';
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = sparkCol;
+      ctx.beginPath();
+      ctx.arc(r * 0.34, -r * 1.34, r * pulse * 1.25, 0, 7);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = armed ? '#ffd9a0' : '#ff8a3d';
+      ctx.beginPath();
+      ctx.arc(r * 0.34, -r * 1.34, r * pulse * 0.55, 0, 7);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = blue ? '#0a4c7d' : '#8d0801';
+      ctx.lineWidth = r * 0.13;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.05, -r * 0.96);
+      ctx.quadraticCurveTo(r * 0.02, -r * 1.34, r * 0.26, -r * 1.24);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.30, -r * 0.92);
+      ctx.quadraticCurveTo(-r * 0.40, -r * 1.24, -r * 0.14, -r * 1.22);
+      ctx.stroke();
+    }
 
     // 身体
     const g = ctx.createRadialGradient(-r * 0.32, -r * 0.38, r * 0.15, 0, 0, r * 1.18);
-    g.addColorStop(0, '#ff7b6b');
-    g.addColorStop(0.55, '#e02b20');
-    g.addColorStop(1, '#a50e0e');
+    if (black) {
+      if (armed) {
+        // 引信点燃：整体转为橙红色，越接近爆炸越亮
+        g.addColorStop(0, urgency > 0.5 ? '#fff0c4' : '#ffc07a');
+        g.addColorStop(0.5, urgency > 0.5 ? '#ff9a34' : '#ff6a20');
+        g.addColorStop(1, urgency > 0.5 ? '#c22c08' : '#8f1a05');
+      } else {
+        g.addColorStop(0, '#9aa1ab');
+        g.addColorStop(0.55, '#2b2e34');
+        g.addColorStop(1, '#08090c');
+      }
+    } else if (blue) {
+      g.addColorStop(0, '#a7ecff');
+      g.addColorStop(0.55, '#38a6ea');
+      g.addColorStop(1, '#0b5c9c');
+    } else {
+      g.addColorStop(0, '#ff7b6b');
+      g.addColorStop(0.55, '#e02b20');
+      g.addColorStop(1, '#a50e0e');
+    }
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, 7);
     ctx.fillStyle = g;
     ctx.fill();
     ctx.lineWidth = Math.max(1.4, r * 0.1);
-    ctx.strokeStyle = '#7d0605';
+    ctx.strokeStyle = black ? (armed ? '#6f1403' : '#05060a') : (blue ? '#0b4f86' : '#7d0605');
     ctx.stroke();
+
+    // 引信快烧完时身上的白光闪烁
+    if (armed) {
+      const fl = Math.max(0, Math.sin(G.time * (14 + urgency * 30)));
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.30 * fl * (0.35 + urgency);
+      ctx.fillStyle = '#fff4d0';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.98, 0, 7);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // 肚皮
     ctx.beginPath();
     ctx.ellipse(-r * 0.02, r * 0.48, r * 0.54, r * 0.34, 0, 0, 7);
-    ctx.fillStyle = '#ffd8bd';
+    ctx.fillStyle = black ? (armed ? '#ffc27a' : '#565b64') : (blue ? '#e8f7ff' : '#ffd8bd');
     ctx.fill();
 
     // 眼睛
@@ -1487,7 +2624,7 @@
     }
 
     // 愤怒的眉毛
-    ctx.strokeStyle = '#4a0404';
+    ctx.strokeStyle = black ? '#000000' : (blue ? '#08365c' : '#4a0404');
     ctx.lineWidth = r * 0.16;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -1798,14 +2935,19 @@
             const a = (i / b.trail.length) * 0.35;
             ctx.beginPath();
             ctx.arc(p.x, p.y, b.r * (0.25 + (i / b.trail.length) * 0.55), 0, 7);
-            ctx.fillStyle = 'rgba(255,190,190,' + a + ')';
+            const tc = b.type === 'blue' ? 'rgba(150,215,255,'
+              : b.type === 'yellow' ? 'rgba(255,214,80,'
+              : b.type === 'black' ? (b.fuseArmed ? 'rgba(255,150,60,' : 'rgba(130,134,142,')
+              : 'rgba(255,190,190,';
+            ctx.fillStyle = tc + a + ')';
             ctx.fill();
           }
         }
         let rot = 0;
         const sp = Math.hypot(b.vx, b.vy);
         if (sp > 60) rot = clamp(Math.atan2(b.vy, Math.abs(b.vx) + 1) * (b.vx > 0 ? 0.85 : 0), -0.9, 0.9);
-        drawBird(b.x, b.y, b.r, rot, 1);
+        const fuse = b.type === 'black' && b.fuseArmed ? Math.max(b.fuse, 0) : undefined;
+        drawBird(b.x, b.y, b.r, rot, 1, b.type, fuse);
       }
     }
   }
@@ -1814,11 +2956,12 @@
     for (let i = 0; i < G.queue.length; i++) {
       const b = G.queue[i];
       const bob = Math.abs(Math.sin(G.time * 2.4 + b.bob)) * 3;
-      drawBird(b.x, b.y - bob, BIRD_R, 0, 1);
+      const r = birdRadius(b.type);
+      drawBird(b.x, b.y - bob, r, 0, 1, b.type);
       // 小影子
       ctx.fillStyle = 'rgba(0,0,0,0.13)';
       ctx.beginPath();
-      ctx.ellipse(b.x, GROUND_Y + 2, BIRD_R * 0.85, 4, 0, 0, 7);
+      ctx.ellipse(b.x, GROUND_Y + 2, r * 0.85, 4, 0, 0, 7);
       ctx.fill();
     }
   }
@@ -1831,13 +2974,13 @@
 
     if (pos) {
       // 后侧皮筋
-      drawBand({ x: 182, y: 418 }, pos, 9, '#4a2c17');
+      drawBand({ x: 152, y: 392 }, pos, 11, '#4a2c17');
       // 小鸟
       const stretch = Math.hypot(pos.x - ANCHOR.x, pos.y - ANCHOR.y);
       const rot = Math.atan2(ANCHOR.y - pos.y, ANCHOR.x - pos.x) * 0.25;
-      drawBird(pos.x, pos.y, BIRD_R, rot, 1 + stretch / 900);
+      drawBird(pos.x, pos.y, birdRadius(G.birdType), rot, 1 + stretch / 900, G.birdType);
       // 前侧皮筋
-      drawBand({ x: 218, y: 418 }, pos, 9, '#5c3720');
+      drawBand({ x: 248, y: 392 }, pos, 11, '#5c3720');
     }
 
     // 弹弓被拉拽时的轻微抖动
@@ -1847,7 +2990,7 @@
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(ANCHOR.x, ANCHOR.y, 26, 0, 7);
+      ctx.arc(ANCHOR.x, ANCHOR.y, 40, 0, 7);
       ctx.stroke();
       ctx.restore();
     }
@@ -1885,13 +3028,83 @@
   function drawParticles() {
     for (const p of G.particles) {
       const a = clamp(p.life / p.maxLife, 0, 1);
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
-      ctx.restore();
+
+      if (p.kind === 'spark') {
+        // 拖尾火花：沿速度反方向画一条发光短线
+        const spd = Math.hypot(p.vx, p.vy) + 1e-3;
+        const nx = p.vx / spd, ny = p.vy / spd;
+        const len = clamp(spd * 0.028, 6, 30);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = a;
+        ctx.strokeStyle = 'rgba(' + p.color + ',1)';
+        ctx.lineWidth = p.size * 0.75;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - nx * len, p.y - ny * len);
+        ctx.stroke();
+        ctx.restore();
+      } else if (p.kind === 'flame' || p.kind === 'smoke') {
+        // 火球 / 烟雾：径向渐变软球
+        const smoke = p.kind === 'smoke';
+        const rad = Math.max(1, p.size);
+        const rg = ctx.createRadialGradient(p.x, p.y, rad * 0.12, p.x, p.y, rad);
+        rg.addColorStop(0, 'rgba(' + p.color + ',' + (smoke ? '0.5' : '1') + ')');
+        rg.addColorStop(0.5, 'rgba(' + p.color + ',' + (smoke ? '0.26' : '0.62') + ')');
+        rg.addColorStop(1, 'rgba(' + p.color + ',0)');
+        ctx.save();
+        if (!smoke) ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = smoke ? a * 0.6 : a;
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, rad, 0, 7);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      }
+    }
+  }
+
+  /* 爆炸特效层：全屏闪光球 + 扩散冲击波环 */
+  function drawFx() {
+    for (const f of G.fx) {
+      const t = clamp(1 - f.life / f.maxLife, 0, 1);
+      if (f.kind === 'flash') {
+        const r = lerp(f.r0, f.r1, easeOut(t));
+        const a = (1 - t) * (1 - t);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = a;
+        const rg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+        rg.addColorStop(0, 'rgba(255,255,255,1)');
+        rg.addColorStop(0.32, 'rgba(255,246,206,0.9)');
+        rg.addColorStop(0.65, 'rgba(255,172,72,0.5)');
+        rg.addColorStop(1, 'rgba(255,120,40,0)');
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, r, 0, 7);
+        ctx.fill();
+        ctx.restore();
+      } else if (f.kind === 'ring') {
+        const r = lerp(f.r0, f.r1, easeOut(t));
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = Math.pow(1 - t, 1.4);
+        ctx.strokeStyle = 'rgba(' + f.color + ',1)';
+        ctx.lineWidth = f.width * (1 - t) + 1.5;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, r, 0, 7);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   }
 
@@ -1946,6 +3159,53 @@
     ctx.restore();
   }
 
+  /* ---- 技能提示：蓝鸟分裂 / 黄鸟加速 / 黑鸟自爆 ---- */
+  function drawSkillTip() {
+    if (G.ended) return;
+    const blue = splittableBird();
+    const yellow = boostableBird();
+    const bomb = bombableBird();
+    const fusing = fusingBird();
+    if (!blue && !yellow && !bomb && !fusing) return;
+
+    let text, edge, color;
+    if (fusing) {
+      text = '引信已点燃 · ' + Math.max(0, fusing.fuse).toFixed(1) + ' 秒后自爆';
+      edge = 'rgba(255, 96, 32, 0.85)';
+      color = '#ffd0a8';
+    } else if (blue) {
+      text = '点击鼠标左键 · 分裂成三只';
+      edge = 'rgba(143, 214, 255, 0.55)';
+      color = '#dff3ff';
+    } else if (yellow) {
+      text = '点击鼠标左键 · 速度与撞击翻倍';
+      edge = 'rgba(255, 214, 80, 0.6)';
+      color = '#ffe9a8';
+    } else {
+      text = '点击鼠标左键 · 原地自爆';
+      edge = 'rgba(255, 138, 61, 0.66)';
+      color = '#ffd8bd';
+    }
+    const a = fusing
+      ? 0.75 + Math.sin(G.time * 18) * 0.2
+      : 0.6 + Math.sin(G.time * 6) * 0.22;
+    const x = W / 2, y = 96;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(8, 26, 40, 0.55)';
+    rr(x - 175, y - 25, 350, 50, 25);
+    ctx.fill();
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = 'bold 21px "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
   /* ============================================================
      13. 主渲染
      ============================================================ */
@@ -1962,9 +3222,20 @@
     drawSlingshot();
     drawBodies();
     drawTrajectory();
+    drawFx();
     drawParticles();
     drawPopups();
     drawHint();
+    drawSkillTip();
+
+    // 爆炸瞬间的全屏白闪
+    if (G.flash > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = G.flash * 0.8;
+      ctx.fillStyle = '#fff6dc';
+      ctx.fillRect(-60, -60, W + 120, H + 120);
+      ctx.restore();
+    }
 
     ctx.restore();
   }
