@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>大鱼吃小鱼</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { width:100%; height:100%; overflow:hidden; background:#04263f;
@@ -16,7 +17,7 @@
   body.playing #hud { display:flex; }
   .panel { background:rgba(3,26,46,.55); border:1px solid rgba(120,200,255,.18);
     border-radius:12px; padding:10px 14px; color:#dff3ff; backdrop-filter:blur(6px);
-    display:flex; flex-direction:column; gap:8px; min-width:230px; }
+    display:flex; flex-direction:column; gap:8px; min-width:250px; }
   .panel .row { display:flex; align-items:center; gap:8px; font-size:14px; }
   .panel b { font-size:18px; color:#ffd166; }
   #lv { color:#7cf0ff; }
@@ -24,6 +25,7 @@
   .xpbar { flex:1; height:8px; background:rgba(255,255,255,.12); border-radius:4px; overflow:hidden; }
   .xpbar i { display:block; height:100%; width:0%; border-radius:4px;
     background:linear-gradient(90deg,#ffd166,#ff9f43); transition:width .25s; }
+  .stbar i { background:linear-gradient(90deg,#7cf0ff,#4ade80); transition:none; }
   .right { align-items:flex-end; min-width:0; }
   #mute { pointer-events:auto; cursor:pointer; border:1px solid rgba(120,200,255,.3);
     background:rgba(3,26,46,.6); color:#bfe8ff; border-radius:8px; padding:4px 10px; font-size:12px; }
@@ -39,7 +41,7 @@
   .card { text-align:center; color:#e8f7ff;
     background:linear-gradient(160deg, rgba(10,50,84,.92), rgba(4,28,52,.92));
     border:1px solid rgba(120,200,255,.25); border-radius:20px; padding:38px 46px;
-    box-shadow:0 20px 60px rgba(0,0,0,.5); max-width:560px; }
+    box-shadow:0 20px 60px rgba(0,0,0,.5); max-width:580px; }
   .card h1 { font-size:40px; letter-spacing:2px; margin-bottom:8px;
     background:linear-gradient(90deg,#7cf0ff,#ffd166,#ff8fab);
     -webkit-background-clip:text; background-clip:text; color:transparent; }
@@ -67,9 +69,14 @@
       <span id="best" style="margin-left:auto;font-size:12px;color:#7fb6d8;">最高 0</span></div>
     <div class="row">等级 <b id="lv">1</b><span id="fishname">银鱼苗</span>
       <span class="xpbar"><i id="xpfill"></i></span></div>
+    <div class="row">体力
+      <span class="xpbar stbar"><i id="stfill"></i></span>
+      <span style="font-size:12px;color:#7fb6d8;">按住 A 加速</span></div>
   </div>
   <div class="panel right">
     <button id="mute">音效:开</button>
+    <div class="row" style="font-size:13px;justify-content:flex-end;">在线 <b id="online" style="font-size:15px;">1</b> 人</div>
+    <div id="lboard" style="font-size:12.5px;color:#bfe8ff;text-align:right;line-height:1.7;"></div>
   </div>
 </div>
 
@@ -81,9 +88,13 @@
     <p class="sub">深海生存法则 —— 吃掉比你小的，躲开比你大的！</p>
     <ul class="rules">
       <li><b>按住鼠标左键</b>，你的鱼朝指针方向游动，松开即停下，鱼始终在<b>画面正中央</b></li>
-      <li>吃掉 <b>等级 ≤ 自己</b> 的鱼获得分数和经验，从 1 级银鱼苗一路成长到 8 级深海鮟鱇</li>
-      <li>带 <b style="color:#9fe8ff;">蓝色"!"</b> 的鱼正在逃跑，可以放心追吃</li>
-      <li>带 <b style="color:#ff5d5d;">红圈 + 红色"!"</b> 的大鱼正在追你 —— <b style="color:#ff8f9f;">被它吃掉游戏立刻结束</b>（开局有 2 秒保护）</li>
+      <li>按住 <b>A 键</b> 加速冲刺，消耗<b>体力条</b>；耗尽后进入疲劳只能匀速游动，体力上限随等级提升</li>
+      <li>捕食规则：<b>等级高</b>的鱼吃等级低的鱼；<b>等级相同</b>时，<b>分数高</b>的鱼吃分数低的鱼。真人玩家与 AI 鱼完全同一规则，每一条鱼头顶都实时显示它的经验分数</li>
+      <li>经验分数与等级<b>严格成正比</b>：每条鱼的分数都落在自己等级的区间内，<b>等级越高的鱼分数一定越高</b>，等级低的鱼分数不可能反超</li>
+      <li>吃掉 <b>等级 ≤ 自己</b> 且<b>同级分数低于自己</b>的鱼，获得按对方等级结算的<b>经验分数</b>并升级：从 1 级银鱼苗一路进化：小丑鱼→蓝吊鱼→狮子鱼→河豚→深海鮟鱇→龙鱼→石斑鱼→<b>白鳍礁鲨</b>→旗鱼→<b>锤头鲨</b>→<b>大白鲨</b>→蝠鲼→虎鲸→<b>15 级蓝鲸</b>；满级后累计 <b>3200 分</b> 即通关</li>
+      <li>每局都有<b>真人玩家</b>同场竞技：吃鱼按等级优先、同级比分数的规则决定胜负；右上角实时显示<b>在线人数</b>与<b>分数排行榜</b></li>
+      <li>带 <b style="color:#9fe8ff;">蓝色"!"</b> 的鱼比你弱（等级低或同级低分），正在逃跑，可以放心追吃</li>
+      <li>带 <b style="color:#ff5d5d;">红圈 + 红色"!"</b> 的鱼比你强（等级高或同级高分）且正在追你 —— <b style="color:#ff8f9f;">被它吃掉游戏立刻结束</b>（开局有 2 秒保护）</li>
       <li>大鱼之间也会捕食小鱼，鱼群会自动散开保持距离</li>
     </ul>
     <button id="startBtn">开始游戏</button>
@@ -94,6 +105,7 @@
 <div id="over" class="overlay">
   <div class="card">
     <h1 id="goTitle">游戏结束</h1>
+    <p class="stat" id="goReason" style="display:none;color:#ff8f9f;"></p>
     <p class="stat">最终得分 <b id="finalScore">0</b></p>
     <p class="stat">达到等级 <b id="finalLevel">1</b></p>
     <p class="stat">历史最高 <b id="finalBest">0</b></p>
@@ -108,9 +120,10 @@ const cv = document.getElementById('game');
 const ctx = cv.getContext('2d');
 const $ = id => document.getElementById(id);
 const el = { score:$('score'), best:$('best'), lv:$('lv'), name:$('fishname'),
-  xp:$('xpfill'), mute:$('mute'), flash:$('flash'),
+  xp:$('xpfill'), st:$('stfill'), mute:$('mute'), flash:$('flash'), goTitle:$('goTitle'),
   start:$('start'), over:$('over'), startBest:$('startBest'),
-  finalScore:$('finalScore'), finalLevel:$('finalLevel'), finalBest:$('finalBest') };
+  finalScore:$('finalScore'), finalLevel:$('finalLevel'), finalBest:$('finalBest'),
+  online:$('online'), lboard:$('lboard'), goReason:$('goReason') };
 
 let W = 0, H = 0, bgGrad = null;
 function resize(){
@@ -120,27 +133,48 @@ function resize(){
 }
 addEventListener('resize', resize); resize();
 
-/* ================= 鱼的等级表（每种鱼外形/配色独立绘制，c1 用于粒子色） ================= */
+/* ================= 鱼的等级表（真实物种按体型递增排列，鲨鱼均为具体种类） ================= */
 const TYPES = [
   {lv:1,size:30,c1:'#cfe9ff',name:'银鱼苗'},
-  {lv:2,size:40,c1:'#ffd166',name:'小黄鱼'},
-  {lv:3,size:52,c1:'#f5821f',name:'小丑鱼'},
-  {lv:4,size:66,c1:'#a9bd7a',name:'河豚'},
-  {lv:5,size:82,c1:'#c96f2e',name:'石斑鱼'},
-  {lv:6,size:100,c1:'#b389f0',name:'龙鱼'},
-  {lv:7,size:124,c1:'#7d9db4',name:'鲨鱼'},
-  {lv:8,size:152,c1:'#8a2430',name:'深海鮟鱇'},
+  {lv:2,size:40,c1:'#f5821f',name:'小丑鱼'},
+  {lv:3,size:52,c1:'#3a7bd5',name:'蓝吊鱼'},
+  {lv:4,size:66,c1:'#c9563c',name:'狮子鱼'},
+  {lv:5,size:82,c1:'#a9bd7a',name:'河豚'},
+  {lv:6,size:100,c1:'#8a2430',name:'深海鮟鱇'},
+  {lv:7,size:124,c1:'#b389f0',name:'龙鱼'},
+  {lv:8,size:152,c1:'#c96f2e',name:'石斑鱼'},
+  {lv:9,size:172,c1:'#9db8c8',name:'白鳍礁鲨'},
+  {lv:10,size:194,c1:'#4a7ec2',name:'旗鱼'},
+  {lv:11,size:218,c1:'#7d8fa8',name:'锤头鲨'},
+  {lv:12,size:245,c1:'#5a6b7a',name:'大白鲨'},
+  {lv:13,size:275,c1:'#3a4552',name:'蝠鲼'},
+  {lv:14,size:308,c1:'#8a9099',name:'虎鲸'},
+  {lv:15,size:345,c1:'#5b7f9f',name:'蓝鲸'},
 ];
+const MAXL = 15;        // 最高等级
+const WIN_SCORE = 3200; // 满级后达到该分数即通关
+/* 等级与经验分数强绑定：每级对应一段严格递增、互不重叠的分数区间（等级越高区间越宽），
+   因此"等级高的鱼，分数一定比等级低的鱼高"；玩家等级也由分数反推，永不失配。 */
+function lvFloor(lv){ return 10 + 15*(lv-1)*(lv-1); }   // 该等级的最低分数：lv1=10, lv2=25, lv3=70, lv4=145 … lv15=2950
+function lvForScore(s){                                  // 由分数反推等级
+  let lv=1;
+  while(lv<MAXL && s>=lvFloor(lv+1)) lv++;
+  return lv;
+}
 
 /* ================= 状态 ================= */
-const G = { running:false, over:false, score:0, best:0, level:1, xp:0, xpNeed:5,
+const G = { running:false, over:false, score:0, best:0, level:1,
   inv:0, time:0, lmb:false, mouse:{x:innerWidth/2, y:innerHeight/2},
-  zoom:1, zoomT:1, startT:0 };   // zoom: 摄像机变焦，升级时 zoomT=0.85^(level-1)；startT: 开局时间戳（用于新手安全期）
+  zoom:1, zoomT:1, startT:0,   // zoom: 摄像机变焦，升级时 zoomT=0.9^(level-1)；startT: 开局时间戳（新手安全期）
+  stamina:100, staminaMax:100, boostKey:false, tired:false, lastBoost:-9 };   // 体力系统：A 键加速消耗，耗尽疲劳，上限随等级增长
 try{ G.best = +(localStorage.getItem('fishBest')||0); }catch(e){}
 el.startBest.textContent = G.best>0 ? '历史最高分：'+G.best : '';
 // 玩家使用世界坐标，摄像机始终跟随玩家 => 玩家永远在屏幕正中央
 const player = { x:0, y:0, vx:0, vy:0, angle:0, size:TYPES[0].size, tail:0 };
 let fishes=[], parts=[], floats=[], bubbles=[], rings=[];
+
+/* 捕食规则（AI 与真人玩家通用）：等级不同 → 等级高者吃等级低者；等级相同 → 分数高者吃分数低者 */
+function canEat(aLv,aScore,bLv,bScore){ return aLv>bLv || (aLv===bLv && aScore>bScore); }
 
 /* 角度插值（走最短弧） */
 function lerpAngle(a,b,t){
@@ -185,7 +219,7 @@ function sfx(kind, lv){
 }
 el.mute.onclick = ()=>{ muted=!muted; el.mute.textContent = muted?'音效:关':'音效:开'; };
 
-/* ================= 输入：按住鼠标左键控制游动方向 ================= */
+/* ================= 输入：按住鼠标左键控制游动方向，A 键加速 ================= */
 function setMouse(x,y){ G.mouse.x=x; G.mouse.y=y; }
 addEventListener('mousemove', e=>setMouse(e.clientX,e.clientY));
 addEventListener('mousedown', e=>{
@@ -193,7 +227,9 @@ addEventListener('mousedown', e=>{
   if(e.button===0 && !(e.target && e.target.closest && e.target.closest('button'))) G.lmb=true;
 });
 addEventListener('mouseup', e=>{ if(e.button===0) G.lmb=false; });
-addEventListener('blur', ()=>{ G.lmb=false; });
+addEventListener('blur', ()=>{ G.lmb=false; G.boostKey=false; });
+addEventListener('keydown', e=>{ if(e.key==='a'||e.key==='A') G.boostKey=true; });
+addEventListener('keyup', e=>{ if(e.key==='a'||e.key==='A') G.boostKey=false; });
 cv.addEventListener('contextmenu', e=>e.preventDefault());
 addEventListener('touchstart', e=>{ const t=e.touches[0]; if(t){ setMouse(t.clientX,t.clientY); G.lmb=true; } }, {passive:true});
 addEventListener('touchmove', e=>{ const t=e.touches[0]; if(t) setMouse(t.clientX,t.clientY); e.preventDefault(); }, {passive:false});
@@ -206,7 +242,7 @@ function rollLevel(){
   const grace = G.running && !G.over && (G.time-G.startT)<6;
   for(let d=-3; d<=2; d++){
     const lv=G.level+d;
-    if(lv<1||lv>8) continue;
+    if(lv<1||lv>MAXL) continue;
     if(grace && d>0) continue;
     // 保证玩家始终有充足的可吃对象（低等级鱼权重最高）
     const w = d<0?3.0 : d===0?2.2 : d===1?1.3 : .5;
@@ -219,13 +255,17 @@ function spawnFish(anywhere, forceLv){
   const dir = Math.random()<.5?1:-1;
   // 等级越高，游速越快
   const speed = (100+lv*16)*(.9+Math.random()*.25);
+  // 鱼的分数必须落在自己等级的分数区间内，保证等级与分数严格成正比
+  const score = lvFloor(lv) + Math.floor(Math.random()*(lvFloor(lv+1)-lvFloor(lv)));
   const R = Math.hypot(W,H)/2/G.zoom;   // 视野随变焦扩大，生成环同步外扩
   const a = Math.random()*6.28;
+  // 每条鱼独立的预警范围（体型越大范围越大）：玩家进入才触发追捕/逃离，不在画面上显示
+  const alertR = 260 + t.size*2.4 + Math.random()*140;
   const r0 = anywhere ? Math.random()*R : R+120+Math.random()*280;
-  // 游戏中大鱼不得刷在玩家附近（至少 700 世界单位以外）
-  const r = (G.running && lv>G.level && r0<700) ? 700+Math.random()*300 : r0;
+  // 游戏中能吃掉玩家的鱼不得刷在玩家的预警范围之内
+  const r = (G.running && canEat(lv,score,G.level,G.score) && r0<alertR*1.15) ? alertR*1.15+Math.random()*300 : r0;
   fishes.push({
-    lv, t, dir, speed, tail:Math.random()*10,
+    lv, t, dir, speed, alertR, score, tail:Math.random()*10,
     x: player.x+Math.cos(a)*r, y: player.y+Math.sin(a)*r,
     vx: dir*speed, vy: 0, angle: dir>0?0:Math.PI,
     state: null, aggro: false,   // state: 'chase'|'flee'|null；aggro: 对玩家的仇恨记忆
@@ -254,7 +294,9 @@ function updPlayer(dt){
   // 方向 = 屏幕中心(即玩家位置) 指向 鼠标指针；按住左键才游动
   const dx=G.mouse.x-W/2, dy=G.mouse.y-H/2;
   const d=Math.hypot(dx,dy);
-  const sp=Math.max(175, 295-G.level*10);
+  // A 键加速：消耗体力；耗尽进入疲劳（只能匀速），恢复到 25% 解除
+  const boosting = G.boostKey && !G.tired && G.stamina>0 && G.lmb && d>14;
+  const sp=Math.max(175, 295-G.level*10)*(boosting?1.8:1);
   if(G.lmb && d>14){
     const k=Math.min(1, dt*6);
     player.vx += (dx/d*sp-player.vx)*k;
@@ -263,6 +305,21 @@ function updPlayer(dt){
     const k=1-Math.min(1, dt*3.5);
     player.vx*=k; player.vy*=k;
   }
+  if(boosting){
+    G.stamina-=34*dt; G.lastBoost=G.time;
+    if(G.stamina<=0){ G.stamina=0; G.tired=true; }
+    // 冲刺尾迹粒子
+    if(parts.length<420 && Math.random()<dt*30){
+      parts.push({ x:player.x-Math.cos(player.angle)*player.size*1.1,
+        y:player.y-Math.sin(player.angle)*player.size*1.1,
+        vx:-player.vx*.15+(Math.random()-.5)*30, vy:-player.vy*.15+(Math.random()-.5)*30,
+        r:2+Math.random()*3, c:'rgba(124,240,255,.8)', life:.4 });
+    }
+  } else if(G.time-G.lastBoost>.8){
+    // 停止冲刺 0.8 秒后开始恢复体力
+    G.stamina=Math.min(G.staminaMax, G.stamina+16*dt);
+  }
+  if(G.tired && G.stamina>=G.staminaMax*.25) G.tired=false;
   player.x += player.vx*dt; player.y += player.vy*dt;
   if(Math.hypot(player.vx,player.vy)>10)
     player.angle = lerpAngle(player.angle, Math.atan2(player.vy,player.vx), Math.min(1,dt*10));
@@ -281,14 +338,14 @@ function updFishes(dt){
     for(const o of fishes){
       if(o===f) continue;
       const ddx=o.x-f.x, ddy=o.y-f.y, dd=Math.hypot(ddx,ddy)||1;
-      if(o.lv>f.lv && dd<td){ threat=o; td=dd; }
-      if(o.lv<f.lv && dd<pd){ prey=o; pd=dd; }
+      if(canEat(o.lv,o.score,f.lv,f.score) && dd<td){ threat=o; td=dd; }
+      if(canEat(f.lv,f.score,o.lv,o.score) && dd<pd){ prey=o; pd=dd; }
     }
-    // 对玩家的仇恨：进入 700px 锁定，逃出 980px 放弃
-    const canEatPlayer = active && f.lv>G.level;
+    // 对玩家的仇恨：玩家进入该鱼的预警范围才锁定，逃出 1.4 倍范围才放弃
+    const canEatPlayer = active && canEat(f.lv,f.score,G.level,G.score);
     if(canEatPlayer){
-      if(distP<700) f.aggro=true;
-      else if(distP>980) f.aggro=false;
+      if(distP<f.alertR) f.aggro=true;
+      else if(distP>f.alertR*1.4) f.aggro=false;
     } else f.aggro=false;
     let dvx, dvy;
     if(canEatPlayer && f.aggro){
@@ -301,8 +358,8 @@ function updFishes(dt){
       const s=f.speed*1.15;
       dvx=(prey.x-f.x)/pd*s; dvy=(prey.y-f.y)/pd*s;
       f.state='chase';
-    } else if(active && f.lv<=G.level && distP<400){
-      // 逃离玩家
+    } else if(active && canEat(G.level,G.score,f.lv,f.score) && distP<f.alertR){
+      // 玩家进入该鱼的预警范围 => 逃离玩家
       const s=f.speed*1.2;
       dvx=-dxp/distP*s; dvy=-dyp/distP*s;
       f.state='flee';
@@ -357,12 +414,12 @@ function aiEat(){
     for(let j=fishes.length-1;j>=0;j--){
       if(i===j) continue;
       const q=fishes[j];
-      if(p.lv<=q.lv) continue;
+      if(!canEat(p.lv,p.score,q.lv,q.score)) continue;
       const dx=q.x-p.x, dy=q.y-p.y;
       const rr=p.t.size*.7+q.t.size*.6;
       if(dx*dx+dy*dy<rr*rr){
         burst(q.x,q.y,q.t.c1,8);
-        fishes.splice(j,1);
+        fishes.splice(j,1);   // 分数代表等级进度，AI 吃鱼不再改分数，避免等级与分数失配
         if(j<i) i--;
       }
     }
@@ -375,9 +432,9 @@ function collide(){
     const dx=f.x-player.x, dy=f.y-player.y;
     const rr=f.t.size*.75 + player.size*.72;
     if(dx*dx+dy*dy < rr*rr){
-      if(f.lv<=G.level) eatFish(i);
+      if(canEat(G.level,G.score,f.lv,f.score)) eatFish(i);
       else if(G.inv<=0 && !G.over){
-        // 被等级更高的鱼吃掉 => 游戏直接结束
+        // 等级更高、或同等级下分数更高的鱼吃掉玩家 => 游戏直接结束
         burst(player.x, player.y, '#ff6b6b', 34);
         el.flash.style.opacity=1; setTimeout(()=>el.flash.style.opacity=0, 60);
         sfx('hurt');
@@ -389,44 +446,55 @@ function collide(){
 }
 function eatFish(i){
   const f=fishes[i]; fishes.splice(i,1);
-  const pts=f.lv*10;
-  G.score += pts;
-  if(G.level<8){
-    G.xp += f.lv;
-    while(G.xp>=G.xpNeed && G.level<8){
-      G.xp -= G.xpNeed; G.level++;
-      G.xpNeed = 2+G.level*3;
-      player.size = TYPES[G.level-1].size;
-      // 升级变焦：玩家变大的同时镜头明显拉远，其他鱼和场景相对缩小
-      G.zoomT = Math.pow(0.85, G.level-1);
-      // 变焦冲击：先猛拉一段再平滑到位，并发出金色冲击环
-      G.zoom += (G.zoomT-G.zoom)*.4;
-      rings.push({x:player.x, y:player.y, r:player.size*.6, life:.8});
-      burst(player.x, player.y, '#ffd166', 26);
-      addFloat(player.x, player.y-player.size-14, '升级！Lv.'+G.level+' '+TYPES[G.level-1].name, '#ffd166');
-      sfx('up');
-    }
-    if(G.level>=8) G.xp=0;
-  }
+  const gain=3+f.lv*2;   // 吃掉鱼的收益是"经验分数"（等级越高收益越多），保证分数始终落在等级区间内
+  G.score += gain;
+  updLevel();
   burst(f.x, f.y, f.t.c1, 10+f.lv*2);
-  addFloat(f.x, f.y-f.t.size, '+'+pts, '#ffffff');
+  addFloat(f.x, f.y-f.t.size, '+'+gain, '#ffffff');
   sfx('eat', f.lv);
   updateHud();
+  // 满级后累计分数达到目标即通关
+  if(G.level>=MAXL && G.score>=WIN_SCORE && !G.over) gameOver(true);
 }
-function gameOver(){
-  G.over=true;
+/* 分数增长后由分数反推等级：升级时体型/变焦/体力同步提升 */
+function updLevel(){
+  const nl=lvForScore(G.score);
+  while(G.level<nl && G.level<MAXL){
+    G.level++;
+    player.size = TYPES[G.level-1].size;
+    // 升级变焦：玩家变大的同时镜头明显拉远，其他鱼和场景相对缩小
+    G.zoomT = Math.pow(0.9, G.level-1);
+    G.zoom += (G.zoomT-G.zoom)*.4;
+    rings.push({x:player.x, y:player.y, r:player.size*.6, life:.8});
+    // 体力上限随等级增长（每级 +40），升级时回满
+    G.staminaMax = 100+(G.level-1)*40;
+    G.stamina = G.staminaMax;
+    G.tired = false;
+    burst(player.x, player.y, '#ffd166', 26);
+    addFloat(player.x, player.y-player.size-14, '升级！Lv.'+G.level+' '+TYPES[G.level-1].name, '#ffd166');
+    sfx('up');
+  }
+}
+function gameOver(win, reason){
+  G.over=true; G.win=!!win;
   if(G.score>G.best){ G.best=G.score; try{ localStorage.setItem('fishBest', G.best); }catch(e){} }
+  el.goTitle.textContent = G.win ? '通关达成！' : '游戏结束';
+  el.goTitle.style.color = G.win ? '#7cf0a8' : '#ff8f9f';
+  el.goReason.style.display = reason ? '' : 'none';
+  el.goReason.textContent = reason || '';
+  netTrack(true);   // 结算后同步最终分数到排行榜
   el.finalScore.textContent=G.score;
   el.finalLevel.textContent=G.level;
   el.finalBest.textContent=G.best;
   el.over.classList.add('show');
   document.body.classList.remove('playing');
-  sfx('over');
+  sfx(G.win ? 'up' : 'over');
 }
 function start(){
   fishes.length=0; parts.length=0; floats.length=0; rings.length=0;
-  G.score=0; G.level=1; G.xp=0; G.xpNeed=5; G.inv=2; G.over=false; G.running=true;
+  G.score=20; G.level=1; G.inv=2; G.over=false; G.running=true;   // 起始经验分数 20（仍在 1 级区间 10~24 内）
   G.lmb=false; G.zoom=1; G.zoomT=1; G.startT=G.time;
+  G.staminaMax=100; G.stamina=100; G.tired=false; G.boostKey=false; G.lastBoost=-9;
   player.x=0; player.y=0; player.vx=player.vy=0; player.angle=0;
   player.size=TYPES[0].size;
   // 开局只刷玩家能吃的 1 级鱼，不给玩家"出生被围"的压力
@@ -434,6 +502,7 @@ function start(){
   el.start.classList.remove('show'); el.over.classList.remove('show');
   document.body.classList.add('playing');
   updateHud();
+  netTrack(true);   // 开局即同步在线状态与排行榜
 }
 $('startBtn').onclick = ()=>{ initAudio(); start(); };
 $('againBtn').onclick = ()=>{ initAudio(); start(); };
@@ -443,7 +512,10 @@ function updateHud(){
   el.best.textContent = '最高 '+Math.max(G.best, G.score);
   el.lv.textContent = G.level;
   el.name.textContent = TYPES[G.level-1].name;
-  el.xp.style.width = (G.level>=8 ? 100 : G.xp/G.xpNeed*100)+'%';
+  el.xp.style.width = (function(){
+    const lo=lvFloor(G.level), hi=(G.level>=MAXL ? WIN_SCORE : lvFloor(G.level+1));
+    return Math.min(100, Math.max(0, (G.score-lo)/(hi-lo)*100));
+  })()+'%';
 }
 
 /* ================= 特效更新 ================= */
@@ -494,24 +566,8 @@ function paintLv1(s,tail,eye){
   drawEye(s*.95,-s*.06, s*.16, eye);
 }
 
-/* Lv2 小黄鱼 */
+/* Lv2 小丑鱼 */
 function paintLv2(s,tail,eye){
-  ctx.save(); ctx.translate(-s*1.15,0); ctx.rotate(Math.sin(tail)*.35);
-  tri(0,0, -s*.75,-s*.62, -s*.45,0, '#e59a2f');
-  tri(0,0, -s*.75, s*.62, -s*.45,0, '#e59a2f');
-  ctx.restore();
-  tri(-s*.35,-s*.55, s*.05,-s*1.0, s*.45,-s*.5, '#d18a24');
-  tri(-s*.1,s*.6, s*.15,s*.95, s*.35,s*.55, 'rgba(209,138,36,.85)');
-  ell(0,0, s*1.2, s*.68, vGrad(-s*.68,s*.68, '#d99125','#ffe08a'));
-  ell(-s*.1,0, s*.85, s*.2, 'rgba(255,255,255,.18)');
-  ctx.strokeStyle='rgba(120,70,10,.35)'; ctx.lineWidth=Math.max(1,s*.06);
-  ctx.beginPath(); ctx.arc(s*.35,0,s*.5,-1.1,1.1); ctx.stroke();
-  ctx.beginPath(); ctx.arc(s*1.05,s*.12,s*.14,.3,Math.PI-.7); ctx.stroke();
-  drawEye(s*.62,-s*.16, s*.17, eye);
-}
-
-/* Lv3 小丑鱼 */
-function paintLv3(s,tail,eye){
   ctx.save(); ctx.translate(-s*.95,0); ctx.rotate(Math.sin(tail)*.3);
   ell(-s*.25,0, s*.45, s*.5, '#f5821f');
   ell(-s*.45,0, s*.2, s*.42, '#ffffff');
@@ -539,8 +595,90 @@ function paintLv3(s,tail,eye){
   ctx.beginPath(); ctx.arc(s*.66,-s*.14, s*.17, 0, 6.29); ctx.stroke();
 }
 
-/* Lv4 河豚 */
+/* Lv3 蓝吊鱼：宝蓝色椭圆扁身 + 黄色尾鳍 + 黑色"调色刀"斑纹 */
+function paintLv3(s,tail,eye){
+  const wag=Math.sin(tail);
+  // 黄色尾鳍
+  ctx.save(); ctx.translate(-s*1.1,0); ctx.rotate(wag*.35);
+  ctx.fillStyle='#ffd94a';
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.5,-s*.45, -s*.55,-s*.55);
+  ctx.quadraticCurveTo(-s*.35,0, -s*.55,s*.55);
+  ctx.quadraticCurveTo(-s*.5,s*.45, 0,0);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // 小背鳍与臀鳍（深蓝描边感）
+  ctx.fillStyle='#1d3a8a';
+  ctx.beginPath(); ctx.moveTo(-s*.7,-s*.62);
+  ctx.quadraticCurveTo(0,-s*.85, s*.7,-s*.6);
+  ctx.quadraticCurveTo(0,-s*.55, -s*.7,-s*.62);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(-s*.7,s*.62);
+  ctx.quadraticCurveTo(0,s*.85, s*.7,s*.6);
+  ctx.quadraticCurveTo(0,s*.55, -s*.7,s*.62);
+  ctx.closePath(); ctx.fill();
+  // 宝蓝椭圆身体
+  ell(0,0, s*1.05, s*.72, vGrad(-s*.72,s*.72,'#4a8de8','#1d3a8a'));
+  // 黑色"调色刀"斑纹（蓝吊标志性花纹）
+  ctx.strokeStyle='rgba(10,20,45,.8)'; ctx.lineWidth=s*.16; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(s*.8,-s*.05);
+  ctx.quadraticCurveTo(s*.2,-s*.45, -s*.55,-s*.3);
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s*.6,s*.15);
+  ctx.quadraticCurveTo(0,s*.42, -s*.6,s*.25);
+  ctx.stroke();
+  ctx.lineCap='butt';
+  // 黄色胸鳍
+  ctx.fillStyle='rgba(255,217,74,.9)';
+  ctx.beginPath(); ctx.ellipse(s*.15,s*.35, s*.28, s*.12, .55, 0, 6.29); ctx.fill();
+  drawEye(s*.7,-s*.16, s*.15, eye);
+}
+
+/* Lv4 狮子鱼：红棕白条相间 + 扇形大胸鳍 + 毒棘背鳍 */
 function paintLv4(s,tail,eye){
+  const wag=Math.sin(tail);
+  // 尾鳍
+  ctx.save(); ctx.translate(-s*.95,0); ctx.rotate(wag*.3);
+  ell(-s*.18,0, s*.3, s*.38, 'rgba(194,90,74,.85)');
+  ctx.restore();
+  // 毒棘背鳍（一排长棘）
+  ctx.strokeStyle='#c25a4a'; ctx.lineWidth=Math.max(1,s*.05); ctx.lineCap='round';
+  for(let i=0;i<9;i++){
+    const x=s*.6-i*s*.18;
+    const len=s*(.7+.25*Math.sin(i*1.7));
+    ctx.beginPath(); ctx.moveTo(x,-s*.5);
+    ctx.lineTo(x-s*.08,-s*.5-len); ctx.stroke();
+  }
+  ctx.lineCap='butt';
+  // 扇形大胸鳍（狮鬃般展开）
+  ctx.fillStyle='rgba(214,106,88,.75)';
+  ctx.beginPath(); ctx.moveTo(s*.1,0);
+  ctx.quadraticCurveTo(-s*.3,-s*.75, -s*.75,-s*.95);
+  ctx.quadraticCurveTo(-s*.55,-s*.35, -s*.45,0);
+  ctx.quadraticCurveTo(-s*.55,s*.35, -s*.75,s*.95);
+  ctx.quadraticCurveTo(-s*.3,s*.75, s*.1,0);
+  ctx.closePath(); ctx.fill();
+  // 身体（白条底色 + 红棕竖条纹）
+  ell(0,0, s*1.0, s*.6, vGrad(-s*.6,s*.6,'#f2e2d8','#d8b8a8'));
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(0,0, s*1.0, s*.6, 0, 0, 6.29); ctx.clip();
+  ctx.fillStyle='rgba(178,74,58,.85)';
+  for(let i=0;i<6;i++){
+    const x=s*.75-i*s*.32;
+    ctx.fillRect(x-s*.07, -s, s*.14, 2*s);
+  }
+  ctx.restore();
+  // 触须
+  ctx.strokeStyle='#c25a4a'; ctx.lineWidth=Math.max(1,s*.04);
+  ctx.beginPath(); ctx.moveTo(s*.75,-s*.2);
+  ctx.quadraticCurveTo(s*.95,-s*.45, s*.85,-s*.6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s*.8,-s*.1);
+  ctx.quadraticCurveTo(s*1.05,-s*.3, s*.98,-s*.45); ctx.stroke();
+  drawEye(s*.6,-s*.18, s*.15, eye);
+}
+
+/* Lv5 河豚 */
+function paintLv5(s,tail,eye){
   ctx.save(); ctx.translate(-s*.95,0); ctx.rotate(Math.sin(tail)*.3);
   ell(-s*.15,0, s*.28, s*.3, '#7a9455');
   ctx.restore();
@@ -564,8 +702,8 @@ function paintLv4(s,tail,eye){
   ctx.beginPath(); ctx.arc(s*.88,s*.15, s*.07, 0, 6.29); ctx.stroke();
 }
 
-/* Lv5 石斑鱼 */
-function paintLv5(s,tail,eye){
+/* Lv8 石斑鱼 */
+function paintLv8(s,tail,eye){
   ctx.save(); ctx.translate(-s*1.2,0); ctx.rotate(Math.sin(tail)*.28);
   ell(-s*.2,0, s*.4, s*.62, '#a5531f');
   ctx.restore();
@@ -590,15 +728,13 @@ function paintLv5(s,tail,eye){
   drawEye(s*.66,-s*.24, s*.16, eye);
 }
 
-/* Lv6 龙鱼：修长纺锤身体 + 金属紫渐变 + 双排鳞弧 + 金色侧线 + 双触须 + 飘逸长鳍 */
-function paintLv6(s,tail,eye){
+/* Lv7 龙鱼：修长纺锤身体 + 金属紫渐变 + 双排鳞弧 + 金色侧线 + 双触须 + 飘逸长鳍 */
+function paintLv7(s,tail,eye){
   const wag=Math.sin(tail);
-  // 大叉尾
   ctx.save(); ctx.translate(-s*1.55,0); ctx.rotate(wag*.28);
   tri(0,0, -s*.62,-s*.6, -s*.42,0, '#8f5fe0');
   tri(0,0, -s*.62, s*.6, -s*.42,0, '#8f5fe0');
   ctx.restore();
-  // 长背鳍与臀鳍（向后飘逸）
   ctx.fillStyle='rgba(143,95,224,.7)';
   ctx.beginPath(); ctx.moveTo(s*.1,-s*.4);
   ctx.quadraticCurveTo(-s*.7,-s*.85, -s*1.55,-s*.25);
@@ -608,31 +744,26 @@ function paintLv6(s,tail,eye){
   ctx.quadraticCurveTo(-s*.7,s*.85, -s*1.55,s*.25);
   ctx.quadraticCurveTo(-s*.8,s*.32, s*.1,s*.28);
   ctx.closePath(); ctx.fill();
-  // 修长流线身体（背部高弓、腹部平缓、收向尾柄）
   ctx.fillStyle=vGrad(-s*.5,s*.5, '#d4b3ff','#5b32a8');
   ctx.beginPath();
-  ctx.moveTo(s*1.75,-s*.02);                        // 吻尖
-  ctx.quadraticCurveTo(s*1.3,-s*.42, s*.4,-s*.46);  // 头背
-  ctx.quadraticCurveTo(-s*.6,-s*.5, -s*1.5,-s*.16); // 背→尾柄
-  ctx.quadraticCurveTo(-s*1.62,0, -s*1.5,s*.16);    // 尾柄
-  ctx.quadraticCurveTo(-s*.6,s*.42, s*.4,s*.36);    // 腹
-  ctx.quadraticCurveTo(s*1.3,s*.3, s*1.75,-s*.02);  // 下颌→吻
+  ctx.moveTo(s*1.75,-s*.02);
+  ctx.quadraticCurveTo(s*1.3,-s*.42, s*.4,-s*.46);
+  ctx.quadraticCurveTo(-s*.6,-s*.5, -s*1.5,-s*.16);
+  ctx.quadraticCurveTo(-s*1.62,0, -s*1.5,s*.16);
+  ctx.quadraticCurveTo(-s*.6,s*.42, s*.4,s*.36);
+  ctx.quadraticCurveTo(s*1.3,s*.3, s*1.75,-s*.02);
   ctx.closePath(); ctx.fill();
-  // 金色侧线
   ctx.strokeStyle='rgba(255,215,140,.55)'; ctx.lineWidth=Math.max(1,s*.06);
   ctx.beginPath(); ctx.moveTo(-s*1.4,0);
   ctx.quadraticCurveTo(0,s*.06, s*1.4,-s*.02); ctx.stroke();
-  // 双排鳞弧
   ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.lineWidth=Math.max(1,s*.03);
   for(let i=0;i<7;i++){
     const x=-s*1.25+i*s*.4;
     ctx.beginPath(); ctx.arc(x,-s*.1,s*.26,-1.1,1.1); ctx.stroke();
     ctx.beginPath(); ctx.arc(x+s*.2,s*.12,s*.22,-1.1,1.1); ctx.stroke();
   }
-  // 胸鳍
   ctx.fillStyle='rgba(196,150,255,.8)';
   ctx.beginPath(); ctx.ellipse(s*.55,s*.28, s*.34, s*.1, .5, 0, 6.29); ctx.fill();
-  // 双触须
   ctx.strokeStyle='#e8d5a0'; ctx.lineWidth=Math.max(1,s*.045);
   ctx.beginPath(); ctx.moveTo(s*1.5,s*.12);
   ctx.quadraticCurveTo(s*1.85,s*.32, s*1.72,s*.5); ctx.stroke();
@@ -641,10 +772,68 @@ function paintLv6(s,tail,eye){
   drawEye(s*1.15,-s*.14, s*.13, eye);
 }
 
-/* Lv7 鲨鱼：一体化纺锤身体 + 尖吻 + 双背鳍 + 刀状胸鳍 + 新月尾 + 五道鳃裂 + 背蓝腹白 */
-function paintLv7(s,tail,eye){
+/* Lv11 锤头鲨：T 形锤状宽头（双眼位于两端）+ 高弯背鳍 + 灰褐纺锤身 */
+function paintLv11(s,tail,eye){
   const wag=Math.sin(tail);
-  // 新月形尾鳍（上叶长、下叶短）
+  // 尾鳍（上叶明显更长）
+  ctx.save(); ctx.translate(-s*1.55,0); ctx.rotate(wag*.22);
+  ctx.fillStyle='#6d8296';
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.42,-s*.35, -s*.52,-s*1.0);
+  ctx.quadraticCurveTo(-s*.22,-s*.48, -s*.1,-s*.12);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.3,s*.28, -s*.34,s*.58);
+  ctx.quadraticCurveTo(-s*.14,s*.3, -s*.06,s*.1);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // 高而弯曲的背鳍
+  ctx.fillStyle='#6d8296';
+  ctx.beginPath(); ctx.moveTo(-s*.3,-s*.42);
+  ctx.quadraticCurveTo(-s*.05,-s*1.2, s*.4,-s*.55);
+  ctx.quadraticCurveTo(s*.05,-s*.45, -s*.3,-s*.42);
+  ctx.closePath(); ctx.fill();
+  // 胸鳍
+  ctx.fillStyle='rgba(109,130,150,.95)';
+  ctx.beginPath(); ctx.moveTo(s*.3,s*.2);
+  ctx.quadraticCurveTo(-s*.25,s*.6, -s*.55,s*.9);
+  ctx.quadraticCurveTo(-s*.05,s*.5, s*.55,s*.3);
+  ctx.closePath(); ctx.fill();
+  // 身体
+  ctx.fillStyle=vGrad(-s*.5,s*.5,'#7d8fa8','#e8f0f6');
+  ctx.beginPath();
+  ctx.moveTo(s*1.45,0);
+  ctx.quadraticCurveTo(s*.9,-s*.44, s*.1,-s*.46);
+  ctx.quadraticCurveTo(-s*.9,-s*.42, -s*1.55,-s*.1);
+  ctx.lineTo(-s*1.55,s*.1);
+  ctx.quadraticCurveTo(-s*.9,s*.34, s*.1,s*.36);
+  ctx.quadraticCurveTo(s*.9,s*.28, s*1.45,0);
+  ctx.closePath(); ctx.fill();
+  // T 形锤头（头部向两侧极度扩展）
+  ctx.fillStyle=vGrad(-s*.5,s*.5,'#7d8fa8','#d8e4ee');
+  ctx.beginPath();
+  ctx.moveTo(s*1.3,-s*.16);
+  ctx.lineTo(s*1.85,-s*.34);
+  ctx.quadraticCurveTo(s*2.0,-s*.36, s*2.0,-s*.22);
+  ctx.lineTo(s*2.0,s*.22);
+  ctx.quadraticCurveTo(s*2.0,s*.36, s*1.85,s*.34);
+  ctx.lineTo(s*1.3,s*.16);
+  ctx.closePath(); ctx.fill();
+  // 锤头两端的眼睛
+  drawEye(s*1.9,-s*.24, s*.08, eye);
+  drawEye(s*1.9,s*.24, s*.08, eye);
+  // 鳃裂
+  ctx.strokeStyle='rgba(45,65,85,.5)'; ctx.lineWidth=Math.max(1,s*.035);
+  for(let i=0;i<5;i++){
+    const x=s*.42+i*s*.12;
+    ctx.beginPath(); ctx.moveTo(x,-s*.26);
+    ctx.quadraticCurveTo(x-s*.04,0, x-s*.02,s*.24); ctx.stroke();
+  }
+}
+
+/* Lv12 大白鲨：粗壮纺锤身体 + 尖吻 + 三角背鳍 + 刀状胸鳍 + 新月尾 + 五道鳃裂 + 背灰腹白 */
+function paintLv12(s,tail,eye){
+  const wag=Math.sin(tail);
   ctx.save(); ctx.translate(-s*1.5,0); ctx.rotate(wag*.22);
   ctx.fillStyle='#6d8fa8';
   ctx.beginPath(); ctx.moveTo(0,0);
@@ -656,72 +845,61 @@ function paintLv7(s,tail,eye){
   ctx.quadraticCurveTo(-s*.2,s*.35, -s*.1,s*.1);
   ctx.closePath(); ctx.fill();
   ctx.restore();
-  // 主背鳍 + 第二小背鳍
   tri(-s*.35,-s*.42, -s*.05,-s*1.2, s*.3,-s*.45, '#6d8fa8');
   tri(-s*1.05,-s*.22, -s*.85,-s*.6, -s*.6,-s*.28, '#6d8fa8');
-  // 刀状胸鳍
   ctx.fillStyle='rgba(109,143,168,.95)';
   ctx.beginPath(); ctx.moveTo(s*.3,s*.25);
   ctx.quadraticCurveTo(-s*.3,s*.7, -s*.55,s*.95);
   ctx.quadraticCurveTo(-s*.15,s*.55, s*.55,s*.35);
   ctx.closePath(); ctx.fill();
-  // 一体化纺锤身体（尖吻、收腹、尾柄窄）
   ctx.fillStyle=vGrad(-s*.55,s*.55, '#7d9db4','#eef6fb');
   ctx.beginPath();
-  ctx.moveTo(s*1.85,0);                             // 吻尖
-  ctx.quadraticCurveTo(s*1.2,-s*.5, s*.2,-s*.52);   // 背部
-  ctx.quadraticCurveTo(-s*.9,-s*.48, -s*1.55,-s*.1);// 背→尾柄
+  ctx.moveTo(s*1.85,0);
+  ctx.quadraticCurveTo(s*1.2,-s*.5, s*.2,-s*.52);
+  ctx.quadraticCurveTo(-s*.9,-s*.48, -s*1.55,-s*.1);
   ctx.lineTo(-s*1.55,s*.1);
-  ctx.quadraticCurveTo(-s*.9,s*.4, s*.2,s*.42);     // 腹部（白）
-  ctx.quadraticCurveTo(s*1.2,s*.32, s*1.85,0);      // 下颌
+  ctx.quadraticCurveTo(-s*.9,s*.4, s*.2,s*.42);
+  ctx.quadraticCurveTo(s*1.2,s*.32, s*1.85,0);
   ctx.closePath(); ctx.fill();
-  // 背腹分界线
   ctx.strokeStyle='rgba(125,157,180,.5)'; ctx.lineWidth=Math.max(1,s*.05);
   ctx.beginPath(); ctx.moveTo(-s*1.4,-s*.02);
   ctx.quadraticCurveTo(0,s*.08, s*1.6,-s*.02); ctx.stroke();
-  // 五道鳃裂
   ctx.strokeStyle='rgba(40,70,90,.55)'; ctx.lineWidth=Math.max(1,s*.04);
   for(let i=0;i<5;i++){
     const x=s*.42+i*s*.13;
     ctx.beginPath(); ctx.moveTo(x,-s*.3);
     ctx.quadraticCurveTo(x-s*.05,0, x-s*.02,s*.28); ctx.stroke();
   }
-  // 腹位嘴
   ctx.strokeStyle='rgba(40,70,90,.65)'; ctx.lineWidth=Math.max(1,s*.05);
   ctx.beginPath(); ctx.arc(s*1.15,s*.05, s*.4, Math.PI*.35, Math.PI*.7); ctx.stroke();
   drawEye(s*1.05,-s*.16, s*.12, eye);
 }
 
-/* Lv8 深海鮟鱇：一体化巨头身体 + 背棘 + 上下双排倒钩尖牙 + 径向辉光钓饵 */
-function paintLv8(s,tail,eye,glow){
+/* Lv6 深海鮟鱇：一体化巨头身体 + 背棘 + 上下双排倒钩尖牙 + 径向辉光钓饵 */
+function paintLv6(s,tail,eye,glow){
   const wag=Math.sin(tail);
-  // 尾鳍
   ctx.save(); ctx.translate(-s*1.15,s*.05); ctx.rotate(wag*.28);
   tri(0,0, -s*.55,-s*.45, -s*.38,0, '#3a0d16');
   tri(0,0, -s*.55, s*.45, -s*.38,0, '#3a0d16');
   ctx.restore();
-  // 一体化身体（巨头 + 收窄尾柄）
   ctx.fillStyle=vGrad(-s*.8,s*.8, '#5a1420','#1f070f');
   ctx.beginPath();
-  ctx.moveTo(s*1.1,-s*.1);                           // 吻端
-  ctx.quadraticCurveTo(s*.9,-s*.78, s*.1,-s*.8);     // 头顶
-  ctx.quadraticCurveTo(-s*.7,-s*.72, -s*1.15,-s*.2); // 背→尾柄
+  ctx.moveTo(s*1.1,-s*.1);
+  ctx.quadraticCurveTo(s*.9,-s*.78, s*.1,-s*.8);
+  ctx.quadraticCurveTo(-s*.7,-s*.72, -s*1.15,-s*.2);
   ctx.quadraticCurveTo(-s*1.28,s*.05, -s*1.1,s*.28);
-  ctx.quadraticCurveTo(-s*.5,s*.72, s*.3,s*.62);     // 腹部
-  ctx.quadraticCurveTo(s*.9,s*.5, s*1.1,-s*.1);      // 下颌
+  ctx.quadraticCurveTo(-s*.5,s*.72, s*.3,s*.62);
+  ctx.quadraticCurveTo(s*.9,s*.5, s*1.1,-s*.1);
   ctx.closePath(); ctx.fill();
-  // 背棘
   ctx.strokeStyle='rgba(120,40,50,.85)'; ctx.lineWidth=Math.max(1,s*.04);
   for(let i=0;i<4;i++){
     const x=-s*.15-i*s*.22;
     ctx.beginPath(); ctx.moveTo(x,-s*.74+i*s*.04);
     ctx.lineTo(x-s*.1,-s*.98+i*s*.03); ctx.stroke();
   }
-  // 血斑
   ctx.fillStyle='rgba(170,45,55,.35)';
   const marks=[[-s*.2,-s*.3],[s*.35,-s*.5],[-s*.5,s*.3],[s*.55,s*.4]];
   for(const p of marks){ ctx.beginPath(); ctx.arc(p[0],p[1],s*.09,0,6.29); ctx.fill(); }
-  // 发光钓竿与径向辉光钓饵
   const gl=.6+.4*Math.sin(glow);
   ctx.strokeStyle='rgba(150,120,130,.9)'; ctx.lineWidth=Math.max(1,s*.045);
   ctx.beginPath(); ctx.moveTo(s*.35,-s*.74);
@@ -736,33 +914,231 @@ function paintLv8(s,tail,eye,glow){
   ctx.fillStyle='rgba(220,255,255,'+(.8+.2*gl).toFixed(2)+')';
   ctx.beginPath(); ctx.arc(s*1.17,-s*.97, s*.09, 0, 6.29); ctx.fill();
   ctx.restore();
-  // 血盆大口（弧形口腔）
   ctx.fillStyle='#0d0408';
   ctx.beginPath();
   ctx.moveTo(s*1.02,-s*.05);
   ctx.quadraticCurveTo(s*.75,s*.55, s*.05,s*.52);
   ctx.quadraticCurveTo(s*.55,s*.3, s*1.02,-s*.05);
   ctx.closePath(); ctx.fill();
-  // 上排倒钩尖牙（向下）
   for(let i=0;i<6;i++){
     const t=i/5;
     const mx=s*.98-t*s*.85, my=-s*.03+Math.sin(t*1.2)*s*.12;
     tri(mx-s*.05,my, mx+s*.05,my, mx-s*.01,my+s*.22, '#e8e4da');
   }
-  // 下排倒钩尖牙（向上）
   for(let i=0;i<5;i++){
     const t=i/4;
     const mx=s*.9-t*s*.7, my=s*.5-Math.sin(t*1.1)*s*.06;
     tri(mx-s*.05,my, mx+s*.05,my, mx,my-s*.2, '#e8e4da');
   }
-  // 胸鳍
   ctx.fillStyle='rgba(58,13,22,.9)';
   ctx.beginPath(); ctx.ellipse(-s*.35,s*.42, s*.3, s*.13, .5, 0, 6.29); ctx.fill();
-  // 头顶小眼（默认金色）
   drawEye(s*.75,-s*.42, s*.12, eye||'#caa24a');
 }
 
-const PAINTERS = [paintLv1,paintLv2,paintLv3,paintLv4,paintLv5,paintLv6,paintLv7,paintLv8];
+/* Lv9 白鳍礁鲨：纤细灰身 + 白色尖端的背鳍与尾鳍上叶（白鳍是其标志） */
+function paintLv9(s,tail,eye){
+  const wag=Math.sin(tail);
+  // 尾鳍（上叶长、白色尖端）
+  ctx.save(); ctx.translate(-s*1.6,0); ctx.rotate(wag*.22);
+  ctx.fillStyle='#7d97a8';
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.4,-s*.35, -s*.55,-s*1.05);
+  ctx.quadraticCurveTo(-s*.25,-s*.5, -s*.1,-s*.12);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#f2f7fb';
+  ctx.beginPath(); ctx.moveTo(-s*.4,-s*.75);
+  ctx.quadraticCurveTo(-s*.5,-s*.95, -s*.55,-s*1.05);
+  ctx.quadraticCurveTo(-s*.38,-s*.82, -s*.3,-s*.6);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.3,s*.3, -s*.35,s*.6);
+  ctx.quadraticCurveTo(-s*.15,s*.32, -s*.08,s*.1);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // 第一背鳍（宽大、白色尖端——白鳍礁鲨得名特征）
+  ctx.fillStyle='#7d97a8';
+  ctx.beginPath(); ctx.moveTo(-s*.35,-s*.42);
+  ctx.quadraticCurveTo(-s*.1,-s*1.05, s*.35,-s*.5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#f2f7fb';
+  ctx.beginPath(); ctx.moveTo(-s*.22,-s*.72);
+  ctx.quadraticCurveTo(-s*.1,-s*1.05, s*.12,-s*.82);
+  ctx.quadraticCurveTo(-s*.02,-s*.62, -s*.22,-s*.72);
+  ctx.closePath(); ctx.fill();
+  // 第二小背鳍
+  tri(-s*1.05,-s*.18, -s*.9,-s*.42, -s*.72,-s*.22, '#7d97a8');
+  // 宽阔胸鳍
+  ctx.fillStyle='rgba(125,151,168,.95)';
+  ctx.beginPath(); ctx.moveTo(s*.35,s*.18);
+  ctx.quadraticCurveTo(-s*.2,s*.6, -s*.5,s*.85);
+  ctx.quadraticCurveTo(-s*.05,s*.48, s*.6,s*.28);
+  ctx.closePath(); ctx.fill();
+  // 纤细身体
+  ctx.fillStyle=vGrad(-s*.5,s*.5,'#8ba5b6','#eef5fa');
+  ctx.beginPath();
+  ctx.moveTo(s*1.8,0);
+  ctx.quadraticCurveTo(s*1.1,-s*.42, s*.15,-s*.44);
+  ctx.quadraticCurveTo(-s*.95,-s*.4, -s*1.6,-s*.08);
+  ctx.lineTo(-s*1.6,s*.08);
+  ctx.quadraticCurveTo(-s*.95,s*.32, s*.15,s*.34);
+  ctx.quadraticCurveTo(s*1.1,s*.26, s*1.8,0);
+  ctx.closePath(); ctx.fill();
+  // 鳃裂
+  ctx.strokeStyle='rgba(50,75,95,.5)'; ctx.lineWidth=Math.max(1,s*.035);
+  for(let i=0;i<5;i++){
+    const x=s*.4+i*s*.12;
+    ctx.beginPath(); ctx.moveTo(x,-s*.24);
+    ctx.quadraticCurveTo(x-s*.04,0, x-s*.02,s*.22); ctx.stroke();
+  }
+  drawEye(s*1.05,-s*.13, s*.11, eye);
+}
+
+/* Lv10 旗鱼：长矛吻 + 大帆背鳍（带斑点）+ 新月尾 + 蓝银纺锤身 */
+function paintLv10(s,tail,eye){
+  const wag=Math.sin(tail);
+  // 长矛吻
+  ctx.strokeStyle='#3a5f8a'; ctx.lineWidth=Math.max(2,s*.08); ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(s*1.3,-s*.05); ctx.lineTo(s*2.3,-s*.08); ctx.stroke();
+  ctx.lineCap='butt';
+  // 新月尾
+  ctx.save(); ctx.translate(-s*1.35,0); ctx.rotate(wag*.24);
+  ctx.fillStyle='#3a5f8a';
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.55,-s*.4,-s*.7,-s*1.0);
+  ctx.quadraticCurveTo(-s*.3,-s*.45,-s*.12,-s*.1); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.55,s*.4,-s*.7,s*1.0);
+  ctx.quadraticCurveTo(-s*.3,s*.45,-s*.12,s*.1); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // 大帆背鳍
+  ctx.fillStyle='rgba(70,120,200,.85)';
+  ctx.beginPath(); ctx.moveTo(s*.7,-s*.4);
+  ctx.quadraticCurveTo(s*.2,-s*1.5, -s*.8,-s*.9);
+  ctx.quadraticCurveTo(-s*.5,-s*.4, s*.0,-s*.35);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(30,60,110,.6)';
+  for(let i=0;i<6;i++){ ctx.beginPath(); ctx.arc(s*.4-i*s*.24, -s*.6-((i%2)*s*.18), s*.05,0,6.29); ctx.fill(); }
+  // 身体
+  ctx.fillStyle=vGrad(-s*.5,s*.5,'#4a7ec2','#dfeaf5');
+  ctx.beginPath();
+  ctx.moveTo(s*1.35,-s*.02);
+  ctx.quadraticCurveTo(s*.9,-s*.42, 0,-s*.4);
+  ctx.quadraticCurveTo(-s*.9,-s*.36, -s*1.4,-s*.1);
+  ctx.lineTo(-s*1.4,s*.1);
+  ctx.quadraticCurveTo(-s*.9,s*.32, 0,s*.32);
+  ctx.quadraticCurveTo(s*.9,s*.3, s*1.35,-s*.02);
+  ctx.closePath(); ctx.fill();
+  drawEye(s*.95,-s*.12,s*.11,eye);
+}
+
+/* Lv13 蝠鲼：菱形双翼 + 头鳍 + 细长尾鞭 + 白色肩斑 */
+function paintLv13(s,tail,eye){
+  const flap=Math.sin(tail*.7)*s*.5;
+  // 细长尾鞭
+  ctx.strokeStyle='rgba(40,50,60,.85)'; ctx.lineWidth=Math.max(1.5,s*.05);
+  ctx.beginPath(); ctx.moveTo(-s*.9,0);
+  ctx.quadraticCurveTo(-s*1.6, Math.sin(tail)*s*.3, -s*2.3, Math.sin(tail*.8)*s*.4);
+  ctx.stroke();
+  // 菱形双翼身体（上下扇动）
+  ctx.fillStyle=vGrad(-s*1.1,s*1.1,'#3a4552','#232b36');
+  ctx.beginPath();
+  ctx.moveTo(s*1.15,0);
+  ctx.quadraticCurveTo(s*.3,-s*.4-flap, -s*.2,-s*1.05-flap);
+  ctx.quadraticCurveTo(-s*.6,-s*.4, -s*.95,0);
+  ctx.quadraticCurveTo(-s*.6,s*.4, -s*.2,s*1.05+flap);
+  ctx.quadraticCurveTo(s*.3,s*.4+flap, s*1.15,0);
+  ctx.closePath(); ctx.fill();
+  // 头前双鳍
+  ctx.fillStyle='#2c3540';
+  ctx.beginPath(); ctx.ellipse(s*1.05,-s*.18, s*.22, s*.1, -.4, 0, 6.29); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s*1.05,s*.18, s*.22, s*.1, .4, 0, 6.29); ctx.fill();
+  // 白色肩斑
+  ctx.fillStyle='rgba(220,230,240,.25)';
+  ctx.beginPath(); ctx.ellipse(s*.3,-s*.3, s*.3, s*.14, -.4, 0, 6.29); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s*.3,s*.3, s*.3, s*.14, .4, 0, 6.29); ctx.fill();
+  drawEye(s*.75,-s*.12, s*.09, eye);
+}
+
+/* Lv14 虎鲸：黑背白腹 + 白色眼斑 + 高大三角背鳍 */
+function paintLv14(s,tail,eye){
+  const wag=Math.sin(tail);
+  // 水平尾羽
+  ctx.save(); ctx.translate(-s*1.5,0); ctx.rotate(wag*.2);
+  ctx.fillStyle='#1a1d22';
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.5,-s*.5,-s*.75,-s*.55);
+  ctx.quadraticCurveTo(-s*.4,-s*.15,-s*.15,0);
+  ctx.quadraticCurveTo(-s*.4,s*.15,-s*.75,s*.55);
+  ctx.quadraticCurveTo(-s*.5,s*.5,0,0);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // 高大三角背鳍
+  ctx.fillStyle='#1a1d22';
+  ctx.beginPath(); ctx.moveTo(-s*.3,-s*.5);
+  ctx.quadraticCurveTo(-s*.05,-s*1.35, s*.35,-s*.55);
+  ctx.closePath(); ctx.fill();
+  // 身体（黑背白腹）
+  ctx.fillStyle=vGrad(-s*.6,s*.6,'#14171c','#f4f8fb');
+  ctx.beginPath();
+  ctx.moveTo(s*1.7,0);
+  ctx.quadraticCurveTo(s*1.0,-s*.58, 0,-s*.58);
+  ctx.quadraticCurveTo(-s*1.0,-s*.52, -s*1.55,-s*.12);
+  ctx.lineTo(-s*1.55,s*.12);
+  ctx.quadraticCurveTo(-s*1.0,s*.45, 0,s*.45);
+  ctx.quadraticCurveTo(s*1.0,s*.35, s*1.7,0);
+  ctx.closePath(); ctx.fill();
+  // 白色眼斑与下腹斑
+  ctx.fillStyle='#f4f8fb';
+  ctx.beginPath(); ctx.ellipse(s*1.05,-s*.22, s*.2, s*.1, -.3, 0, 6.29); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s*.1,s*.3, s*.6, s*.14, 0, 0, 6.29); ctx.fill();
+  // 胸鳍
+  ctx.fillStyle='#14171c';
+  ctx.beginPath(); ctx.ellipse(s*.2,s*.4, s*.4, s*.13, .5, 0, 6.29); ctx.fill();
+  drawEye(s*1.15,-s*.28, s*.08, eye);
+}
+
+/* Lv15 蓝鲸：庞大蓝灰长身 + 喉腹褶 + 小背鳍 + 水平尾羽 + 喷水孔 */
+function paintLv15(s,tail,eye){
+  const wag=Math.sin(tail*.8);
+  // 水平尾羽
+  ctx.save(); ctx.translate(-s*1.75,0); ctx.rotate(wag*.18);
+  ctx.fillStyle='#4a6a8a';
+  ctx.beginPath(); ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(-s*.55,-s*.45,-s*.85,-s*.4);
+  ctx.quadraticCurveTo(-s*.4,-s*.1,-s*.12,0);
+  ctx.quadraticCurveTo(-s*.4,s*.1,-s*.85,s*.4);
+  ctx.quadraticCurveTo(-s*.55,s*.45,0,0);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  // 小背鳍（靠后）
+  tri(-s*1.05,-s*.42, -s*.85,-s*.68, -s*.65,-s*.4, '#4a6a8a');
+  // 庞大长身
+  ctx.fillStyle=vGrad(-s*.55,s*.55,'#5b7f9f','#c8d8e4');
+  ctx.beginPath();
+  ctx.moveTo(s*1.9,-s*.02);
+  ctx.quadraticCurveTo(s*1.5,-s*.5, s*.6,-s*.52);
+  ctx.quadraticCurveTo(-s*.6,-s*.48, -s*1.75,-s*.12);
+  ctx.lineTo(-s*1.75,s*.12);
+  ctx.quadraticCurveTo(-s*.6,s*.42, s*.6,s*.4);
+  ctx.quadraticCurveTo(s*1.5,s*.35, s*1.9,-s*.02);
+  ctx.closePath(); ctx.fill();
+  // 喉腹褶
+  ctx.strokeStyle='rgba(90,120,150,.35)'; ctx.lineWidth=Math.max(1,s*.03);
+  for(let i=0;i<6;i++){
+    const x=s*1.2-i*s*.35;
+    ctx.beginPath(); ctx.moveTo(x,s*.12); ctx.lineTo(x-s*.05,s*.4); ctx.stroke();
+  }
+  // 胸鳍
+  ctx.fillStyle='#4a6a8a';
+  ctx.beginPath(); ctx.ellipse(s*.3,s*.38, s*.45, s*.1, .5, 0, 6.29); ctx.fill();
+  // 喷水孔
+  ctx.strokeStyle='rgba(40,60,80,.5)'; ctx.lineWidth=Math.max(1,s*.04);
+  ctx.beginPath(); ctx.moveTo(s*1.2,-s*.48); ctx.lineTo(s*1.3,-s*.48); ctx.stroke();
+  drawEye(s*1.05,-s*.12, s*.07, eye);
+}
+
+const PAINTERS = [paintLv1,paintLv2,paintLv3,paintLv4,paintLv5,paintLv6,paintLv7,paintLv8,
+  paintLv9,paintLv10,paintLv11,paintLv12,paintLv13,paintLv14,paintLv15];
 
 /* 统一入口：平移旋转后按类型绘制；朝左时垂直镜像避免颠倒 */
 function drawFishBody(x,y,s,ti,angle,tail,eye,glow){
@@ -814,7 +1190,7 @@ function draw(){
   for(const f of fishes){
     if(Math.abs(f.x-player.x)>viewW+f.t.size*3 || Math.abs(f.y-player.y)>viewH+f.t.size*3) continue;
     let sx=f.x, sy=f.y;
-    const bigger = G.running && !G.over && f.lv>G.level;
+    const bigger = G.running && !G.over && canEat(f.lv,f.score,G.level,G.score);
     if(f.state==='flee'){ sx+=Math.sin(G.time*30+f.ph)*1.2; sy+=Math.cos(G.time*26+f.ph)*1.2; }
     if(bigger){
       const chasing = f.state==='chase';
@@ -832,9 +1208,9 @@ function draw(){
       ctx.textAlign='center';
       ctx.font='bold '+Math.round(13+f.t.size*.32)+'px sans-serif';
       ctx.strokeStyle='rgba(0,20,40,.75)'; ctx.lineWidth=3;
-      ctx.strokeText('!', sx, sy-f.t.size*1.1-bounce);
+      ctx.strokeText('!', sx, sy-f.t.size*1.55-bounce);
       ctx.fillStyle=col;
-      ctx.fillText('!', sx, sy-f.t.size*1.1-bounce);
+      ctx.fillText('!', sx, sy-f.t.size*1.55-bounce);
       ctx.restore();
       const sp=Math.hypot(f.vx,f.vy)||1;
       const ux=-f.vx/sp, uy=-f.vy/sp;
@@ -850,6 +1226,29 @@ function draw(){
     }
     drawFishBody(sx, sy, f.t.size, f.lv-1, f.angle, f.tail,
       f.state==='chase' ? '#d21f2f' : null, G.time*4+f.ph);
+    // 每条鱼头顶标注当前经验分数（字号随变焦补偿，屏幕大小一致）
+    ctx.save();
+    ctx.textAlign='center';
+    ctx.font='bold '+Math.round(12/z)+'px "Microsoft YaHei",sans-serif';
+    ctx.strokeStyle='rgba(0,20,40,.8)'; ctx.lineWidth=3/z;
+    ctx.strokeText(f.score, sx, sy-f.t.size*.95);
+    ctx.fillStyle = bigger ? '#ff8f9f' : '#bfe8ff';
+    ctx.fillText(f.score, sx, sy-f.t.size*.95);
+    ctx.restore();
+  }
+  // 远程真人玩家（头顶 名字·分数 标签，红色=能吃掉你，金色=可被你吃；字号随变焦补偿）
+  if(G.running) for(const r of NET.remotes.values()){
+    if(Math.abs(r.x-player.x)>viewW+r.size*3 || Math.abs(r.y-player.y)>viewH+r.size*3) continue;
+    drawFishBody(r.x, r.y, r.size, Math.min(MAXL, Math.max(1, r.level))-1, r.angle, r.tail, null, G.time*4);
+    ctx.save();
+    ctx.textAlign='center';
+    ctx.font='bold '+Math.round(15/z)+'px "Microsoft YaHei",sans-serif';
+    ctx.strokeStyle='rgba(0,20,40,.8)'; ctx.lineWidth=3/z;
+    const label=r.name+' Lv'+r.level+' · '+r.score;
+    ctx.strokeText(label, r.x, r.y-r.size*1.35);
+    ctx.fillStyle = canEat(r.level,r.score,G.level,G.score) ? '#ff8f9f' : '#ffd166';
+    ctx.fillText(label, r.x, r.y-r.size*1.35);
+    ctx.restore();
   }
   // 玩家（世界坐标，变焦后仍居中显示）
   if(G.running && !G.over){
@@ -860,6 +1259,15 @@ function draw(){
       ctx.beginPath(); ctx.arc(player.x, player.y, player.size*1.6, 0, 6.29); ctx.stroke();
     }
     drawFishBody(player.x, player.y, player.size, G.level-1, player.angle, player.tail, null, G.time*4);
+    ctx.restore();
+    // 玩家自己头顶也标注当前经验分数
+    ctx.save();
+    ctx.textAlign='center';
+    ctx.font='bold '+Math.round(13/z)+'px "Microsoft YaHei",sans-serif';
+    ctx.strokeStyle='rgba(0,20,40,.85)'; ctx.lineWidth=3/z;
+    ctx.strokeText(G.score, player.x, player.y-player.size*.95);
+    ctx.fillStyle='#ffd166';
+    ctx.fillText(G.score, player.x, player.y-player.size*.95);
     ctx.restore();
     // 按住左键时：画出 玩家→指针 的方向指引线（指针换算到世界坐标）
     if(G.lmb){
@@ -913,6 +1321,116 @@ function draw(){
   }
 }
 
+/* ================= 联机：Supabase Realtime（websocket 同步） ================= */
+/* presence 统计在线人数与分数排行榜；broadcast 10Hz 同步位置；分数高者可吃分数低者 */
+const EMBEDDED_SUPABASE_CONFIG = {
+  url: 'https://gxdackbnfxbaqcpabcgs.supabase.co',
+  key: 'sb_publishable_7zuwaGboS5j-3Mq6Q0l8vw_VKkJLql2'
+};
+const NET = { ok:false, sb:null, ch:null,
+  id:'p'+Math.random().toString(36).slice(2,9),
+  name:'玩家'+Math.floor(1000+Math.random()*9000),
+  remotes:new Map(), lastTrack:0, lastScore:-1, lastBcast:0, online:1, top:[] };
+function escHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function renderNetHud(){
+  el.online.textContent = NET.online;
+  if(!NET.ok){ el.lboard.innerHTML='<div style="color:#7fb6d8;">单机模式（联机未连接）</div>'; return; }
+  let html='<div style="color:#7cf0ff;font-weight:bold;">— 分数排行榜 —</div>';
+  if(!NET.top.length) html+='<div style="color:#7fb6d8;">同步中…</div>';
+  NET.top.forEach((p,i)=>{
+    html+='<div style="'+(p.me?'color:#ffd166;font-weight:bold;':'')+'">'
+      +(i+1)+'. '+escHtml(p.name)+' · '+p.score+'</div>';
+  });
+  el.lboard.innerHTML=html;
+}
+function netInit(){
+  try{
+    if(!window.supabase) return;   // CDN 加载失败 => 静默降级为单机
+    NET.sb = window.supabase.createClient(EMBEDDED_SUPABASE_CONFIG.url, EMBEDDED_SUPABASE_CONFIG.key);
+    const ch = NET.ch = NET.sb.channel('fish-ocean-v1', { config:{ presence:{ key:NET.id } } });
+    // 在线人数 + 排行榜：presence 同步时聚合所有成员的 {name,score,level}
+    ch.on('presence', {event:'sync'}, ()=>{
+      try{
+        const st=ch.presenceState(), players=[];
+        for(const k in st) for(const p of st[k]) players.push(p);
+        NET.online=Math.max(1, players.length);
+        players.sort((a,b)=>(b.score||0)-(a.score||0));
+        NET.top=players.slice(0,5).map(p=>({ name:p.name||'神秘玩家', score:p.score||0, me:p.id===NET.id }));
+        renderNetHud();
+      }catch(e){}
+    });
+    // 其他玩家的实时位置
+    ch.on('broadcast', {event:'state'}, ({payload})=>{
+      try{
+        if(!payload || payload.id===NET.id) return;
+        const now=performance.now(), r=NET.remotes.get(payload.id);
+        if(r){ r.tx=payload.x; r.ty=payload.y; r.angle=payload.angle; r.score=payload.score;
+          r.level=payload.level; r.size=payload.size; r.name=payload.name; r.last=now; }
+        else NET.remotes.set(payload.id, { id:payload.id, x:payload.x, y:payload.y, tx:payload.x, ty:payload.y,
+          angle:payload.angle||0, tail:Math.random()*10, score:payload.score||0,
+          level:payload.level||1, size:payload.size||30, name:payload.name||'玩家', last:now });
+      }catch(e){}
+    });
+    // 被其他玩家吃掉
+    ch.on('broadcast', {event:'ate'}, ({payload})=>{
+      try{
+        if(!payload || payload.victim!==NET.id || !G.running || G.over || G.inv>0) return;
+        burst(player.x, player.y, '#ff6b6b', 34);
+        el.flash.style.opacity=1; setTimeout(()=>el.flash.style.opacity=0, 60);
+        sfx('hurt');
+        gameOver(false, '被玩家「'+(payload.byName||'???')+'」吃掉了');
+      }catch(e){}
+    });
+    ch.subscribe(status=>{ if(status==='SUBSCRIBED'){ NET.ok=true; netTrack(true); renderNetHud(); } });
+  }catch(e){ NET.ok=false; }
+}
+// presence 上报：每 2 秒或分数变化时重新 track
+function netTrack(force){
+  if(!NET.ok) return;
+  if(!force && G.time-NET.lastTrack<2 && G.score===NET.lastScore) return;
+  NET.lastTrack=G.time; NET.lastScore=G.score;
+  try{ NET.ch.track({ id:NET.id, name:NET.name, score:G.score, level:G.level }); }catch(e){}
+}
+// 位置广播：游戏中 10Hz
+function netTick(){
+  if(!NET.ok || !G.running || G.over) return;
+  const now=performance.now();
+  if(now-NET.lastBcast<100) return;
+  NET.lastBcast=now;
+  try{ NET.ch.send({ type:'broadcast', event:'state', payload:{
+    id:NET.id, name:NET.name, x:Math.round(player.x), y:Math.round(player.y),
+    angle:+player.angle.toFixed(2), score:G.score, level:G.level, size:player.size } }); }catch(e){}
+}
+// 远程玩家：插值平滑 / 超时清理 / PvP 吃人判定
+function updRemotes(dt){
+  const now=performance.now();
+  for(const [id,r] of NET.remotes){
+    if(now-r.last>5000){ NET.remotes.delete(id); continue; }   // 5 秒未更新视为离开
+    const k=Math.min(1, dt*8);
+    r.x+=(r.tx-r.x)*k; r.y+=(r.ty-r.y)*k;
+    r.tail+=dt*4;
+    if(!G.running || G.over || G.inv>0) continue;
+    // 与 AI 同一规则：等级高者胜；等级相同时分数高者胜；等级与分数都相同则比 id 防互吃
+    const iWin = canEat(G.level,G.score,r.level,r.score) ||
+      (G.level===r.level && G.score===r.score && NET.id>id);
+    if(!iWin) continue;
+    const rr=r.size*.75+player.size*.72;
+    const dx=r.x-player.x, dy=r.y-player.y;
+    if(dx*dx+dy*dy<rr*rr){
+      NET.remotes.delete(id);
+      const pts=3+r.level*2;   // 与 AI 鱼一致：按对方等级获得经验分数
+      G.score+=pts;
+      updLevel();
+      burst(r.x, r.y, '#ffd166', 26);
+      addFloat(r.x, r.y-r.size, '+'+pts+' 吃掉了 '+r.name, '#ffd166');
+      sfx('up'); updateHud();
+      try{ NET.ch.send({ type:'broadcast', event:'ate', payload:{ victim:id, byName:NET.name } }); }catch(e){}
+      netTrack(true);
+      if(G.level>=MAXL && G.score>=WIN_SCORE && !G.over) gameOver(true);
+    }
+  }
+}
+
 /* ================= 主循环 ================= */
 let last=performance.now();
 function loop(now){
@@ -927,14 +1445,24 @@ function loop(now){
   }
   updFishes(dt);
   if(G.running && !G.over){ collide(); aiEat(); }
+  updRemotes(dt);
+  netTick();
+  netTrack();
   spawnTick(dt);
   updFx(dt);
+  // 体力条实时刷新（疲劳时变橙红色）
+  el.st.style.width = (G.stamina/G.staminaMax*100)+'%';
+  el.st.style.background = G.tired ? 'linear-gradient(90deg,#ff7a7a,#ffb36b)' : '';
   draw();
 }
 requestAnimationFrame(loop);
 
-// 开始界面的背景鱼群（覆盖全部 8 种造型）
-for(let i=0;i<8;i++) spawnFish(true, i+1);
+// 开始界面的背景鱼群（覆盖全部 15 种造型）
+for(let i=0;i<15;i++) spawnFish(true, i+1);
+
+// 联机初始化（CDN 或网络失败时自动降级为单机模式）
+netInit();
+renderNetHud();
 </script>
 </body>
 </html>
