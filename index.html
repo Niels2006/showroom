@@ -26,6 +26,7 @@
     --accent-g:#ff8ad8;
     --accent-h:#ffa53e;
     --accent-i:#38bdf8;
+    --accent-j:#a3e635;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
@@ -404,6 +405,7 @@
   .card:nth-child(6){animation-delay:.35s}
   .card:nth-child(7){animation-delay:.41s}
   .card:nth-child(8){animation-delay:.47s}
+  .card:nth-child(9){animation-delay:.53s}
 
   @media (max-width:640px){
     header.hero{padding:60px 0 34px}
@@ -434,16 +436,16 @@
       街机游戏、物理弹射、深海生存、多人对战与群体行为模拟 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
     </p>
     <div class="hero-meta">
-      <div class="stat"><b>9</b><span>件作品</span></div>
+      <div class="stat"><b>10</b><span>件作品</span></div>
       <div class="stat"><b>2</b><span>个分类</span></div>
-      <div class="stat"><b>8</b><span>纯前端 · 免安装</span></div>
+      <div class="stat"><b>9</b><span>纯前端 · 免安装</span></div>
     </div>
   </header>
 
   <!-- ══════════ 游戏 ══════════ -->
   <div class="section-head">
     <h2>游戏 Game</h2>
-    <span class="count">8</span>
+    <span class="count">9</span>
     <div class="line"></div>
   </div>
 
@@ -692,6 +694,35 @@
       </div>
     </a>
 
+    <!-- 扫雷 -->
+    <a class="card" href="game/mine%20sweeping.html" target="_blank" rel="noopener" style="--accent:var(--accent-j)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="13" r="4.5"/>
+            <path d="M12 8.5V4M15 10.5l3-3M9 10.5l-3-3M16.5 13H21M7.5 13H3M15 15.5l3 3M9 15.5l-3 3"/>
+          </svg>
+        </div>
+        <span class="card-index">09</span>
+      </div>
+      <h3>扫雷<span class="en">Minesweeper</span></h3>
+      <p class="desc">
+        经典扫雷三种难度：初级 9×9、中级 16×16、高级 30×16。左键翻开、右键插旗，在数字格上点击可自动展开周围；首次点击必定安全，移动端支持长按插旗。内置计时器与分难度最佳成绩记录。
+      </p>
+      <div class="tags">
+        <span class="tag">逻辑推理</span>
+        <span class="tag">三档难度</span>
+        <span class="tag">分难度最佳成绩</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">game/mine sweeping.html</span>
+      </div>
+    </a>
+
   </section>
 
   <!-- ══════════ 模拟 ══════════ -->
@@ -712,7 +743,7 @@
             <path d="M6.5 7.5 9 10M17.5 7.5 15 10"/>
           </svg>
         </div>
-        <span class="card-index">09</span>
+        <span class="card-index">10</span>
       </div>
       <h3>鸟群涌现<span class="en">Emergence · Boids</span></h3>
       <p class="desc">
