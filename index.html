@@ -27,6 +27,8 @@
     --accent-h:#ffa53e;
     --accent-i:#38bdf8;
     --accent-j:#a3e635;
+    --accent-k:#f2a93b;
+    --accent-l:#7cc4ff;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
@@ -433,12 +435,12 @@
     </div>
     <h1 class="title">作品展厅</h1>
     <p class="hero-sub">
-      街机游戏、物理弹射、深海生存、多人对战与群体行为模拟 —— 每一件都是用代码「跑」起来的作品，点开即可体验。
+      街机游戏、物理弹射、深海生存、多人对战、群体行为模拟，以及可离线研习的 3D 电子学与机械课程 —— 点开即可体验。
     </p>
     <div class="hero-meta">
-      <div class="stat"><b>10</b><span>件作品</span></div>
-      <div class="stat"><b>2</b><span>个分类</span></div>
-      <div class="stat"><b>9</b><span>纯前端 · 免安装</span></div>
+      <div class="stat"><b>12</b><span>件作品</span></div>
+      <div class="stat"><b>3</b><span>个分类</span></div>
+      <div class="stat"><b>11</b><span>纯前端 · 免安装</span></div>
     </div>
   </header>
 
@@ -765,9 +767,90 @@
 
   </section>
 
+  <!-- ══════════ 学习 ══════════ -->
+  <div class="section-head">
+    <h2>学习 Learn</h2>
+    <span class="count">2</span>
+    <div class="line"></div>
+  </div>
+
+  <section class="grid">
+
+    <!-- 电子学 101 -->
+    <a class="card" href="mirrors/electronics-101-six.vercel.app/index.html" target="_blank" rel="noopener" style="--accent:var(--accent-k)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2.8 20 7.4v9.2L12 21.2 4 16.6V7.4z"/>
+            <path d="M4.6 12h3M16.4 12h3"/>
+            <rect x="7.6" y="9.4" width="8.8" height="5.2" rx="1.2"/>
+            <path d="M9.8 9.4v5.2M12 9.4v5.2M14.2 9.4v5.2"/>
+          </svg>
+        </div>
+        <span class="card-index">11</span>
+      </div>
+      <h3>电子学 101<span class="en">Electronics 101 · Mirror</span></h3>
+      <p class="desc">
+        48 节交互式 3D 电子学课程：从闭合电路、电压电流电阻，到电阻、LED、电容、三极管与各类传感器。每节都能开关电路、替换元件，实时看到电流如何流动，并用面包板与万用表做实操演示。
+      </p>
+      <div class="tags">
+        <span class="tag">48 节 3D 课程</span>
+        <span class="tag">交互电路实验</span>
+        <span class="tag">含中文等多语言</span>
+      </div>
+      <div class="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L14.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <span>离线镜像：页面使用 ES Module，需通过本地 HTTP 服务打开。在 <b>showroom</b> 目录运行 <b>python -m http.server 8899</b>，再访问 <b>http://localhost:8899</b> 进入本作品；直接双击 index.html 无法加载。</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          开始学习
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">mirrors/electronics-101-six.vercel.app</span>
+      </div>
+    </a>
+
+    <!-- 机械入门 101 -->
+    <a class="card" href="schoolwork/mechanical-101.html" target="_blank" rel="noopener" style="--accent:var(--accent-l)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3.2"/>
+            <path d="M12 2.6v3.2M12 18.2v3.2M2.6 12h3.2M18.2 12h3.2"/>
+            <path d="M5.4 5.4l2.3 2.3M16.3 16.3l2.3 2.3M18.6 5.4l-2.3 2.3M7.7 16.3l-2.3 2.3"/>
+            <circle cx="12" cy="12" r="8"/>
+          </svg>
+        </div>
+        <span class="card-index">12</span>
+      </div>
+      <h3>机械入门 101<span class="en">Mechanical 101</span></h3>
+      <p class="desc">
+        九节可动手的 3D 机构课：电机、齿轮、轴与键、曲柄滑块、凸轮、摩擦与负载。每个零件都能点选、替换与调参，机构随参数实时联动运转，把抽象的传动关系直接「转」给你看。
+      </p>
+      <div class="tags">
+        <span class="tag">9 节 3D 机构课</span>
+        <span class="tag">零件可交互</span>
+        <span class="tag">实时传动演示</span>
+      </div>
+      <div class="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L14.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <span>本页使用 ES Module，需经本地 HTTP 服务打开；同目录另有单文件版 <b>mechanical-101-standalone.html</b>，可直接双击离线运行。</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          开始学习
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">schoolwork/mechanical-101.html</span>
+      </div>
+    </a>
+
+  </section>
+
   <footer>
     <span>AI Workspace · <code>showroom</code> 作品展厅</span>
-    <span>纯静态页面，双击即可打开</span>
+    <span>纯静态页面 · 部分作品需本地服务</span>
   </footer>
 
 </div>
