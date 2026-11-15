@@ -29,6 +29,8 @@
     --accent-j:#a3e635;
     --accent-k:#f2a93b;
     --accent-l:#7cc4ff;
+    --accent-m:#4ade80;
+    --accent-n:#fb7185;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
@@ -408,6 +410,9 @@
   .card:nth-child(7){animation-delay:.41s}
   .card:nth-child(8){animation-delay:.47s}
   .card:nth-child(9){animation-delay:.53s}
+  .card:nth-child(10){animation-delay:.59s}
+  .card:nth-child(11){animation-delay:.65s}
+  .card:nth-child(12){animation-delay:.71s}
 
   @media (max-width:640px){
     header.hero{padding:60px 0 34px}
@@ -438,16 +443,16 @@
       街机游戏、物理弹射、深海生存、多人对战、群体行为模拟，以及可离线研习的 3D 电子学与机械课程 —— 点开即可体验。
     </p>
     <div class="hero-meta">
-      <div class="stat"><b>13</b><span>件作品</span></div>
+      <div class="stat"><b>15</b><span>件作品</span></div>
       <div class="stat"><b>3</b><span>个分类</span></div>
-      <div class="stat"><b>12</b><span>纯前端 · 免安装</span></div>
+      <div class="stat"><b>14</b><span>纯前端 · 免安装</span></div>
     </div>
   </header>
 
   <!-- ══════════ 游戏 ══════════ -->
   <div class="section-head">
     <h2>游戏 Game</h2>
-    <span class="count">10</span>
+    <span class="count">12</span>
     <div class="line"></div>
   </div>
 
@@ -725,6 +730,66 @@
       </div>
     </a>
 
+    <!-- 植物大战僵尸 -->
+    <a class="card" href="game/plants-vs-zombies.html" target="_blank" rel="noopener" style="--accent:var(--accent-m)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22v-7"/>
+            <path d="M12 15c-3.5 0-6-2.2-6-5.5 0-2 1.2-3.6 3-4.5C10.8 3.2 13.4 4.5 14.5 7c2 .4 3.5 2 3.5 4.2C18 14 15.5 15 12 15Z"/>
+            <path d="M12 15v-3M9 13h6"/>
+          </svg>
+        </div>
+        <span class="card-index">10</span>
+      </div>
+      <h3>植物大战僵尸<span class="en">Plants vs. Zombies</span></h3>
+      <p class="desc">
+        经典塔防网页版：点击落下的阳光收集能量，从 6 种植物卡中挑选布阵 —— 向日葵产阳光、豌豆射手攻击、坚果墙阻挡、寒冰射手减速、双发射手连射、樱桃炸弹清场。共 10 波僵尸，每行一辆小推车只能救场一次，全部消灭即获胜。快捷键 1–6 选植物、Esc 取消、空格暂停。
+      </p>
+      <div class="tags">
+        <span class="tag">塔防策略</span>
+        <span class="tag">6 种植物</span>
+        <span class="tag">10 波僵尸</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">game/plants-vs-zombies.html</span>
+      </div>
+    </a>
+
+    <!-- 教室大乱斗 -->
+    <a class="card" href="game/multiplayer-arena.html" target="_blank" rel="noopener" style="--accent:var(--accent-n)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="12" r="3"/>
+            <circle cx="16" cy="12" r="3"/>
+            <path d="M11 12h2M8 9l6-3M16 9l-6-3M8 15l6 3M16 15l-6 3"/>
+          </svg>
+        </div>
+        <span class="card-index">11</span>
+      </div>
+      <h3>教室大乱斗<span class="en">Classroom Brawl Online</span></h3>
+      <p class="desc">
+        多人联机俯视角射击对战：输入昵称即可加入同一间教室，与在线玩家实时火并。WASD / 方向键移动，鼠标瞄准，左键或空格射击；命中敌人造成伤害，血量归零即被击杀。支持击杀播报与实时玩家列表，断线时自动重试重连。
+      </p>
+      <div class="tags">
+        <span class="tag">多人联机</span>
+        <span class="tag">俯视角射击</span>
+        <span class="tag">实时击杀播报</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">game/multiplayer-arena.html</span>
+      </div>
+    </a>
+
     <!-- 俄罗斯方块 -->
     <a class="card" href="game/tetris.html" target="_blank" rel="noopener" style="--accent:var(--accent-e)">
       <div class="card-top">
@@ -737,7 +802,7 @@
             <rect x="9" y="15" width="6" height="6" rx="1.2"/>
           </svg>
         </div>
-        <span class="card-index">10</span>
+        <span class="card-index">12</span>
       </div>
       <h3>俄罗斯方块<span class="en">Tetris</span></h3>
       <p class="desc">
@@ -777,7 +842,7 @@
             <path d="M6.5 7.5 9 10M17.5 7.5 15 10"/>
           </svg>
         </div>
-        <span class="card-index">11</span>
+        <span class="card-index">13</span>
       </div>
       <h3>鸟群涌现<span class="en">Emergence · Boids</span></h3>
       <p class="desc">
@@ -819,7 +884,7 @@
             <path d="M9.8 9.4v5.2M12 9.4v5.2M14.2 9.4v5.2"/>
           </svg>
         </div>
-        <span class="card-index">12</span>
+        <span class="card-index">14</span>
       </div>
       <h3>电子学 101<span class="en">Electronics 101 · Mirror</span></h3>
       <p class="desc">
@@ -854,7 +919,7 @@
             <circle cx="12" cy="12" r="8"/>
           </svg>
         </div>
-        <span class="card-index">13</span>
+        <span class="card-index">15</span>
       </div>
       <h3>机械入门 101<span class="en">Mechanical 101</span></h3>
       <p class="desc">
