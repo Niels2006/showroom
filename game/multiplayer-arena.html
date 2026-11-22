@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>教室大乱斗 · Classroom Brawl Online</title>
+    <title>大乱斗 · Brawl Online</title>
     <!-- supabase-kit.js 已内联，页面可独立运行 -->
     <script>
 /*!
@@ -529,6 +529,238 @@
             line-height: 1.6;
         }
 
+        /* 房间与地图选择 */
+        .join-card {
+            max-height: 94%;
+            overflow-y: auto;
+        }
+
+        .field-label {
+            font-size: .72rem;
+            color: var(--muted);
+            text-align: left;
+            margin: 12px 0 6px;
+            letter-spacing: .06em;
+        }
+
+        #room-code {
+            text-transform: uppercase;
+            letter-spacing: .3em;
+            text-align: center;
+            font-family: var(--mono);
+        }
+
+        .map-pick {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .join-card .map-chip {
+            font-size: .74rem;
+            padding: 7px 4px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, .14);
+            background: rgba(255, 255, 255, .05);
+            color: var(--muted);
+            box-shadow: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: .12s;
+        }
+
+        .join-card .map-chip.on {
+            border-color: var(--accent);
+            background: rgba(79, 109, 245, .3);
+            color: #fff;
+        }
+
+        .room-panel-title {
+            font-size: .7rem;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .room-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 148px;
+            overflow-y: auto;
+        }
+
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .08);
+            font-size: .72rem;
+            cursor: pointer;
+        }
+
+        .room-item:hover {
+            border-color: var(--accent2);
+        }
+
+        .room-item .rcode {
+            font-family: var(--mono);
+            color: var(--accent2);
+            font-weight: 700;
+            letter-spacing: .1em;
+        }
+
+        .room-item .rmeta {
+            color: var(--muted);
+            font-size: .66rem;
+            text-align: right;
+        }
+
+        .room-empty {
+            font-size: .7rem;
+            color: var(--muted);
+            padding: 6px 2px;
+        }
+
+        .screen.hidden {
+            display: none;
+        }
+
+        .menu-btn {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .menu-btn.ghost {
+            background: rgba(255, 255, 255, .06);
+            color: var(--ink);
+            border: 1px solid rgba(255, 255, 255, .18);
+        }
+
+        .join-card .back-btn {
+            margin-top: 12px;
+            width: 100%;
+            padding: 8px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, .16);
+            color: var(--muted);
+            font-size: .78rem;
+            cursor: pointer;
+        }
+
+        .back-btn:hover {
+            color: var(--ink);
+            border-color: rgba(255, 255, 255, .3);
+        }
+
+        .search-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .search-row input {
+            margin: 0;
+            flex: 1 1 auto;
+            min-width: 0;
+            width: auto;
+            text-transform: uppercase;
+            letter-spacing: .24em;
+            text-align: center;
+            font-family: var(--mono);
+        }
+
+        .join-card .mini-btn {
+            flex: 0 0 auto;
+            width: auto;
+            padding: 0 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(79, 109, 245, .6);
+            background: rgba(79, 109, 245, .2);
+            color: var(--ink);
+            font-size: .78rem;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .room-item.playing {
+            border-color: var(--accent2);
+            background: rgba(34, 184, 166, .12);
+        }
+
+        .key-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 6px 0 10px;
+        }
+
+        .key-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, .03);
+            border: 1px solid rgba(255, 255, 255, .08);
+            border-radius: 8px;
+        }
+
+        .key-row .key-label {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .key-cap {
+            min-width: 56px;
+            text-align: center;
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(34, 184, 166, .6);
+            background: rgba(34, 184, 166, .12);
+            color: var(--accent2);
+            font-family: var(--mono);
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .key-cap.capturing {
+            background: var(--red);
+            border-color: var(--red);
+            color: #fff;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .55; }
+        }
+
+        #room-badge {
+            position: absolute;
+            right: 14px;
+            bottom: 14px;
+            z-index: 30;
+            display: none;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: rgba(15, 18, 32, .9);
+            border: 1px solid rgba(79, 109, 245, .5);
+            color: var(--ink);
+            font-family: var(--mono);
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        #room-badge:hover {
+            border-color: var(--accent2);
+        }
+
         /* Toast */
         #toast {
             position: absolute;
@@ -653,6 +885,7 @@
             </div>
             <div class="hud-box hud-mid">
                 <div id="conn-status" style="color:var(--muted)">connecting...</div>
+                <div id="room-info" style="color:var(--accent2)"></div>
             </div>
             <div class="hud-box hud-right">
                 <div>PLAYERS <span id="player-count">1</span></div>
@@ -675,17 +908,62 @@
 
         <div id="toast"></div>
 
+        <div id="room-badge">房间</div>
+
         <div class="overlay" id="join-overlay">
             <div class="join-card">
-                <h1>教室大乱斗</h1>
-                <div class="subtitle">CLASSROOM BRAWL · ONLINE</div>
-                <input type="text" id="player-name" maxlength="12" placeholder="输入你的昵称">
-                <button id="join-btn">进入教室 ENTER</button>
-                <div class="status" id="join-status"></div>
-                <div class="hint">
-                    WASD / 方向键 移动<br>
-                    鼠标瞄准 · 左键 / 空格 射击<br>
-                    所有玩家自动进入同一间教室
+                <h1>大乱斗</h1>
+                <div class="subtitle">MULTI-MAP BRAWL · ONLINE</div>
+
+                <div class="screen" id="screen-home">
+                    <div class="field-label">你的昵称</div>
+                    <input type="text" id="player-name" maxlength="12" placeholder="输入你的昵称">
+                    <button id="go-join" class="menu-btn">进入房间</button>
+                    <button id="go-create" class="menu-btn ghost">创建房间</button>
+                    <button id="go-keys" class="menu-btn ghost">键位设置</button>
+                    <div class="status" id="join-status"></div>
+                    <div class="hint" id="home-hint">
+                        WASD / 方向键 移动<br>
+                        鼠标瞄准 · 左键 / 空格 射击<br>
+                        E 躲进 / 离开宿舍柜子
+                    </div>
+                </div>
+
+                <div class="screen hidden" id="screen-keys">
+                    <div class="field-label">键位设置（点击后按下新键）</div>
+                    <div class="key-list" id="key-list"></div>
+                    <div class="status" id="keys-status">方向键始终可用作移动；Esc 取消修改</div>
+                    <div style="display:flex;gap:10px;justify-content:center">
+                        <button id="keys-reset" class="mini-btn">恢复默认</button>
+                        <button class="back-btn" data-back="home">返回</button>
+                    </div>
+                </div>
+
+                <div class="screen hidden" id="screen-join">
+                    <div class="field-label">按房间号搜索</div>
+                    <div class="search-row">
+                        <input type="text" id="search-code" maxlength="4" placeholder="房间号">
+                        <button id="search-btn" class="mini-btn">搜索</button>
+                    </div>
+                    <div class="room-panel-title" style="margin-top:14px">
+                        <span>正在运行的房间</span>
+                        <span id="lobby-count">大厅 0 人</span>
+                    </div>
+                    <div class="room-list" id="room-list">
+                        <div class="room-empty">正在获取房间列表...</div>
+                    </div>
+                    <div class="status" id="search-status"></div>
+                    <button class="back-btn" data-back="home">返回</button>
+                </div>
+
+                <div class="screen hidden" id="screen-create">
+                    <div class="field-label">选择地图</div>
+                    <div class="map-pick" id="map-pick"></div>
+                    <div class="field-label">房间号（留空则自动生成）</div>
+                    <input type="text" id="room-code" maxlength="4" placeholder="如 A7K2">
+                    <button id="create-btn">创建并进入</button>
+                    <div class="status" id="create-status"></div>
+                    <button class="back-btn" data-back="home">返回</button>
                 </div>
             </div>
         </div>
@@ -695,13 +973,14 @@
         // ============================================================
         //  CONFIG & CONSTANTS
         // ============================================================
-        const WORLD_W = 1600;
-        const WORLD_H = 1200;
+        let WORLD_W = 1600;
+        let WORLD_H = 1200;
         const VIEW_W = 800;
         const VIEW_H = 600;
         const camera = { x: 0, y: 0 };
         const PLAYER_RADIUS = 16;
         const PLAYER_SPEED = 220;
+        const ESCALATOR_SPEED = 200;   // 略低于玩家速度：逆行时方向相互抵消
         const BULLET_SPEED = 520;
         const BULLET_RADIUS = 5;
         const FIRE_COOLDOWN = 0.32;
@@ -718,43 +997,244 @@
             '#f97316', '#6366f1'
         ];
 
-        // 教室地面只参与绘制，不阻挡移动
-        const CLASSROOM = {
-            frontZoneH: 250,                                    // 讲台区高度
-            board: { x: 260, y: 30, w: 1080, h: 100 },          // 黑板
-            windows: [                                          // 左侧窗户
-                { x: 26, y: 300, w: 22, h: 300 },
-                { x: 26, y: 700, w: 22, h: 300 },
-            ],
+        // ============================================================
+        //  MAPS — 五张对战地图（全部 1600×1200，面积是原宿舍的 4 倍）
+        // ============================================================
+        function buildGrid(x0, y0, cols, rows, w, h, px, py, type) {
+            const out = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    out.push([x0 + c * px, y0 + r * py, w, h, type]);
+                }
+            }
+            return out;
+        }
+
+        const MAPS = {
+            classroom: {
+                id: 'classroom', name: '教室', w: 1600, h: 1200,
+                floors: [{
+                    ground: 'wood',
+                    obstacles: [
+                        [690, 140, 220, 90, 'podium'],
+                        [1500, 300, 78, 260, 'shelf'],
+                        [1500, 700, 78, 260, 'shelf'],
+                        ...buildGrid(130, 400, 5, 4, 170, 80, 280, 180, 'desk'),
+                    ],
+                    spawns: [
+                        [700, 320], [1000, 320], [70, 900], [1460, 900],
+                        [360, 1130], [700, 1130], [1030, 1130], [1460, 1130],
+                    ],
+                }],
+            },
+
+            library: {
+                id: 'library', name: '图书馆', w: 1600, h: 1200,
+                floors: [
+                    {   // 1F
+                        ground: 'carpet',
+                        obstacles: [
+                            ...buildGrid(150, 180, 3, 2, 110, 400, 490, 500, 'shelf'),
+                            ...buildGrid(330, 280, 3, 2, 240, 110, 490, 500, 'table'),
+                            [40, 40, 76, 76, 'plant'],
+                            [40, 1084, 76, 76, 'plant'],
+                        ],
+                        spawns: [
+                            [80, 630], [560, 630], [1060, 630], [1540, 630],
+                            [300, 1100], [600, 1100], [1080, 1100], [1560, 1100],
+                        ],
+                        links: [
+                            { x: 1290, y: 950, w: 95, h: 180, to: 1, tx: 1340, ty: 920, type: 'escalator', dir: 'up', label: '扶梯 2F' },
+                            { x: 1397, y: 950, w: 95, h: 180, to: 0, dir: 'down', type: 'escalator', label: '', noTrigger: true },
+                        ],
+                    },
+                    {   // 2F
+                        ground: 'carpet',
+                        obstacles: [
+                            [120, 100, 90, 420, 'shelf'],
+                            [1380, 100, 90, 420, 'shelf'],
+                            ...buildGrid(180, 240, 3, 2, 200, 110, 480, 300, 'table'),
+                            [40, 1084, 76, 76, 'plant'],
+                            [1484, 1084, 76, 76, 'plant'],
+                        ],
+                        spawns: [
+                            [300, 800], [700, 800], [1000, 800], [500, 950],
+                            [900, 950], [1200, 200], [300, 200], [700, 200],
+                        ],
+                        links: [
+                            { x: 1290, y: 950, w: 95, h: 180, to: 1, dir: 'up', type: 'escalator', label: '', noTrigger: true },
+                            { x: 1397, y: 950, w: 95, h: 180, to: 0, tx: 1440, ty: 1160, type: 'escalator', dir: 'down', label: '扶梯 1F' },
+                        ],
+                    },
+                ],
+            },
+
+            dorm: {
+                id: 'dorm', name: '宿舍', w: 1800, h: 1200,
+                floors: [{
+                    ground: 'tile',
+                    obstacles: [
+                        // 201（左上，800×600）
+                        [0, 0, 800, 24, 'wall'],
+                        [0, 0, 24, 600, 'wall'],
+                        [0, 576, 800, 48, 'wall'],
+                        [776, 0, 24, 240, 'wall'],
+                        [776, 360, 24, 216, 'wall'],
+                        // 202（右上）
+                        [1000, 0, 800, 24, 'wall'],
+                        [1776, 0, 24, 600, 'wall'],
+                        [1000, 576, 800, 48, 'wall'],
+                        [1000, 0, 24, 240, 'wall'],
+                        [1000, 360, 24, 216, 'wall'],
+                        // 203（左下）
+                        [0, 600, 24, 600, 'wall'],
+                        [0, 1176, 800, 24, 'wall'],
+                        [776, 600, 24, 240, 'wall'],
+                        [776, 960, 24, 240, 'wall'],
+                        // 204（右下）
+                        [1776, 600, 24, 600, 'wall'],
+                        [1000, 1176, 800, 24, 'wall'],
+                        [1000, 600, 24, 240, 'wall'],
+                        [1000, 960, 24, 240, 'wall'],
+                        // 201 家具（门在右墙 y240~360，门前留空）
+                        [60, 60, 200, 110, 'bed'],
+                        [60, 200, 200, 110, 'bed'],
+                        [600, 60, 120, 200, 'wardrobe'],
+                        [560, 420, 180, 80, 'desk'],
+                        [60, 480, 70, 70, 'plant'],
+                        // 202 家具
+                        [1540, 60, 200, 110, 'bed'],
+                        [1540, 200, 200, 110, 'bed'],
+                        [1080, 60, 120, 200, 'wardrobe'],
+                        [1060, 420, 180, 80, 'desk'],
+                        [1670, 480, 70, 70, 'plant'],
+                        // 203 家具（门在右墙 y840~960）
+                        [60, 660, 200, 110, 'bed'],
+                        [60, 800, 200, 110, 'bed'],
+                        [600, 660, 120, 200, 'wardrobe'],
+                        [560, 1020, 180, 80, 'desk'],
+                        [60, 1080, 70, 70, 'plant'],
+                        // 204 家具
+                        [1540, 660, 200, 110, 'bed'],
+                        [1540, 800, 200, 110, 'bed'],
+                        [1080, 660, 120, 200, 'wardrobe'],
+                        [1060, 1020, 180, 80, 'desk'],
+                        [1670, 1080, 70, 70, 'plant'],
+                    ],
+                    // 出生点全部落在寝室内部
+                    spawns: [
+                        [300, 300], [1500, 300], [300, 900], [1500, 900],
+                        [400, 450], [1400, 450], [400, 1050], [1400, 1050],
+                    ],
+                    // 视野分区：只有一条纵向走廊，宿舍内只能看到本间
+                    zones: [
+                        { x: 800, y: 0, w: 200, h: 1200, name: '走廊' },
+                        { x: 0, y: 0, w: 800, h: 600, name: '201' },
+                        { x: 1000, y: 0, w: 800, h: 600, name: '202' },
+                        { x: 0, y: 600, w: 800, h: 600, name: '203' },
+                        { x: 1000, y: 600, w: 800, h: 600, name: '204' },
+                    ],
+                }],
+            },
+
+            lab: {
+                id: 'lab', name: '实验室', w: 1600, h: 1200,
+                floors: [{
+                    ground: 'lab',
+                    obstacles: [
+                        ...buildGrid(200, 260, 1, 4, 380, 90, 0, 200, 'bench'),
+                        ...buildGrid(1020, 260, 1, 4, 380, 90, 0, 200, 'bench'),
+                        [700, 80, 200, 90, 'hood'],
+                        [40, 300, 80, 300, 'shelf'],
+                        [1480, 620, 80, 300, 'shelf'],
+                    ],
+                    spawns: [
+                        [800, 260], [800, 460], [800, 660], [800, 860],
+                        [100, 900], [400, 1050], [1000, 1050], [1500, 150],
+                    ],
+                }],
+            },
+
+            gym: {
+                id: 'gym', name: '体育馆', w: 1600, h: 1200,
+                floors: [
+                    {   // 1F 球场
+                        ground: 'court',
+                        obstacles: [
+                            [100, 40, 600, 90, 'bleacher'],
+                            [900, 40, 600, 90, 'bleacher'],
+                            [100, 1070, 600, 90, 'bleacher'],
+                            [900, 1070, 600, 90, 'bleacher'],
+                            [60, 400, 90, 90, 'crate'],
+                            [60, 700, 90, 90, 'crate'],
+                            [1450, 400, 90, 90, 'crate'],
+                            [1450, 700, 90, 90, 'crate'],
+                        ],
+                        spawns: [
+                            [400, 200], [1200, 200], [400, 990], [1200, 990],
+                            [250, 600], [1350, 600], [800, 250], [800, 950],
+                        ],
+                        links: [
+                            { x: 710, y: 1050, w: 180, h: 120, to: 1, tx: 800, ty: 980, type: 'stairs', dir: 'up', label: '楼梯 2F' },
+                        ],
+                    },
+                    {   // 2F 看台与健身区
+                        ground: 'court',
+                        obstacles: [
+                            [100, 40, 1400, 90, 'bleacher'],
+                            ...buildGrid(180, 300, 3, 2, 90, 90, 560, 400, 'crate'),
+                            [40, 1084, 76, 76, 'plant'],
+                            [1484, 1084, 76, 76, 'plant'],
+                        ],
+                        spawns: [
+                            [400, 200], [1200, 200], [400, 950], [1200, 950],
+                            [800, 220], [800, 900], [250, 550], [1350, 550],
+                        ],
+                        links: [
+                            { x: 710, y: 1050, w: 180, h: 120, to: 0, tx: 800, ty: 980, type: 'stairs', dir: 'down', label: '楼梯 1F' },
+                        ],
+                    },
+                ],
+            },
         };
 
-        // 可碰撞教室设施 [x, y, w, h, type]
-        const OBSTACLES = [
-            [690, 140, 220, 90, 'podium'],
-            [1500, 300, 78, 260, 'shelf'],
-            [1500, 700, 78, 260, 'shelf'],
-            [40, 40, 80, 80, 'plant'],
-            [1480, 40, 80, 80, 'plant'],
-            [40, 1090, 80, 80, 'plant'],
-            [1480, 1090, 80, 80, 'plant'],
-        ];
-        // 5 列 × 4 排课桌
-        const DESK_W = 170, DESK_H = 80;
-        for (let row = 0; row < 4; row++) {
-            for (let col = 0; col < 5; col++) {
-                OBSTACLES.push([130 + col * 280, 400 + row * 180, DESK_W, DESK_H, 'desk']);
-            }
-        }
+        const MAP_LIST = ['classroom', 'library', 'dorm', 'lab', 'gym'];
+
         const OBSTACLE_LABELS = {
             podium: '讲台',
-            shelf: '书柜',
+            shelf: '书架',
+            table: '阅览桌',
+            bed: '床',
+            wardrobe: '衣柜',
+            bench: '实验台',
+            hood: '通风柜',
+            bleacher: '看台',
         };
 
-        // 过道与讲台前方的出生点
-        const SPAWNS = [
-            [700, 320], [1000, 320], [70, 900], [1460, 900],
-            [360, 1130], [700, 1130], [1030, 1130], [1460, 1130],
-        ];
+        const TYPE_COLORS = {
+            desk: '#dcb98b',
+            podium: '#c69b73',
+            shelf: '#8a5f3c',
+            table: '#b98a5c',
+            bed: '#8fb6c9',
+            wardrobe: '#8a5f3c',
+            bench: '#c9d3da',
+            hood: '#a9b7c2',
+            bleacher: '#7f8c99',
+            crate: '#a97c4d',
+            plant: '#4b8b54',
+            wall: '#6b5b4a',
+        };
+
+        let currentMap = MAPS.classroom;
+        let FLOOR = 0;
+        let OBSTACLES = [];
+        let SPAWNS = [];
+        let HIDE_SPOTS = [];
+
+        function floorDef() {
+            return currentMap.floors[FLOOR];
+        }
 
         // ============================================================
         //  STATE
@@ -788,7 +1268,12 @@
             alive: true,
             lastFire: 0,
             respawnAt: 0,
-            spawnIdx: 0
+            spawnIdx: 0,
+            floor: 0,
+            linkCooldown: 0,
+            zoneRef: null,
+            hidden: false,
+            hideSpot: null
         };
 
         const remotePlayers = new Map();
@@ -797,6 +1282,14 @@
 
         const keys = {};
         const mouse = { x: WORLD_W / 2, y: WORLD_H / 2, down: false, tracked: false };
+
+        // 键位（可在主菜单修改，保存在 localStorage）
+        const DEFAULT_KEYBINDS = { up: 'w', down: 's', left: 'a', right: 'd', shoot: ' ', hide: 'e' };
+        let keybinds = Object.assign({}, DEFAULT_KEYBINDS);
+        try {
+            const saved = JSON.parse(localStorage.getItem('brawl_keybinds') || 'null');
+            if (saved) Object.assign(keybinds, saved);
+        } catch (e) { /* ignore */ }
 
         function updateCamera() {
             const previousX = camera.x, previousY = camera.y;
@@ -830,8 +1323,168 @@
             });
         }
 
-        function joinClassroom() {
-            const channelName = 'classroom_brawl_v1';
+        // ============================================================
+        //  LOBBY — 房间与在线玩家（纯 Broadcast，无需数据库）
+        // ============================================================
+        const LOBBY_CHANNEL = 'brawl_lobby_v3';
+        const ROOM_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        const lobbyPeers = new Map();
+        let lobbyChannel = null;
+        let lobbyReady = false;
+        let lobbyTimer = null;
+        let lobbyPruneTimer = null;
+        let roomCode = null;
+        let currentMapId = 'classroom';
+
+        function makeRoomCode() {
+            let out = '';
+            for (let i = 0; i < 4; i++) {
+                out += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)];
+            }
+            return out;
+        }
+
+        function joinLobby() {
+            return new Promise((resolve) => {
+                if (lobbyChannel) { resolve(); return; }
+                lobbyChannel = sbClient.channel(LOBBY_CHANNEL, {
+                    config: { broadcast: { self: false } }
+                });
+
+                lobbyChannel.on('broadcast', { event: 'lobby' }, ({ payload }) => {
+                    if (!payload || !payload.id || payload.id === me.id) return;
+                    lobbyPeers.set(payload.id, {
+                        id: payload.id,
+                        name: payload.name,
+                        room: payload.room || null,
+                        map: payload.map || null,
+                        ts: Date.now()
+                    });
+                    renderRoomList();
+                });
+
+                lobbyChannel.on('broadcast', { event: 'bye' }, ({ payload }) => {
+                    if (payload && lobbyPeers.delete(payload.id)) renderRoomList();
+                });
+
+                lobbyChannel.subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        lobbyReady = true;
+                        announceLobby();
+                        if (lobbyTimer) clearInterval(lobbyTimer);
+                        lobbyTimer = setInterval(announceLobby, 2000);
+                        if (lobbyPruneTimer) clearInterval(lobbyPruneTimer);
+                        lobbyPruneTimer = setInterval(pruneLobby, 2000);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        function announceLobby() {
+            if (!lobbyChannel || !lobbyReady) return;
+            lobbyChannel.send({
+                type: 'broadcast',
+                event: 'lobby',
+                payload: { id: me.id, name: me.name, room: roomCode, map: currentMapId }
+            });
+        }
+
+        function pruneLobby() {
+            const nowTs = Date.now();
+            let changed = false;
+            for (const [id, p] of lobbyPeers) {
+                if (nowTs - p.ts > 6000) {
+                    lobbyPeers.delete(id);
+                    changed = true;
+                }
+            }
+            if (changed) renderRoomList();
+        }
+
+        function collectRooms() {
+            const rooms = new Map();
+            const all = [...lobbyPeers.values(), {
+                id: me.id, name: me.name, room: roomCode, map: currentMapId
+            }];
+            for (const p of all) {
+                if (!p.room) continue;
+                if (!rooms.has(p.room)) {
+                    rooms.set(p.room, { code: p.room, map: p.map || 'classroom', players: [] });
+                }
+                const r = rooms.get(p.room);
+                r.players.push(p.name || '玩家');
+                if (p.map) r.map = p.map;
+            }
+            return [...rooms.values()].sort((a, b) => b.players.length - a.players.length);
+        }
+
+        let lastRoomSig = '';
+
+        function renderRoomList() {
+            const listEl = document.getElementById('room-list');
+            if (!listEl) return;
+            const rooms = collectRooms();
+            const online = lobbyPeers.size + (lobbyReady ? 1 : 0);
+            const countEl = document.getElementById('lobby-count');
+            if (countEl) countEl.textContent = `大厅 ${online} 人`;
+
+            const sig = online + '|' + rooms.map(r =>
+                r.code + ':' + r.map + ':' + r.players.join(',')
+            ).join('|');
+            if (sig === lastRoomSig) return;   // 内容未变时不重建，避免打断点击
+            lastRoomSig = sig;
+
+            if (!rooms.length) {
+                listEl.innerHTML = '<div class="room-empty">暂无房间，直接进入即可创建新房间</div>';
+                return;
+            }
+
+            listEl.innerHTML = rooms.map(r => {
+                const mapName = (MAPS[r.map] || MAPS.classroom).name;
+                const names = r.players.slice(0, 4).join('、') + (r.players.length > 4 ? ' 等' : '');
+                return `<div class="room-item" data-room="${r.code}" data-map="${r.map}">
+                    <span class="rcode">${r.code}</span>
+                    <span class="rmeta">${mapName} · ${r.players.length} 人<br>${names}</span>
+                </div>`;
+            }).join('');
+
+            listEl.querySelectorAll('.room-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    enterRoom(el.dataset.room, el.dataset.map);
+                });
+            });
+        }
+
+        function applyFloor(idx) {
+            const floors = currentMap.floors;
+            FLOOR = Math.max(0, Math.min(floors.length - 1, idx));
+            const f = floors[FLOOR];
+            OBSTACLES = f.obstacles;
+            SPAWNS = f.spawns;
+            HIDE_SPOTS = OBSTACLES.filter(o => o[4] === 'wardrobe');
+            me.floor = FLOOR;
+        }
+
+        function applyMap(mapId) {
+            currentMapId = MAPS[mapId] ? mapId : 'classroom';
+            currentMap = MAPS[currentMapId];
+            WORLD_W = currentMap.w || 1600;
+            WORLD_H = currentMap.h || 1200;
+            FLOOR = 0;
+            applyFloor(0);
+        }
+
+        function joinRoom(code, mapId) {
+            roomCode = code;
+            applyMap(mapId);
+            camera.x = 0;
+            camera.y = 0;
+            remotePlayers.clear();
+            me.score = 0;
+            me.health = MAX_HEALTH;
+            me.alive = true;
+            const channelName = 'brawl_room_' + code;
 
             channel = sbClient.channel(channelName, {
                 config: {
@@ -861,9 +1514,11 @@
                         x: payload.x, y: payload.y, angle: payload.angle,
                         targetX: payload.x, targetY: payload.y, targetAngle: payload.angle,
                         health: payload.health, score: payload.score, alive: payload.alive,
+                        floor: payload.floor || 0,
+                        hidden: !!payload.hidden,
                         lastSeen: performance.now()
                     });
-                    showToast(`${payload.name} 进入教室`);
+                    showToast(`${payload.name} 进入${currentMap.name}`);
                 } else {
                     const rp = remotePlayers.get(pid);
                     rp.name = payload.name;
@@ -874,6 +1529,8 @@
                     rp.health = payload.health;
                     rp.score = payload.score;
                     rp.alive = payload.alive;
+                    rp.floor = payload.floor || 0;
+                    rp.hidden = !!payload.hidden;
                     rp.lastSeen = performance.now();
                 }
             });
@@ -891,11 +1548,11 @@
 
             channel.on('broadcast', { event: 'shoot' }, ({ payload }) => {
                 if (payload.ownerId === me.id) return;
-                spawnBullet(payload.x, payload.y, payload.angle, payload.ownerId, payload.ownerColor, false);
+                spawnBullet(payload.x, payload.y, payload.angle, payload.ownerId, payload.ownerColor, false, payload.floor || 0);
             });
 
             channel.on('broadcast', { event: 'hit' }, ({ payload }) => {
-                if (payload.targetId === me.id) {
+                if (payload.targetId === me.id && !me.hidden) {
                     me.health = Math.max(0, me.health - BULLET_DAMAGE);
                     spawnHitParticles(me.x, me.y, '#ff4444');
                     if (me.health <= 0 && me.alive) {
@@ -980,7 +1637,9 @@
                     angle: +me.angle.toFixed(3),
                     health: me.health,
                     score: me.score,
-                    alive: me.alive
+                    alive: me.alive,
+                    floor: me.floor,
+                    hidden: !!me.hidden
                 }
             });
         }
@@ -989,7 +1648,7 @@
             if (!channel) return;
             channel.send({
                 type: 'broadcast', event: 'shoot',
-                payload: { x, y, angle, ownerId: me.id, ownerColor: me.color }
+                payload: { x, y, angle, ownerId: me.id, ownerColor: me.color, floor: me.floor }
             });
         }
 
@@ -1024,7 +1683,36 @@
             for (const o of OBSTACLES) {
                 if (circleRectCollide(x, y, r, o[0], o[1], o[2], o[3])) return true;
             }
+            // 扶梯两侧扶手；穿过楼板的一端封死（另一端保持开放）
+            const f = floorDef();
+            if (f.links) {
+                for (const l of f.links) {
+                    if (l.type !== 'escalator') continue;
+                    if (circleRectCollide(x, y, r, l.x - 3, l.y, 3, l.h)) return true;
+                    if (circleRectCollide(x, y, r, l.x + l.w, l.y, 3, l.h)) return true;
+                    if (escalatorSealedSide(l) === 'top' && circleRectCollide(x, y, r, l.x, l.y - 12, l.w, 12)) return true;
+                    if (escalatorSealedSide(l) === 'bottom' && circleRectCollide(x, y, r, l.x, l.y + l.h, l.w, 12)) return true;
+                }
+            }
             return false;
+        }
+
+        // 扶梯穿过楼板的一端：本层是入口端时封对侧；装饰用的（本层是到达端）也封对侧
+        function escalatorSealedSide(l) {
+            const up = l.dir !== 'down';
+            if (l.noTrigger) return up ? 'bottom' : 'top';
+            return up ? 'top' : 'bottom';
+        }
+
+        // 当前脚下的扶梯（含装饰用的反向扶梯），用于叠加输送带速度
+        function escalatorUnder(x, y) {
+            const f = floorDef();
+            if (!f.links) return null;
+            for (const l of f.links) {
+                if (l.type !== 'escalator') continue;
+                if (x > l.x && x < l.x + l.w && y > l.y && y < l.y + l.h) return l;
+            }
+            return null;
         }
 
         // ============================================================
@@ -1033,6 +1721,8 @@
         function respawn() {
             me.alive = true;
             me.health = MAX_HEALTH;
+            me.hidden = false;
+            me.hideSpot = null;
             const sp = SPAWNS[me.spawnIdx % SPAWNS.length];
             me.spawnIdx++;
             me.x = sp[0];
@@ -1040,7 +1730,54 @@
             updateCamera();
         }
 
-        function spawnBullet(x, y, angle, ownerId, ownerColor, isLocal) {
+        function nearestWardrobe() {
+            for (const o of HIDE_SPOTS) {
+                const cx = Math.max(o[0], Math.min(me.x, o[0] + o[2]));
+                const cy = Math.max(o[1], Math.min(me.y, o[1] + o[3]));
+                if (Math.hypot(me.x - cx, me.y - cy) <= PLAYER_RADIUS + 26) return o;
+            }
+            return null;
+        }
+
+        function toggleHide() {
+            if (!me.alive) return;
+            if (me.hidden) {
+                const o = me.hideSpot;
+                me.hidden = false;
+                me.hideSpot = null;
+                if (o) {
+                    const cx = o[0] + o[2] / 2, cy = o[1] + o[3] / 2;
+                    const cand = [
+                        [o[0] + o[2] + PLAYER_RADIUS + 6, cy],
+                        [o[0] - PLAYER_RADIUS - 6, cy],
+                        [cx, o[1] + o[3] + PLAYER_RADIUS + 6],
+                        [cx, o[1] - PLAYER_RADIUS - 6],
+                    ];
+                    for (const [px, py] of cand) {
+                        if (px > PLAYER_RADIUS && px < WORLD_W - PLAYER_RADIUS &&
+                            py > PLAYER_RADIUS && py < WORLD_H - PLAYER_RADIUS &&
+                            !collidesWithObstacle(px, py, PLAYER_RADIUS)) {
+                            me.x = px; me.y = py;
+                            break;
+                        }
+                    }
+                }
+                showToast('从柜子里出来了');
+            } else {
+                const o = nearestWardrobe();
+                if (!o) return;
+                me.hidden = true;
+                me.hideSpot = o;
+                me.x = o[0] + o[2] / 2;
+                me.y = o[1] + o[3] / 2;
+                showToast('躲进柜子，按 ' + keyLabel(keybinds.hide) + ' 出来');
+            }
+            updateCamera();
+            broadcastState();
+            lastSync = performance.now();
+        }
+
+        function spawnBullet(x, y, angle, ownerId, ownerColor, isLocal, floor) {
             bullets.push({
                 x: x + Math.cos(angle) * (PLAYER_RADIUS + 4),
                 y: y + Math.sin(angle) * (PLAYER_RADIUS + 4),
@@ -1048,7 +1785,8 @@
                 vy: Math.sin(angle) * BULLET_SPEED,
                 ownerId, ownerColor,
                 life: 1.5,
-                isLocal
+                isLocal,
+                floor: floor || 0
             });
         }
 
@@ -1057,7 +1795,7 @@
             if (!me.alive) return;
             if (now - me.lastFire < FIRE_COOLDOWN) return;
             me.lastFire = now;
-            spawnBullet(me.x, me.y, me.angle, me.id, me.color, true);
+            spawnBullet(me.x, me.y, me.angle, me.id, me.color, true, me.floor);
             broadcastShoot(me.x, me.y, me.angle);
         }
 
@@ -1096,17 +1834,24 @@
                 if (performance.now() / 1000 >= me.respawnAt) respawn();
                 return;
             }
+            if (me.hidden) return;   // 躲进柜子：不动、不射击
 
             let dx = 0, dy = 0;
-            if (keys['w'] || keys['arrowup']) dy -= 1;
-            if (keys['s'] || keys['arrowdown']) dy += 1;
-            if (keys['a'] || keys['arrowleft']) dx -= 1;
-            if (keys['d'] || keys['arrowright']) dx += 1;
+            const kb = keybinds;
+            if (keys[kb.up] || keys['arrowup']) dy -= 1;
+            if (keys[kb.down] || keys['arrowdown']) dy += 1;
+            if (keys[kb.left] || keys['arrowleft']) dx -= 1;
+            if (keys[kb.right] || keys['arrowright']) dx += 1;
             const len = Math.hypot(dx, dy);
             if (len > 0) { dx /= len; dy /= len; }
 
+            // 扶梯输送带速度与玩家移动速度叠加：同方向更快，反方向相互抵消
+            let vy = dy * PLAYER_SPEED;
+            const esc = escalatorUnder(me.x, me.y);
+            if (esc) vy += (esc.dir !== 'down' ? -1 : 1) * ESCALATOR_SPEED;
+
             const nx = me.x + dx * PLAYER_SPEED * dt;
-            const ny = me.y + dy * PLAYER_SPEED * dt;
+            const ny = me.y + vy * dt;
 
             // Move X then Y separately for sliding along walls
             if (!collidesWithObstacle(nx, me.y, PLAYER_RADIUS)) {
@@ -1119,11 +1864,65 @@
             // World bounds
             me.x = Math.max(PLAYER_RADIUS, Math.min(WORLD_W - PLAYER_RADIUS, me.x));
             me.y = Math.max(PLAYER_RADIUS, Math.min(WORLD_H - PLAYER_RADIUS, me.y));
+            const zoneNow = currentZone();
+            if (zoneNow !== me.zoneRef) {
+                me.zoneRef = zoneNow;
+                updateRoomInfo();
+            }
+            checkFloorLinks();
             updateCamera();
 
             me.angle = Math.atan2(mouse.y - me.y, mouse.x - me.x);
 
             if (mouse.down) fire();
+        }
+
+        // 输送 / 楼梯的换层判定（输送带速度在 updateLocalPlayer 里叠加）
+        function checkFloorLinks() {
+            const now = performance.now();
+            if (now < me.linkCooldown) return;
+            const f = floorDef();
+            if (!f.links) return;
+            for (const link of f.links) {
+                if (link.noTrigger) continue;
+                const up = link.dir !== 'down';
+                const inside = me.x > link.x - 4 && me.x < link.x + link.w + 4 &&
+                    me.y > link.y - 4 && me.y < link.y + link.h + 4;
+                if (!inside) {
+                    link._armed = false;   // 离开楼梯/扶梯后需重新从入口进入
+                    continue;
+                }
+                // 必须从入口那一端踏上，才算真正开始上下楼
+                if (!link._armed) {
+                    if (up ? me.y > link.y + link.h * 0.5 : me.y < link.y + link.h * 0.5) {
+                        link._armed = true;
+                    } else {
+                        continue;
+                    }
+                }
+                if (link.type === 'escalator') {
+                    // 提前一点判定，避免被末端封板挡住而卡住
+                    if (up ? me.y <= link.y + 34 : me.y >= link.y + link.h - 34) {
+                        useLink(link); return;
+                    }
+                } else {
+                    if (up ? me.y <= link.y + 24 : me.y >= link.y + link.h - 24) {
+                        useLink(link); return;
+                    }
+                }
+            }
+        }
+
+        function useLink(link) {
+            applyFloor(link.to);
+            me.x = link.tx;
+            me.y = link.ty;
+            me.linkCooldown = performance.now() + 900;
+            updateCamera();
+            updateRoomInfo();
+            showToast(`到达 ${currentMap.name} ${FLOOR + 1}F`);
+            broadcastState();
+            lastSync = performance.now();
         }
 
         function updateRemotePlayers(dt) {
@@ -1169,7 +1968,8 @@
                 if (b.isLocal && b.ownerId === me.id) {
                     let hit = false;
                     for (const [pid, rp] of remotePlayers) {
-                        if (!rp.alive) continue;
+                        if (!rp.alive || rp.hidden) continue;
+                        if ((rp.floor || 0) !== b.floor) continue;
                         const d = Math.hypot(b.x - rp.x, b.y - rp.y);
                         if (d < PLAYER_RADIUS + BULLET_RADIUS) {
                             broadcastHit(me.id, pid, me.name);
@@ -1182,7 +1982,7 @@
                 }
 
                 // Remote bullet vs local player
-                if (!b.isLocal && me.alive) {
+                if (!b.isLocal && me.alive && !me.hidden && b.floor === me.floor) {
                     const d = Math.hypot(b.x - me.x, b.y - me.y);
                     if (d < PLAYER_RADIUS + BULLET_RADIUS) {
                         const owner = remotePlayers.get(b.ownerId);
@@ -1217,17 +2017,22 @@
             ctx.scale(scaleX, scaleY);
             ctx.translate(-camera.x, -camera.y);
 
-            drawClassroomGround();
+            drawGround();
+            drawLinks();
             drawObstacles();
             drawBullets();
             drawParticles();
 
             for (const [pid, rp] of remotePlayers) {
+                if ((rp.floor || 0) !== me.floor) continue;
+                if (rp.hidden) continue;
                 if (isVisible(rp.x - PLAYER_RADIUS, rp.y - PLAYER_RADIUS, PLAYER_RADIUS * 2, PLAYER_RADIUS * 2)) {
                     drawPlayer(rp, false);
                 }
             }
-            drawPlayer(me, true);
+            if (!me.hidden) drawPlayer(me, true);
+            drawZoneMask();
+            drawHidePrompt();
             drawRespawnTimer();
             ctx.restore();
 
@@ -1243,80 +2048,360 @@
                 y + h >= camera.y - pad && y <= camera.y + VIEW_H + pad;
         }
 
-        function drawClassroomGround() {
+        function currentZone() {
+            const f = floorDef();
+            if (!f.zones) return null;
+            for (const z of f.zones) {
+                if (me.x >= z.x && me.x <= z.x + z.w && me.y >= z.y && me.y <= z.y + z.h) return z;
+            }
+            return f.zones[0];
+        }
+
+        // 宿舍门：墙体缺口 + 走廊侧门牌
+        const DORM_DOORS = [
+            { x: 776, y: 240, w: 24, h: 120, signX: 822, signY: 300, t: '201' },
+            { x: 1000, y: 240, w: 24, h: 120, signX: 978, signY: 300, t: '202' },
+            { x: 776, y: 840, w: 24, h: 120, signX: 822, signY: 900, t: '203' },
+            { x: 1000, y: 840, w: 24, h: 120, signX: 978, signY: 900, t: '204' },
+        ];
+
+        // 走廊两侧墙体（遮罩之后再画一次，保证走廊有边界感）
+        const DORM_WALL_SEGS = [
+            [776, 0, 24, 240], [776, 360, 24, 480], [776, 960, 24, 240],
+            [1000, 0, 24, 240], [1000, 360, 24, 480], [1000, 960, 24, 240],
+        ];
+
+        function drawDormDoors() {
+            for (const w of DORM_WALL_SEGS) {
+                if (!isVisible(w[0], w[1], w[2], w[3], 20)) continue;
+                ctx.fillStyle = '#6b5b4a';
+                ctx.fillRect(w[0], w[1], w[2], w[3]);
+                ctx.strokeStyle = 'rgba(38,28,20,0.65)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(w[0] + 1, w[1] + 1, w[2] - 2, w[3] - 2);
+            }
+            for (const d of DORM_DOORS) {
+                if (!isVisible(d.x - 40, d.y - 20, d.w + 80, d.h + 40)) continue;
+                // 门扇
+                ctx.fillStyle = '#8a5f3c';
+                ctx.fillRect(d.x + 3, d.y + 5, d.w - 6, d.h - 10);
+                ctx.strokeStyle = '#5d3f26';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(d.x + 3, d.y + 5, d.w - 6, d.h - 10);
+                // 门把手
+                ctx.fillStyle = '#e2c579';
+                ctx.beginPath();
+                ctx.arc(d.x + d.w / 2, d.y + d.h / 2 + 30, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+                // 门牌
+                ctx.fillStyle = 'rgba(34,184,166,0.2)';
+                ctx.fillRect(d.signX - 26, d.signY - 14, 52, 28);
+                ctx.strokeStyle = 'rgba(34,184,166,0.9)';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(d.signX - 26, d.signY - 14, 52, 28);
+                ctx.fillStyle = 'rgba(214,242,238,0.95)';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(d.t, d.signX, d.signY + 1);
+            }
+        }
+
+        function drawZoneMask() {
+            const z = currentZone();
+            if (!z) return;
+            const L = camera.x, T = camera.y;
+            const R = camera.x + VIEW_W, B = camera.y + VIEW_H;
+            // 其它区域完全不透明：走廊里只能看到门和门牌
+            ctx.fillStyle = '#05070b';
+            if (T < z.y) ctx.fillRect(L, T, R - L, z.y - T);
+            if (B > z.y + z.h) ctx.fillRect(L, z.y + z.h, R - L, B - (z.y + z.h));
+            const y0 = Math.max(T, z.y), y1 = Math.min(B, z.y + z.h);
+            if (y1 > y0) {
+                if (L < z.x) ctx.fillRect(L, y0, z.x - L, y1 - y0);
+                if (R > z.x + z.w) ctx.fillRect(z.x + z.w, y0, R - (z.x + z.w), y1 - y0);
+            }
+            if (z.name === '走廊') drawDormDoors();
+        }
+
+        function drawPromptAt(x, y, text) {
+            ctx.save();
+            ctx.font = 'bold 14px sans-serif';
+            const tw = ctx.measureText(text).width + 18;
+            ctx.fillStyle = 'rgba(10,16,22,0.82)';
+            ctx.fillRect(x - tw / 2, y - 12, tw, 24);
+            ctx.strokeStyle = 'rgba(34,184,166,0.7)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x - tw / 2, y - 12, tw, 24);
+            ctx.fillStyle = '#d6f2ee';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y + 1);
+            ctx.restore();
+        }
+
+        function drawHidePrompt() {
+            if (me.hidden) {
+                const o = me.hideSpot;
+                if (o) drawPromptAt(o[0] + o[2] / 2, o[1] - 16, '躲藏中 · 按 ' + keyLabel(keybinds.hide) + ' 出来');
+                return;
+            }
+            const o = nearestWardrobe();
+            if (o) drawPromptAt(o[0] + o[2] / 2, o[1] - 16, '按 ' + keyLabel(keybinds.hide) + ' 躲进柜子');
+        }
+
+        function drawGround() {
             const left = Math.max(0, camera.x);
             const top = Math.max(0, camera.y);
             const right = Math.min(WORLD_W, camera.x + VIEW_W);
             const bottom = Math.min(WORLD_H, camera.y + VIEW_H);
+            const w = right - left, h = bottom - top;
+            const kind = floorDef().ground;
 
-            // 木地板
-            ctx.fillStyle = '#c9a273';
-            ctx.fillRect(left, top, right - left, bottom - top);
+            if (kind === 'wood') ctx.fillStyle = '#c9a273';
+            else if (kind === 'carpet') ctx.fillStyle = '#2f3a4d';
+            else if (kind === 'tile') ctx.fillStyle = '#cdbfa8';
+            else if (kind === 'lab') ctx.fillStyle = '#d7dde2';
+            else ctx.fillStyle = '#c08a4e';
+            ctx.fillRect(left, top, w, h);
 
-            // 地板拼缝
-            ctx.strokeStyle = 'rgba(120,84,48,0.22)';
-            ctx.lineWidth = 1;
-            for (let y = Math.floor(top / 64) * 64; y <= bottom; y += 64) {
-                ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
-            }
-            ctx.strokeStyle = 'rgba(120,84,48,0.12)';
-            for (let x = Math.floor(left / 96) * 96; x <= right; x += 96) {
-                ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
-            }
-
-            // 讲台区
-            const frontH = CLASSROOM.frontZoneH;
-            if (top < frontH) {
-                ctx.fillStyle = '#b9925f';
-                ctx.fillRect(left, top, right - left, Math.min(bottom, frontH) - top);
-                ctx.strokeStyle = 'rgba(90,62,36,0.5)';
-                ctx.lineWidth = 3;
-                ctx.beginPath(); ctx.moveTo(left, frontH); ctx.lineTo(right, frontH); ctx.stroke();
-            }
-
-            // 黑板
-            const b = CLASSROOM.board;
-            if (isVisible(b.x, b.y, b.w, b.h, 40)) {
-                ctx.fillStyle = '#6b4a2c';
-                ctx.fillRect(b.x - 10, b.y - 10, b.w + 20, b.h + 20);
-                ctx.fillStyle = '#2f4a3c';
-                ctx.fillRect(b.x, b.y, b.w, b.h);
-                ctx.strokeStyle = 'rgba(220,235,215,0.28)';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(b.x + 10, b.y + 10, b.w - 20, b.h - 20);
-
-                ctx.fillStyle = 'rgba(240,245,235,0.6)';
-                ctx.font = 'bold 22px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('今日课题：抢到最后一排', b.x + b.w / 2, b.y + b.h / 2 - 4);
-                ctx.strokeStyle = 'rgba(240,245,235,0.32)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(b.x + b.w / 2 - 130, b.y + b.h - 20);
-                ctx.lineTo(b.x + b.w / 2 + 130, b.y + b.h - 20);
-                ctx.stroke();
-            }
-
-            // 左侧窗户
-            for (const win of CLASSROOM.windows) {
-                if (!isVisible(win.x, win.y, win.w, win.h, 40)) continue;
-                ctx.fillStyle = '#8fc4d8';
-                ctx.fillRect(win.x, win.y, win.w, win.h);
-                ctx.strokeStyle = '#e8eef0';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(win.x + 1.5, win.y + 1.5, win.w - 3, win.h - 3);
-                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-                ctx.lineWidth = 2;
-                for (let wy = win.y + 50; wy < win.y + win.h; wy += 50) {
-                    ctx.beginPath(); ctx.moveTo(win.x, wy); ctx.lineTo(win.x + win.w, wy); ctx.stroke();
+            if (kind === 'wood') {
+                ctx.strokeStyle = 'rgba(120,84,48,0.22)';
+                ctx.lineWidth = 1;
+                for (let y = Math.floor(top / 64) * 64; y <= bottom; y += 64) {
+                    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
                 }
+                ctx.strokeStyle = 'rgba(120,84,48,0.12)';
+                for (let x = Math.floor(left / 96) * 96; x <= right; x += 96) {
+                    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+                }
+            } else if (kind === 'carpet') {
+                ctx.strokeStyle = 'rgba(120,160,190,0.1)';
+                ctx.lineWidth = 2;
+                for (let y = Math.floor(top / 120) * 120; y <= bottom; y += 120) {
+                    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+                }
+                ctx.strokeStyle = 'rgba(110,140,170,0.35)';
+                ctx.lineWidth = 6;
+                ctx.strokeRect(60, 60, WORLD_W - 120, WORLD_H - 120);
+            } else if (kind === 'tile') {
+                ctx.strokeStyle = 'rgba(120,105,85,0.28)';
+                ctx.lineWidth = 2;
+                for (let y = Math.floor(top / 100) * 100; y <= bottom; y += 100) {
+                    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+                }
+                for (let x = Math.floor(left / 100) * 100; x <= right; x += 100) {
+                    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+                }
+            } else if (kind === 'lab') {
+                ctx.strokeStyle = 'rgba(150,165,175,0.5)';
+                ctx.lineWidth = 1;
+                for (let y = Math.floor(top / 80) * 80; y <= bottom; y += 80) {
+                    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+                }
+                for (let x = Math.floor(left / 80) * 80; x <= right; x += 80) {
+                    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
+                }
+            } else {
+                ctx.strokeStyle = 'rgba(150,105,60,0.3)';
+                ctx.lineWidth = 1;
+                for (let y = Math.floor(top / 48) * 48; y <= bottom; y += 48) {
+                    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+                }
+                ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(200, 180, WORLD_W - 400, WORLD_H - 360);
+                ctx.beginPath();
+                ctx.moveTo(WORLD_W / 2, 180); ctx.lineTo(WORLD_W / 2, WORLD_H - 180);
+                ctx.stroke();
+                ctx.beginPath(); ctx.arc(WORLD_W / 2, WORLD_H / 2, 120, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(WORLD_W / 2, WORLD_H / 2, 44, 0, Math.PI * 2); ctx.stroke();
             }
 
-            // 墙面
-            ctx.strokeStyle = 'rgba(88,60,34,0.55)';
+            drawGroundDecor(kind);
+
+            ctx.strokeStyle = kind === 'lab' || kind === 'carpet'
+                ? 'rgba(110,130,150,0.55)' : 'rgba(88,60,34,0.55)';
             ctx.lineWidth = 10;
             ctx.strokeRect(5, 5, WORLD_W - 10, WORLD_H - 10);
+        }
+
+        function drawGroundDecor(kind) {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            if (kind === 'wood') {
+                const frontH = 250;
+                ctx.fillStyle = '#b9925f';
+                ctx.fillRect(0, 0, WORLD_W, frontH);
+                ctx.strokeStyle = 'rgba(90,62,36,0.5)';
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(0, frontH); ctx.lineTo(WORLD_W, frontH); ctx.stroke();
+
+                ctx.fillStyle = '#6b4a2c';
+                ctx.fillRect(250, 20, 1100, 120);
+                ctx.fillStyle = '#2f4a3c';
+                ctx.fillRect(260, 30, 1080, 100);
+                ctx.fillStyle = 'rgba(240,245,235,0.6)';
+                ctx.font = 'bold 22px sans-serif';
+                ctx.fillText('今日课题：抢到最后一排', 800, 74);
+                ctx.strokeStyle = 'rgba(240,245,235,0.32)';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(670, 108); ctx.lineTo(930, 108); ctx.stroke();
+
+                for (const wy of [300, 700]) {
+                    ctx.fillStyle = '#8fc4d8';
+                    ctx.fillRect(26, wy, 22, 300);
+                    ctx.strokeStyle = '#e8eef0';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(27.5, wy + 1.5, 19, 297);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+                    ctx.lineWidth = 2;
+                    for (let ly = wy + 50; ly < wy + 300; ly += 50) {
+                        ctx.beginPath(); ctx.moveTo(26, ly); ctx.lineTo(48, ly); ctx.stroke();
+                    }
+                }
+            } else if (kind === 'carpet') {
+                ctx.fillStyle = 'rgba(200,170,110,0.1)';
+                ctx.fillRect(120, 120, WORLD_W - 240, WORLD_H - 240);
+                ctx.fillStyle = 'rgba(230,235,240,0.32)';
+                ctx.font = 'bold 56px sans-serif';
+                ctx.fillText('图书馆 · 静', WORLD_W / 2, WORLD_H / 2);
+                ctx.font = 'bold 18px sans-serif';
+                ctx.fillStyle = 'rgba(230,235,240,0.22)';
+                ctx.fillText('保持安静，子弹除外', WORLD_W / 2, WORLD_H / 2 + 46);
+            } else if (kind === 'tile') {
+                // 十字走廊：横向 y600~800，纵向 x800~1000
+                ctx.fillStyle = 'rgba(150,120,88,0.20)';
+                ctx.fillRect(0, 600, WORLD_W, 200);
+                ctx.fillRect(800, 0, 200, WORLD_H);
+                ctx.strokeStyle = 'rgba(120,95,68,0.32)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(0, 600); ctx.lineTo(WORLD_W, 600);
+                ctx.moveTo(0, 800); ctx.lineTo(WORLD_W, 800);
+                ctx.moveTo(800, 0); ctx.lineTo(800, WORLD_H);
+                ctx.moveTo(1000, 0); ctx.lineTo(1000, WORLD_H);
+                ctx.stroke();
+                ctx.fillStyle = 'rgba(90,70,50,0.40)';
+                ctx.font = 'bold 22px sans-serif';
+                ctx.fillText('宿 舍 走 廊', 900, 700);
+                ctx.font = 'bold 26px sans-serif';
+                ctx.fillStyle = 'rgba(90,70,50,0.20)';
+                ctx.fillText('201', 400, 300);
+                ctx.fillText('202', 1400, 300);
+                ctx.fillText('203', 400, 1100);
+                ctx.fillText('204', 1400, 1100);
+            } else if (kind === 'lab') {
+                ctx.fillStyle = 'rgba(90,150,190,0.12)';
+                ctx.fillRect(620, 180, 360, 800);
+                ctx.strokeStyle = 'rgba(220,180,60,0.3)';
+                ctx.lineWidth = 8;
+                for (let x = 620; x < 980; x += 40) {
+                    ctx.beginPath(); ctx.moveTo(x, 960); ctx.lineTo(x + 24, 990); ctx.stroke();
+                }
+                ctx.fillStyle = 'rgba(70,90,105,0.35)';
+                ctx.font = 'bold 20px sans-serif';
+                ctx.fillText('实验室 · 危险区域', WORLD_W / 2, WORLD_H - 74);
+            } else {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = 'bold 34px sans-serif';
+                ctx.fillText('体育馆', WORLD_W / 2, WORLD_H / 2 - 170);
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.arc(WORLD_W / 2, 180, 90, 0, Math.PI); ctx.stroke();
+                ctx.beginPath(); ctx.arc(WORLD_W / 2, WORLD_H - 180, 90, Math.PI, Math.PI * 2); ctx.stroke();
+            }
+        }
+
+        function drawLinks() {
+            const f = floorDef();
+            if (!f.links) return;
+            for (const l of f.links) {
+                if (!isVisible(l.x, l.y, l.w, l.h, 40)) continue;
+                ctx.save();
+                if (l.type === 'stairs') {
+                    ctx.fillStyle = '#8a6a4a';
+                    ctx.fillRect(l.x, l.y, l.w, l.h);
+                    // 一级级台阶
+                    ctx.strokeStyle = '#d8c3a5';
+                    ctx.lineWidth = 2;
+                    const stepH = 13;
+                    for (let yy = l.y + stepH; yy < l.y + l.h; yy += stepH) {
+                        ctx.beginPath(); ctx.moveTo(l.x + 4, yy); ctx.lineTo(l.x + l.w - 4, yy); ctx.stroke();
+                    }
+                    // 两侧扶手
+                    ctx.strokeStyle = '#f0e2c8';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.moveTo(l.x + 7, l.y + 6); ctx.lineTo(l.x + 7, l.y + l.h - 6); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(l.x + l.w - 7, l.y + 6); ctx.lineTo(l.x + l.w - 7, l.y + l.h - 6); ctx.stroke();
+                    // 上楼 / 下楼箭头
+                    ctx.strokeStyle = 'rgba(244,239,227,0.9)';
+                    ctx.lineWidth = 4;
+                    const cx = l.x + l.w / 2;
+                    const up = l.dir !== 'down';
+                    const ay = up ? l.y + l.h - 18 : l.y + 18;
+                    const ty = up ? ay - 30 : ay + 30;
+                    ctx.beginPath(); ctx.moveTo(cx, ay); ctx.lineTo(cx, ty); ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 8, ty + (up ? 10 : -10));
+                    ctx.lineTo(cx, ty);
+                    ctx.lineTo(cx + 8, ty + (up ? 10 : -10));
+                    ctx.stroke();
+                } else if (l.type === 'escalator') {
+                    ctx.fillStyle = '#3f4952';
+                    ctx.fillRect(l.x, l.y, l.w, l.h);
+                    // 自动移动的踏板（动画速度与实际输送速度一致）
+                    const t = (performance.now() * ESCALATOR_SPEED / (1000 * (l.h - 16))) % 1;
+                    const dirSign = l.dir === 'down' ? 1 : -1;
+                    ctx.strokeStyle = 'rgba(255,214,110,0.85)';
+                    ctx.lineWidth = 5;
+                    for (let i = 0; i < 7; i++) {
+                        let fr = (i / 7 + t * dirSign) % 1;
+                        if (fr < 0) fr += 1;
+                        const yy = l.y + 8 + fr * (l.h - 16);
+                        ctx.beginPath(); ctx.moveTo(l.x + 7, yy); ctx.lineTo(l.x + l.w - 7, yy); ctx.stroke();
+                    }
+                    // 扶手带
+                    ctx.strokeStyle = '#cfd9e0';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath(); ctx.moveTo(l.x + 5, l.y + 8); ctx.lineTo(l.x + 5, l.y + l.h - 8); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(l.x + l.w - 5, l.y + 8); ctx.lineTo(l.x + l.w - 5, l.y + l.h - 8); ctx.stroke();
+                    // 穿过楼板的一端封板（另一端是上下客的出口，保持敞开）
+                    const sealedTop = escalatorSealedSide(l) === 'top';
+                    const sy = sealedTop ? l.y - 11 : l.y + l.h + 1;
+                    ctx.fillStyle = '#9aa7b4';
+                    ctx.fillRect(l.x - 3, sy, l.w + 6, 10);
+                    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+                    ctx.fillRect(l.x - 3, sy, l.w + 6, 3);
+                    ctx.strokeStyle = 'rgba(20,28,36,0.7)';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(l.x - 3, sy, l.w + 6, 10);
+                } else {
+                    ctx.fillStyle = '#5c6b78';
+                    ctx.fillRect(l.x, l.y, l.w, l.h);
+                    ctx.strokeStyle = '#cfd9e0';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(l.x + 3, l.y + 3, l.w - 6, l.h - 6);
+                    ctx.beginPath();
+                    ctx.moveTo(l.x + l.w / 2, l.y + 6); ctx.lineTo(l.x + l.w / 2, l.y + l.h - 6);
+                    ctx.stroke();
+                }
+                const text = l.label !== undefined
+                    ? l.label
+                    : (l.type === 'stairs' ? '楼梯' : l.type === 'escalator' ? '扶梯' : '电梯');
+                if (text) {
+                    ctx.font = 'bold 14px sans-serif';
+                    const tw = ctx.measureText(text).width + 16;
+                    ctx.fillStyle = 'rgba(10,16,22,0.8)';
+                    ctx.fillRect(l.x + l.w / 2 - tw / 2, l.y - 26, tw, 22);
+                    ctx.fillStyle = '#f4efe3';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(text, l.x + l.w / 2, l.y - 15);
+                }
+                ctx.restore();
+            }
         }
 
         function drawObstacles() {
@@ -1381,6 +2466,129 @@
                     continue;
                 }
 
+                if (type === 'table') {
+                    ctx.fillStyle = 'rgba(70,50,30,0.28)';
+                    ctx.fillRect(x + 6, y + 8, w, h);
+                    ctx.fillStyle = '#b98a5c';
+                    ctx.fillRect(x, y, w, h);
+                    ctx.strokeStyle = '#7d5735';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+                    for (const bx of [x + 26, x + w - 74]) {
+                        ctx.fillStyle = '#e9e2d0';
+                        ctx.fillRect(bx, y + 28, 48, 34);
+                        ctx.fillStyle = '#8fa8bd';
+                        ctx.fillRect(bx, y + 28, 48, 6);
+                    }
+                    ctx.fillStyle = '#d9c07a';
+                    ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, 9, 0, Math.PI * 2); ctx.fill();
+                    continue;
+                }
+
+                if (type === 'bed') {
+                    ctx.fillStyle = '#6f5a45';
+                    ctx.fillRect(x, y, w, h);
+                    ctx.fillStyle = '#e6ecf0';
+                    ctx.fillRect(x + 8, y + 8, w - 16, h - 16);
+                    ctx.fillStyle = '#8fb6c9';
+                    ctx.fillRect(x + 8, y + h - 52, w - 16, 44);
+                    ctx.fillStyle = '#f7fafc';
+                    ctx.fillRect(x + 18, y + 18, 62, 34);
+                    ctx.strokeStyle = 'rgba(110,130,145,0.6)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x + 8, y + 8, w - 16, h - 16);
+                    continue;
+                }
+
+                if (type === 'wardrobe') {
+                    ctx.fillStyle = '#7a5433';
+                    ctx.fillRect(x, y, w, h);
+                    ctx.strokeStyle = '#553a23';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+                    ctx.strokeStyle = 'rgba(60,40,24,0.7)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x + w / 2, y + 6); ctx.lineTo(x + w / 2, y + h - 6);
+                    ctx.stroke();
+                    ctx.fillStyle = '#d9c07a';
+                    ctx.fillRect(x + w / 2 - 16, y + h / 2 - 6, 8, 12);
+                    ctx.fillRect(x + w / 2 + 8, y + h / 2 - 6, 8, 12);
+                    continue;
+                }
+
+                if (type === 'bench') {
+                    ctx.fillStyle = 'rgba(70,90,105,0.22)';
+                    ctx.fillRect(x + 5, y + 7, w, h);
+                    ctx.fillStyle = '#c9d3da';
+                    ctx.fillRect(x, y, w, h);
+                    ctx.strokeStyle = '#8d9aa4';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
+                    for (let sx = x + 40; sx < x + w - 40; sx += 120) {
+                        ctx.fillStyle = '#7e8b95';
+                        ctx.fillRect(sx, y + 24, 60, 42);
+                        ctx.fillStyle = '#e9eef2';
+                        ctx.fillRect(sx + 5, y + 29, 50, 32);
+                        ctx.fillStyle = '#7ab0c9';
+                        ctx.fillRect(sx + 12, y + 36, 36, 18);
+                    }
+                    continue;
+                }
+
+                if (type === 'hood') {
+                    ctx.fillStyle = '#a9b7c2';
+                    ctx.fillRect(x, y, w, h);
+                    ctx.strokeStyle = '#7f8f9b';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+                    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                    ctx.fillRect(x + 16, y + 14, w - 32, 22);
+                    ctx.fillStyle = 'rgba(60,80,95,0.55)';
+                    ctx.fillRect(x + w / 2 - 40, y + h - 34, 80, 20);
+                    continue;
+                }
+
+                if (type === 'bleacher') {
+                    ctx.fillStyle = '#5d6a76';
+                    ctx.fillRect(x, y, w, h);
+                    const seatH = h / 3;
+                    for (let i = 0; i < 3; i++) {
+                        ctx.fillStyle = i % 2 ? '#7f8c99' : '#8e9aa6';
+                        ctx.fillRect(x + 6, y + i * seatH + 4, w - 12, seatH - 8);
+                    }
+                    ctx.fillStyle = 'rgba(40,52,62,0.5)';
+                    for (let sx = x + 30; sx < x + w - 20; sx += 60) {
+                        ctx.fillRect(sx, y + 6, 4, h - 12);
+                    }
+                    continue;
+                }
+
+                if (type === 'crate') {
+                    ctx.fillStyle = 'rgba(70,50,30,0.25)';
+                    ctx.fillRect(x + 5, y + 7, w, h);
+                    ctx.fillStyle = '#a97c4d';
+                    ctx.fillRect(x, y, w, h);
+                    ctx.strokeStyle = '#6f4f2f';
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x + 8, y + 8); ctx.lineTo(x + w - 8, y + h - 8);
+                    ctx.moveTo(x + w - 8, y + 8); ctx.lineTo(x + 8, y + h - 8);
+                    ctx.stroke();
+                    continue;
+                }
+
+                if (type === 'wall') {
+                    ctx.fillStyle = '#6b5b4a';
+                    ctx.fillRect(x, y, w, h);
+                    ctx.strokeStyle = 'rgba(38,28,20,0.65)';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+                    continue;
+                }
+
                 // 讲台
                 ctx.fillStyle = 'rgba(90,60,32,0.24)';
                 ctx.fillRect(x + 6, y + 8, w, h);
@@ -1411,25 +2619,40 @@
             ctx.translate(mx, my);
             ctx.fillStyle = 'rgba(10,20,18,0.86)';
             ctx.fillRect(0, 0, mw, mh);
-            ctx.fillStyle = '#b9925f';
-            ctx.fillRect(0, 0, mw, CLASSROOM.frontZoneH * s);
-            ctx.fillStyle = '#2f4a3c';
-            const boardRect = CLASSROOM.board;
-            ctx.fillRect(boardRect.x * s, boardRect.y * s, boardRect.w * s, boardRect.h * s);
+            const zone = currentZone();
+            if (zone) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(zone.x * s, zone.y * s, zone.w * s, zone.h * s);
+                ctx.clip();
+            }
             for (const o of OBSTACLES) {
-                ctx.fillStyle = o[4] === 'plant' ? '#4b8b54'
-                    : o[4] === 'desk' ? '#dcb98b'
-                        : o[4] === 'shelf' ? '#7a5433' : '#c69b73';
+                ctx.fillStyle = TYPE_COLORS[o[4]] || '#c69b73';
                 ctx.fillRect(o[0] * s, o[1] * s, Math.max(1.5, o[2] * s), Math.max(1.5, o[3] * s));
+            }
+
+            if (floorDef().links) {
+                for (const l of floorDef().links) {
+                    ctx.fillStyle = 'rgba(34,184,166,0.9)';
+                    ctx.fillRect(l.x * s, l.y * s, Math.max(4, l.w * s), Math.max(4, l.h * s));
+                }
             }
 
             ctx.strokeStyle = 'rgba(255,255,255,0.85)';
             ctx.lineWidth = 1;
             ctx.strokeRect(camera.x * s, camera.y * s, VIEW_W * s, VIEW_H * s);
             for (const [pid, rp] of remotePlayers) {
-                if (!rp.alive) continue;
+                if (!rp.alive || rp.hidden) continue;
+                if ((rp.floor || 0) !== me.floor) continue;
+                if (zone && (rp.x < zone.x || rp.x > zone.x + zone.w || rp.y < zone.y || rp.y > zone.y + zone.h)) continue;
                 ctx.fillStyle = rp.color;
                 ctx.beginPath(); ctx.arc(rp.x * s, rp.y * s, 2, 0, Math.PI * 2); ctx.fill();
+            }
+            if (zone) {
+                ctx.restore();
+                ctx.strokeStyle = 'rgba(34,184,166,0.9)';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(zone.x * s, zone.y * s, zone.w * s, zone.h * s);
             }
             ctx.fillStyle = me.color;
             ctx.beginPath(); ctx.arc(me.x * s, me.y * s, 3, 0, Math.PI * 2); ctx.fill();
@@ -1442,7 +2665,7 @@
             ctx.font = '10px sans-serif';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'bottom';
-            ctx.fillText('教室地图', 0, -5);
+            ctx.fillText(currentMap.name + (currentMap.floors.length > 1 ? ' ' + (FLOOR + 1) + 'F' : '') + '地图', 0, -5);
             ctx.restore();
         }
 
@@ -1498,6 +2721,7 @@
 
         function drawBullets() {
             for (const b of bullets) {
+                if (b.floor !== me.floor) continue;
                 if (!isVisible(b.x - BULLET_RADIUS, b.y - BULLET_RADIUS, BULLET_RADIUS * 2, BULLET_RADIUS * 2)) continue;
                 ctx.save();
                 ctx.shadowColor = b.ownerColor;
@@ -1593,12 +2817,16 @@
         //  INPUT
         // ============================================================
         window.addEventListener('keydown', e => {
-            keys[e.key.toLowerCase()] = true;
-            if (e.key === ' ') { e.preventDefault(); mouse.down = true; }
+            if (handleKeyCapture(e)) return;   // 键位设置捕获优先
+            const k = e.key.toLowerCase();
+            keys[k] = true;
+            if (k === keybinds.shoot) { e.preventDefault(); mouse.down = true; }
+            if (k === keybinds.hide && !e.repeat && gameRunning) toggleHide();
         });
         window.addEventListener('keyup', e => {
-            keys[e.key.toLowerCase()] = false;
-            if (e.key === ' ') mouse.down = false;
+            const k = e.key.toLowerCase();
+            keys[k] = false;
+            if (k === keybinds.shoot) mouse.down = false;
         });
 
         function screenToWorld(sx, sy) {
@@ -1697,35 +2925,258 @@
         const savedName = localStorage.getItem('player_name') || 'Player' + Math.floor(Math.random() * 1000);
         document.getElementById('player-name').value = savedName;
 
-        document.getElementById('join-btn').addEventListener('click', () => {
+        const mapPickEl = document.getElementById('map-pick');
+        let selectedMapId = localStorage.getItem('brawl_map') || 'classroom';
+        if (!MAPS[selectedMapId]) selectedMapId = 'classroom';
+
+        function selectMap(id) {
+            if (!MAPS[id]) return;
+            selectedMapId = id;
+            localStorage.setItem('brawl_map', id);
+            mapPickEl.querySelectorAll('.map-chip').forEach(c => {
+                c.classList.toggle('on', c.dataset.map === id);
+            });
+        }
+
+        mapPickEl.innerHTML = MAP_LIST.map(id =>
+            `<button class="map-chip" data-map="${id}">${MAPS[id].name}</button>`
+        ).join('');
+        mapPickEl.querySelectorAll('.map-chip').forEach(c => {
+            c.addEventListener('click', () => selectMap(c.dataset.map));
+        });
+        selectMap(selectedMapId);
+
+        function showScreen(name) {
+            for (const id of ['home', 'join', 'create', 'keys']) {
+                const el = document.getElementById('screen-' + id);
+                if (el) el.classList.toggle('hidden', id !== name);
+            }
+            if (name === 'join') renderRoomList();
+            if (name === 'keys') renderKeyList();
+            capturingKey = null;
+        }
+
+        function readName() {
             const name = document.getElementById('player-name').value.trim() || 'Player';
             me.name = name;
             localStorage.setItem('player_name', name);
+            return name;
+        }
 
-            const statusEl = document.getElementById('join-status');
-            statusEl.textContent = '连接中...';
-            statusEl.className = 'status';
+        function setStatus(id, text, isErr) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text;
+            el.className = 'status' + (isErr ? ' err' : '');
+        }
 
+        function readCode(inputId) {
+            return (document.getElementById(inputId).value || '')
+                .trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+        }
+
+        function enterRoom(code, mapId) {
+            readName();
+            setStatus('search-status', '连接中...');
             initSupabase().then(function (ok) {
                 if (!ok) {
-                    statusEl.textContent = '❌ Supabase 连接失败，请稍后重试';
-                    statusEl.className = 'status err';
-                    return;
+                    setStatus('search-status', '❌ 连接失败，请稍后重试', true);
+                    return null;
                 }
-                joinClassroom();
+                return joinLobby();
+            }).then(function (ready) {
+                if (ready === null) return;
+                setStatus('search-status', '');
+                joinRoom(code, mapId || selectedMapId);
             });
+        }
+
+        document.getElementById('go-join').addEventListener('click', () => {
+            readName();
+            setStatus('search-status', '');
+            showScreen('join');
         });
+
+        document.getElementById('go-create').addEventListener('click', () => {
+            readName();
+            setStatus('create-status', '');
+            showScreen('create');
+        });
+
+        // ------------------------------------------------------------
+        //  键位设置
+        // ------------------------------------------------------------
+        let capturingKey = null;   // 正在等待按下新键的动作名，null 表示未捕获
+
+        const KEY_ACTION_LABELS = {
+            up: '上移', down: '下移', left: '左移', right: '右移',
+            shoot: '射击', hide: '躲进柜子'
+        };
+
+        function keyLabel(k) {
+            if (k === ' ') return '空格';
+            if (k === 'arrowup') return '↑';
+            if (k === 'arrowdown') return '↓';
+            if (k === 'arrowleft') return '←';
+            if (k === 'arrowright') return '→';
+            return k.length === 1 ? k.toUpperCase() : k;
+        }
+
+        function saveKeybinds() {
+            try { localStorage.setItem('brawl_keybinds', JSON.stringify(keybinds)); } catch (e) { /* ignore */ }
+        }
+
+        function refreshHomeHint() {
+            const h = document.getElementById('home-hint');
+            if (!h) return;
+            h.innerHTML =
+                `${keyLabel(keybinds.up)}/${keyLabel(keybinds.left)}/${keyLabel(keybinds.down)}/${keyLabel(keybinds.right)} / 方向键 移动<br>` +
+                `鼠标瞄准 · 左键 / ${keyLabel(keybinds.shoot)} 射击<br>` +
+                `${keyLabel(keybinds.hide)} 躲进 / 离开宿舍柜子`;
+        }
+
+        function renderKeyList() {
+            const list = document.getElementById('key-list');
+            if (!list) return;
+            list.innerHTML = Object.keys(KEY_ACTION_LABELS).map(action => {
+                const capClass = capturingKey === action ? 'key-cap capturing' : 'key-cap';
+                const text = capturingKey === action ? '按下新键…' : keyLabel(keybinds[action]);
+                return `<div class="key-row"><span class="key-label">${KEY_ACTION_LABELS[action]}</span>` +
+                    `<button class="${capClass}" data-action="${action}">${text}</button></div>`;
+            }).join('');
+            list.querySelectorAll('.key-cap').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    capturingKey = (capturingKey === btn.dataset.action) ? null : btn.dataset.action;
+                    renderKeyList();
+                });
+            });
+        }
+
+        // 全局 keydown 里调用：若处于捕获模式则消费按键
+        function handleKeyCapture(e) {
+            if (!capturingKey) return false;
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.key === 'Escape') {
+                capturingKey = null;
+                renderKeyList();
+                setStatus('keys-status', '已取消');
+                return true;
+            }
+            const action = capturingKey;
+            const newKey = e.key.toLowerCase();
+            // 与其它动作冲突时交换按键
+            for (const act of Object.keys(keybinds)) {
+                if (act !== action && keybinds[act] === newKey) {
+                    keybinds[act] = keybinds[action];
+                }
+            }
+            keybinds[action] = newKey;
+            saveKeybinds();
+            refreshHomeHint();
+            capturingKey = null;
+            renderKeyList();
+            setStatus('keys-status', `已设置：${KEY_ACTION_LABELS[action]} → ${keyLabel(newKey)}`);
+            return true;
+        }
+
+        document.getElementById('go-keys').addEventListener('click', () => {
+            readName();
+            showScreen('keys');
+        });
+
+        document.getElementById('keys-reset').addEventListener('click', () => {
+            keybinds = Object.assign({}, DEFAULT_KEYBINDS);
+            saveKeybinds();
+            refreshHomeHint();
+            capturingKey = null;
+            renderKeyList();
+            setStatus('keys-status', '已恢复默认键位');
+        });
+
+        refreshHomeHint();
+
+        document.querySelectorAll('.back-btn').forEach(btn => {
+            btn.addEventListener('click', () => showScreen(btn.dataset.back));
+        });
+
+        document.getElementById('search-btn').addEventListener('click', () => {
+            const code = readCode('search-code');
+            if (!code) {
+                setStatus('search-status', '请输入房间号', true);
+                return;
+            }
+            const room = collectRooms().find(r => r.code === code);
+            if (!room) {
+                setStatus('search-status', `房间 ${code} 不存在或已关闭`, true);
+                return;
+            }
+            enterRoom(room.code, room.map);
+        });
+
+        document.getElementById('search-code').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('search-btn').click();
+        });
+
+        document.getElementById('create-btn').addEventListener('click', () => {
+            const code = readCode('room-code') || makeRoomCode();
+            const existing = collectRooms().find(r => r.code === code);
+            if (existing) {
+                setStatus('create-status', `房间 ${code} 已存在，将加入该房间`, false);
+                enterRoom(existing.code, existing.map);
+                return;
+            }
+            enterRoom(code, selectedMapId);
+        });
+
+        function updateRoomInfo() {
+            const floorLabel = currentMap.floors.length > 1 ? ` ${FLOOR + 1}F` : '';
+            const zone = currentZone();
+            const zoneLabel = zone ? ` · ${zone.name}` : '';
+            const info = document.getElementById('room-info');
+            if (info) info.textContent = `房间 ${roomCode || '----'} · ${currentMap.name}${floorLabel}${zoneLabel}`;
+            const badge = document.getElementById('room-badge');
+            if (badge) badge.textContent = `房间 ${roomCode || '----'} · ${currentMap.name}${floorLabel}${zoneLabel} · 换房`;
+        }
 
         function startGame() {
             joinOverlay.classList.add('hidden');
             hud.style.display = 'flex';
             scoreboard.style.display = 'block';
+            document.getElementById('room-badge').style.display = 'block';
             resize();
             gameRunning = true;
             lastTime = performance.now();
             lastSync = performance.now(); // 避免加入后立即重复广播
-            showToast(`已进入教室`);
+            updateRoomInfo();
+            announceLobby();
+            showToast(`已进入 ${currentMap.name} · 房间 ${roomCode}`);
         }
+
+        function leaveRoom() {
+            if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+            if (channel) {
+                try {
+                    channel.send({ type: 'broadcast', event: 'leave', payload: { id: me.id } });
+                } catch (e) { /* ignore */ }
+                channel.unsubscribe();
+                channel = null;
+            }
+            connected = false;
+            gameRunning = false;
+            roomCode = null;
+            remotePlayers.clear();
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('scoreboard').style.display = 'none';
+            document.getElementById('room-badge').style.display = 'none';
+            document.getElementById('join-status').textContent = '';
+            joinOverlay.classList.remove('hidden');
+            showScreen('home');
+            announceLobby();
+            renderRoomList();
+        }
+
+        document.getElementById('room-badge').addEventListener('click', leaveRoom);
 
         window.addEventListener('beforeunload', () => {
             if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
@@ -1737,6 +3188,20 @@
                     payload: { id: me.id }
                 });
                 channel.unsubscribe();
+            }
+            if (lobbyChannel) {
+                lobbyChannel.send({ type: 'broadcast', event: 'bye', payload: { id: me.id } });
+            }
+        });
+
+        // 进入页面就连接大厅，让开始界面直接看到在线房间
+        initSupabase().then(function (ok) {
+            if (ok) {
+                joinLobby();
+            } else {
+                const st = document.getElementById('join-status');
+                st.textContent = '⚠️ 房间列表不可用，请检查网络';
+                st.className = 'status err';
             }
         });
 

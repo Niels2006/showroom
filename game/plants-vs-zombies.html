@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>植物大战僵尸 · 网页版</title>
+<title>植物大战僵尸 · 能量豆多关卡版</title>
 <style>
   * { box-sizing: border-box; }
   html, body { min-height: 100%; }
   body {
     margin: 0;
-    padding: 18px 12px 32px;
+    padding: 16px 12px 30px;
     display: flex;
     justify-content: center;
     align-items: flex-start;
@@ -22,10 +22,8 @@
 
   /* ------- 顶部工具条 ------- */
   .hud {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 11px;
     border: 3px solid #3d2410;
     border-bottom: none;
     border-radius: 16px 16px 0 0;
@@ -34,22 +32,48 @@
   }
   .sun-bank {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-width: 78px; padding: 5px 10px 6px;
+    min-width: 72px; padding: 4px 8px 5px;
     border: 3px solid #a77a19; border-radius: 12px;
     background: radial-gradient(circle at 50% 25%, #fffbe0, #f3cf55 65%, #e0ab24);
     color: #5a3c00; font-weight: 800;
     box-shadow: inset 0 -2px 0 rgba(0,0,0,.12);
   }
-  .sun-bank .num { font-size: 21px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .sun-bank .num { font-size: 20px; line-height: 1.05; font-variant-numeric: tabular-nums; }
   .sun-bank .label { font-size: 10px; letter-spacing: 2px; opacity: .8; }
 
-  .cards { display: flex; gap: 8px; flex: 1; overflow-x: auto; padding-bottom: 2px; }
+  .energy-bank {
+    flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 4px 7px 5px; border: 2px solid #446b24; border-radius: 11px;
+    background: linear-gradient(rgba(221,244,164,.96), rgba(143,184,82,.96));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 2px 0 rgba(0,0,0,.2);
+  }
+  .energy-bank .energy-label { font-size: 9px; font-weight: 900; color: #35511d; letter-spacing: 1px; }
+  .energy-slots { display: flex; gap: 4px; }
+  .energy-slot {
+    position: relative; width: 32px; height: 36px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px dashed rgba(54,83,31,.48); border-radius: 9px;
+    background: rgba(40,66,25,.2); cursor: default; touch-action: none;
+  }
+  .energy-slot::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: rgba(46,73,28,.25); }
+  .energy-slot canvas { display: none; width: 31px; height: 31px; pointer-events: none; }
+  .energy-slot.filled {
+    border-style: solid; border-color: #699b35; background: radial-gradient(circle, #e9ff9e, #8fca47);
+    cursor: grab; box-shadow: 0 0 9px rgba(198,255,91,.65), inset 0 1px 0 #fff;
+  }
+  .energy-slot.filled::after { display: none; }
+  .energy-slot.filled canvas { display: block; }
+  .energy-slot.selected { box-shadow: 0 0 0 3px #ffe66d, 0 0 15px #d8ff65; transform: translateY(-2px); }
+  .energy-slot:active { cursor: grabbing; }
+  .energy-ghost { position: fixed; z-index: 9999; width: 58px; height: 58px; pointer-events: none; filter: drop-shadow(0 0 9px #d7ff64); }
+
+  .cards { display: flex; gap: 6px; flex: 1; overflow-x: auto; padding-bottom: 2px; }
   .cards::-webkit-scrollbar { height: 4px; }
   .cards::-webkit-scrollbar-thumb { background: rgba(255,255,255,.3); border-radius: 4px; }
   .card {
     position: relative; flex: 0 0 auto;
-    width: 76px; height: 98px;
-    padding: 2px 0 3px;
+    width: 70px; height: 92px;
+    padding: 1px 0 2px;
     display: flex; flex-direction: column; align-items: center;
     border: 2px solid #8a6b34; border-radius: 9px;
     background: linear-gradient(#f7ecc6, #ddc795);
@@ -58,9 +82,9 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 2px 0 rgba(0,0,0,.25);
   }
   .card:hover { transform: translateY(-2px); }
-  .card canvas { width: 56px; height: 52px; display: block; }
-  .card .name { font-size: 11px; font-weight: 700; color: #4a3413; margin-top: -1px; }
-  .card .cost { font-size: 12px; font-weight: 800; color: #8a5f0a; line-height: 1.15; }
+  .card canvas { width: 52px; height: 48px; display: block; }
+  .card .name { font-size: 10px; font-weight: 700; color: #4a3413; margin-top: -1px; white-space: nowrap; }
+  .card .cost { font-size: 11px; font-weight: 800; color: #8a5f0a; line-height: 1.1; }
   .card .mask {
     position: absolute; left: 0; bottom: 0; width: 100%; height: 0%;
     background: rgba(15, 15, 15, .55); pointer-events: none;
@@ -69,17 +93,17 @@
   .card.selected { box-shadow: 0 0 0 3px #ffe066, 0 0 16px #ffd633; transform: translateY(-3px); }
   .card.disabled { filter: grayscale(.6) brightness(.88); cursor: not-allowed; }
 
-  .tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .tools { display: flex; align-items: center; gap: 6px; margin-left: auto; }
   .status {
-    display: flex; flex-direction: column; gap: 2px;
-    padding: 5px 10px; border-radius: 8px;
+    display: flex; flex-direction: column; gap: 1px;
+    padding: 4px 8px; border-radius: 8px;
     background: rgba(0,0,0,.24); color: #ffeec2;
-    font-size: 11px; font-weight: 700; white-space: nowrap;
+    font-size: 10px; font-weight: 700; white-space: nowrap;
   }
-  .status b { color: #ffd54a; font-size: 13px; }
+  .status b { color: #ffd54a; font-size: 12px; }
   .btn {
     border: 2px solid #3d2410; border-radius: 9px;
-    padding: 7px 12px; cursor: pointer;
+    padding: 6px 10px; cursor: pointer;
     font-family: inherit; font-size: 12px; font-weight: 800;
     color: #3a2405;
     background: linear-gradient(#ffe9a3, #e8bd52);
@@ -88,6 +112,7 @@
   }
   .btn:hover { filter: brightness(1.05); }
   .btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.8); }
+  .btn:disabled { filter: grayscale(.7) brightness(.85); cursor: not-allowed; }
   .btn.tool { background: linear-gradient(#d9e2ea, #a9b8c4); color: #22303a; box-shadow: inset 0 1px 0 rgba(255,255,255,.8), 0 2px 0 #4a5a66; }
   .btn.tool.active { box-shadow: 0 0 0 3px #ffe066, 0 0 14px #ffd633; background: linear-gradient(#fff4c2, #f0cf67); }
 
@@ -105,10 +130,10 @@
   .banner {
     position: absolute; left: 50%; top: 20px;
     transform: translate(-50%, -18px);
-    padding: 10px 26px; border-radius: 12px;
+    padding: 9px 24px; border-radius: 12px;
     background: rgba(12, 26, 12, .82);
     border: 2px solid #ffcf3f;
-    color: #ffe873; font-size: 22px; font-weight: 900;
+    color: #ffe873; font-size: 21px; font-weight: 900;
     letter-spacing: 2px; white-space: nowrap;
     text-shadow: 0 2px 6px rgba(0,0,0,.7);
     opacity: 0; pointer-events: none;
@@ -119,51 +144,176 @@
   .overlay {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    padding: 18px;
-    background: rgba(6, 16, 8, .66);
+    padding: 14px;
+    background: rgba(6, 16, 8, .68);
     backdrop-filter: blur(3px);
     border-radius: 0 0 16px 16px;
     opacity: 0; pointer-events: none;
     transition: opacity .2s ease;
     line-height: 1.5;
+    overflow-y: auto;
   }
   .overlay.visible { opacity: 1; pointer-events: auto; }
   .panel {
-    width: min(560px, 100%);
-    padding: 26px 30px 24px;
+    width: min(540px, 100%);
+    max-height: 100%;
+    padding: 22px 26px 20px;
     border-radius: 18px;
     border: 3px solid #6b4a1c;
     background: linear-gradient(#fff8dd, #efdfb4);
     box-shadow: 0 18px 44px rgba(0,0,0,.5), inset 0 2px 0 #fff;
     text-align: center;
+    overflow-y: auto;
   }
+  .panel.wide { width: min(900px, 100%); text-align: left; }
   .panel h1 {
-    margin: 0 0 4px; font-size: 30px; letter-spacing: 2px;
-    color: #4b7d24;
+    margin: 0 0 4px; font-size: 27px; letter-spacing: 2px;
+    color: #4b7d24; text-align: center;
     text-shadow: 0 2px 0 #d8efc0, 0 3px 0 rgba(0,0,0,.12);
   }
   .panel h1.bad { color: #b23b2e; text-shadow: 0 2px 0 #f3d0c8, 0 3px 0 rgba(0,0,0,.12); }
-  .panel .sub { margin: 0 0 14px; font-size: 13px; color: #7a6a45; }
+  .panel .sub { margin: 0 0 12px; font-size: 13px; color: #7a6a45; text-align: center; }
   .panel .tips {
-    margin: 0 auto 18px; padding: 0; max-width: 430px;
-    list-style: none; text-align: left;
-    font-size: 13px; color: #4b3e22;
+    margin: 0 auto 14px; padding: 0; max-width: 430px;
+    list-style: none; text-align: left; font-size: 13px; color: #4b3e22;
   }
-  .panel .tips li { position: relative; padding-left: 18px; margin: 6px 0; }
+  .panel .tips li { position: relative; padding-left: 18px; margin: 5px 0; }
   .panel .tips li::before {
     content: ""; position: absolute; left: 4px; top: 7px;
     width: 7px; height: 7px; border-radius: 50%;
     background: #84b83c; box-shadow: 0 0 0 2px #d9eab7;
   }
-  .panel .stats { margin: 6px 0 18px; font-size: 14px; color: #5c4a24; }
+  .panel .stats { margin: 4px 0 14px; font-size: 14px; color: #5c4a24; text-align: center; }
   .panel .stats b { color: #c07f12; font-size: 18px; }
-  .panel .btn { padding: 11px 30px; font-size: 15px; }
-  .panel .btn + .btn { margin-left: 10px; }
+  .panel .btn { padding: 9px 22px; font-size: 14px; }
+  .panel .btn + .btn { margin-left: 8px; }
+
+  /* 关卡选择 */
+  .level-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin: 12px 0 6px; }
+  .level-card {
+    position: relative; display: flex; flex-direction: column; gap: 3px;
+    padding: 12px 14px; cursor: pointer; text-align: left;
+    border: 2px solid #9b7c40; border-radius: 12px;
+    background: linear-gradient(#fffdf2, #f3e7c8);
+    font-family: inherit; color: #43361c;
+    box-shadow: inset 0 1px 0 #fff, 0 3px 0 rgba(120, 90, 40, .25);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .level-card:hover { transform: translateY(-2px); box-shadow: inset 0 1px 0 #fff, 0 6px 12px rgba(80,60,20,.25); }
+  .level-card .lv-no { font-size: 11px; font-weight: 800; color: #9a7a2c; letter-spacing: 1px; }
+  .level-card .lv-name { font-size: 16px; font-weight: 900; color: #4b6b22; }
+  .level-card .lv-meta { font-size: 12px; color: #8a6a2c; font-weight: 700; }
+  .level-card .lv-desc { font-size: 11px; color: #6f6446; line-height: 1.45; }
+  .level-card.done { border-color: #6fa03a; background: linear-gradient(#f8fff0, #e6f3cf); }
+  .level-card .lv-done {
+    position: absolute; right: 10px; top: 10px;
+    font-size: 10px; font-weight: 800; color: #4b7d24;
+    border: 1px solid #8ebc55; border-radius: 8px; padding: 1px 6px;
+    background: #f0f8e0;
+  }
+
+  /* 选卡 */
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .tab {
+    border: 2px solid #a98a4e; border-radius: 8px;
+    padding: 4px 11px; cursor: pointer;
+    background: #fff9e8; color: #6a5527;
+    font-family: inherit; font-size: 12px; font-weight: 800;
+  }
+  .tab.on { background: #6fa03a; border-color: #4b7d24; color: #fff; }
+  .seed-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 7px; max-height: 300px; overflow-y: auto;
+    padding: 8px; border-radius: 10px;
+    background: rgba(120, 95, 45, .12);
+    border: 1px solid rgba(120, 95, 45, .22);
+  }
+  .seed-card {
+    position: relative; display: flex; flex-direction: column; align-items: center;
+    padding: 3px 2px 4px; cursor: pointer;
+    border: 2px solid #b79a5e; border-radius: 9px;
+    background: linear-gradient(#fffdf3, #efe1bd);
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .seed-card:hover { transform: translateY(-2px); }
+  .seed-card canvas { width: 50px; height: 46px; }
+  .seed-card .sname { font-size: 10px; font-weight: 700; color: #4a3617; white-space: nowrap; }
+  .seed-card .scost { font-size: 10px; font-weight: 800; color: #8a5f0a; }
+  .seed-card.sel { box-shadow: 0 0 0 3px #ffd633, 0 0 12px rgba(255, 210, 50, .7); border-color: #e0a51e; }
+  .seed-card .order {
+    position: absolute; right: -6px; top: -6px;
+    width: 19px; height: 19px; border-radius: 50%;
+    background: #e8a91e; color: #fff; font-size: 11px; font-weight: 900;
+    display: none; align-items: center; justify-content: center;
+    border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  }
+  .seed-card.sel .order { display: flex; }
+  .seed-card.hide { display: none; }
+  .sel-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 9px 0; font-size: 13px; font-weight: 700; color: #6a5527;
+  }
+  .sel-bar b { color: #b0760c; font-size: 16px; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+  .actions .btn { padding: 8px 18px; font-size: 13px; }
+
+  /* ---------- 图鉴 ---------- */
+  .codex-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .codex-head h1 { margin: 0; }
+  .codex-tabs { display: flex; gap: 6px; }
+  .codex-tab {
+    border: 2px solid #a98a4e; border-radius: 8px;
+    padding: 5px 16px; cursor: pointer; background: #fff9e8; color: #6a5527;
+    font-family: inherit; font-size: 13px; font-weight: 800;
+  }
+  .codex-tab.on { background: #6fa03a; border-color: #4b7d24; color: #fff; }
+  .codex-body {
+    display: grid; grid-template-columns: 1fr 320px; gap: 10px;
+    margin-top: 8px;
+  }
+  .codex-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+    gap: 7px; max-height: 420px; overflow-y: auto;
+    padding: 8px; border-radius: 10px;
+    background: rgba(120, 95, 45, .1);
+    border: 1px solid rgba(120, 95, 45, .2);
+  }
+  .codex-item {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 4px 2px 5px; cursor: pointer;
+    border: 2px solid #b79a5e; border-radius: 9px;
+    background: linear-gradient(#fffdf3, #efe1bd);
+    transition: transform .1s ease, box-shadow .1s ease;
+  }
+  .codex-item:hover { transform: translateY(-2px); }
+  .codex-item canvas { width: 50px; height: 50px; display: block; }
+  .codex-item .ci-name { font-size: 10.5px; font-weight: 800; color: #4a3617; margin-top: 1px; white-space: nowrap; }
+  .codex-item .ci-sub { font-size: 9.5px; font-weight: 700; color: #8a5f0a; }
+  .codex-item.sel { box-shadow: 0 0 0 3px #ffd633, 0 0 12px rgba(255, 210, 50, .7); border-color: #e0a51e; }
+  .codex-detail {
+    padding: 10px 12px; border-radius: 10px;
+    background: linear-gradient(#fffdf3, #f0e3bf);
+    border: 2px solid #b79a5e;
+    display: flex; flex-direction: column; align-items: center;
+    max-height: 440px; overflow-y: auto;
+  }
+  .codex-detail canvas { width: 130px; height: 130px; display: block; }
+  .codex-detail .cd-name { font-size: 18px; font-weight: 900; color: #4a6b22; margin: 4px 0 1px; }
+  .codex-detail .cd-cat { font-size: 11px; font-weight: 700; color: #8a6a2c; margin-bottom: 6px; }
+  .codex-stats { width: 100%; font-size: 12px; color: #4b3e22; border-collapse: collapse; }
+  .codex-stats td { padding: 3px 4px; border-bottom: 1px dashed rgba(120,95,45,.25); vertical-align: top; }
+  .codex-stats td:first-child { width: 58%; color: #7a6325; font-weight: 700; }
+  .codex-stats td:last-child { text-align: right; font-weight: 800; color: #2c3a1a; }
+  .codex-desc { width: 100%; margin: 8px 0 0; padding: 7px 9px; border-radius: 8px; background: rgba(111,160,58,.12); font-size: 11.5px; color: #3e501e; line-height: 1.5; }
+  .codex-desc b { color: #4b7d24; }
+  .codex-note { text-align: center; font-size: 11px; color: #7a6325; margin-top: 8px; }
 
   .hint {
     margin: 12px 4px 0; text-align: center;
-    font-size: 12px; color: rgba(220, 240, 210, .62);
-    line-height: 1.7;
+    font-size: 12px; color: rgba(220, 240, 210, .62); line-height: 1.7;
   }
   .hint kbd {
     padding: 1px 5px; border-radius: 4px;
@@ -171,15 +321,17 @@
     font-family: inherit; font-size: 11px; color: #e7f6dc;
   }
 
-  @media (max-width: 760px) {
-    .sun-bank { min-width: 62px; padding: 4px 6px; }
-    .sun-bank .num { font-size: 17px; }
-    .card { width: 64px; height: 88px; }
-    .card canvas { width: 48px; height: 44px; }
+  @media (max-width: 780px) {
+    .sun-bank { min-width: 58px; padding: 3px 5px; }
+    .sun-bank .num { font-size: 16px; }
+    .card { width: 56px; height: 80px; }
+    .card canvas { width: 44px; height: 40px; }
+    .card .name { font-size: 9px; }
     .status { display: none; }
-    .banner { font-size: 15px; padding: 7px 14px; }
-    .panel { padding: 18px; }
-    .panel h1 { font-size: 23px; }
+    .banner { font-size: 15px; padding: 6px 12px; }
+    .panel { padding: 16px; }
+    .panel h1 { font-size: 22px; }
+    .seed-grid { max-height: 230px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
   }
 </style>
 </head>
@@ -190,15 +342,24 @@
       <span class="num" id="sunCount">150</span>
       <span class="label">阳光</span>
     </div>
+    <div class="energy-bank" title="击败带黄色电光的僵尸获得能量豆；拖到植物上释放大招">
+      <span class="energy-label">能量豆</span>
+      <div class="energy-slots" id="energySlots">
+        <button class="energy-slot" data-slot="0" aria-label="能量豆槽 1"><canvas width="84" height="84"></canvas></button>
+        <button class="energy-slot" data-slot="1" aria-label="能量豆槽 2"><canvas width="84" height="84"></canvas></button>
+        <button class="energy-slot" data-slot="2" aria-label="能量豆槽 3"><canvas width="84" height="84"></canvas></button>
+      </div>
+    </div>
     <div class="cards" id="seedCards"></div>
     <div class="tools">
       <button class="btn tool" id="shovelBtn" title="铲除植物">铲子</button>
       <div class="status">
-        <span>第 <b id="waveNum">1</b> / 10 波</span>
-        <span>击杀 <b id="killNum">0</b></span>
+        <span id="levelName">前院草坪</span>
+        <span>第 <b id="waveNum">1</b> / <b id="waveTotal">8</b> 波</span>
       </div>
       <button class="btn tool" id="pauseBtn">暂停</button>
-      <button class="btn tool" id="restartBtn">重开</button>
+      <button class="btn tool" id="codexBtn" title="查看植物与僵尸图鉴">图鉴</button>
+      <button class="btn tool" id="menuBtn">关卡</button>
     </div>
   </div>
 
@@ -209,7 +370,7 @@
   </div>
 
   <p class="hint">
-    点击卡片选植物 → 点击草坪种植 ｜ 点击阳光收集 ｜ 快捷键 <kbd>1</kbd>–<kbd>6</kbd> 选植物，<kbd>Esc</kbd> 取消，<kbd>空格</kbd> 暂停
+    选择植物 → 点击草坪种植 ｜ 点击阳光收集 ｜ 拖动能量豆到植物上释放大招（也可点选后点植物） ｜ <kbd>1</kbd>–<kbd>8</kbd> 选植物，<kbd>Esc</kbd> 取消，<kbd>空格</kbd> 暂停
   </p>
 </div>
 
@@ -233,7 +394,6 @@
   const GRID_Y = 92;
   const GRID_W = COLS * CELL_W;
   const GRID_H = ROWS * CELL_H;
-  const TOTAL_WAVES = 10;
 
   const $ = (id) => document.getElementById(id);
 
@@ -264,6 +424,17 @@
     c.quadraticCurveTo(x, y, x + r, y);
     c.closePath();
   }
+  function starPath(c, cx, cy, outer, inner, points, rot) {
+    c.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const r = i % 2 === 0 ? outer : inner;
+      const a = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2 + (rot || 0);
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r;
+      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+    }
+    c.closePath();
+  }
   function mulberry32(a) {
     return function () {
       a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -274,37 +445,262 @@
   }
   const cellCenterX = (col) => GRID_X + col * CELL_W + CELL_W / 2;
   const cellCenterY = (row) => GRID_Y + row * CELL_H + CELL_H / 2;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   /* =========================================================
-     数值配置
+     植物配置（54 种）
      ========================================================= */
-  const PLANTS = {
-    sunflower:  { name: '向日葵',   cost: 50,  hp: 300,  cooldown: 5,  desc: '每 8 秒产出 25 阳光' },
-    peashooter: { name: '豌豆射手', cost: 100, hp: 300,  cooldown: 5,  desc: '向前发射豌豆' },
-    wallnut:    { name: '坚果墙',   cost: 50,  hp: 3000, cooldown: 20, desc: '高血量，阻挡僵尸' },
-    snowpea:    { name: '寒冰射手', cost: 175, hp: 300,  cooldown: 8,  desc: '冰冻减速僵尸' },
-    repeater:   { name: '双发射手', cost: 200, hp: 300,  cooldown: 8,  desc: '一次发射两颗豌豆' },
-    cherrybomb: { name: '樱桃炸弹', cost: 150, hp: 9999, cooldown: 30, desc: '炸毁周围区域僵尸' }
-  };
-  const PLANT_ORDER = ['sunflower', 'peashooter', 'wallnut', 'snowpea', 'repeater', 'cherrybomb'];
+  const PLANT_LIST = [
+    /* ---------- 阳光系 ---------- */
+    { id: 'sunflower', name: '向日葵', cat: 'sun', cost: 50, cd: 5, hp: 300, kind: 'sun',
+      sun: { a: 25, i: 8, f: 6 }, art: { family: 'flower', petal: '#ffd34d', center: '#f0a92a', scale: 1 },
+      desc: '每 8 秒产出 25 阳光' },
+    { id: 'twinsun', name: '双胞向日葵', cat: 'sun', cost: 150, cd: 8, hp: 320, kind: 'sun',
+      sun: { a: 50, i: 11, f: 8 }, art: { family: 'flower', petal: '#ffd34d', center: '#f0a92a', heads: 2, scale: 1 },
+      desc: '双花盘，每次产出 50 阳光' },
+    { id: 'sunshroom', name: '阳光菇', cat: 'sun', cost: 25, cd: 5, hp: 250, kind: 'sun',
+      sun: { a: 15, i: 6.5, f: 5 }, art: { family: 'mushroom', variant: 'sun', cap: '#e8d178', spot: '#fff6cf', scale: 0.9 },
+      desc: '廉价的阳光来源' },
+    { id: 'sunbloom', name: '太阳花', cat: 'sun', cost: 100, cd: 7, hp: 300, kind: 'sun',
+      sun: { a: 30, i: 7.5, f: 5.5 }, art: { family: 'flower', petal: '#ffe066', center: '#e89a18', scale: 1.08 },
+      desc: '产出更高的太阳花' },
+    { id: 'goldbloom', name: '金盏花', cat: 'sun', cost: 200, cd: 10, hp: 350, kind: 'sun',
+      sun: { a: 40, i: 9, f: 6 }, art: { family: 'flower', petal: '#ffc93c', center: '#c97f10', scale: 1.1 },
+      desc: '每次产出 40 阳光' },
+    { id: 'moonflower', name: '月光花', cat: 'sun', cost: 175, cd: 12, hp: 350, kind: 'sunbuff',
+      sun: { a: 20, i: 9, f: 7 }, art: { family: 'support', variant: 'moon', scale: 1 },
+      desc: '自身产阳光，相邻阳光植物产量 +50%' },
 
-  const ZOMBIES = {
-    basic:  { hp: 180,  speed: 20 },
-    cone:   { hp: 450,  speed: 20 },
-    bucket: { hp: 1000, speed: 17 }
+    /* ---------- 射手系 ---------- */
+    { id: 'peashooter', name: '豌豆射手', cat: 'attack', cost: 100, cd: 5, hp: 300, kind: 'shooter',
+      proj: { type: 'pea', dmg: 20, interval: 1.4, count: 1, rows: 1 },
+      art: { family: 'shooter', style: 'pea', head: '#5fbf4a', dark: '#3f9b33' }, desc: '向前发射豌豆' },
+    { id: 'repeater', name: '双发射手', cat: 'attack', cost: 200, cd: 7, hp: 300, kind: 'shooter',
+      proj: { type: 'pea', dmg: 20, interval: 1.4, count: 2, rows: 1 },
+      art: { family: 'shooter', style: 'pea', head: '#4fb03a', dark: '#2f7a28', barrels: 2 }, desc: '一次发射两颗豌豆' },
+    { id: 'snowpea', name: '寒冰射手', cat: 'attack', cost: 175, cd: 7, hp: 300, kind: 'shooter',
+      proj: { type: 'snow', dmg: 20, interval: 1.5, count: 1, rows: 1, slow: 3 },
+      art: { family: 'shooter', style: 'snow', head: '#8fd9ec', dark: '#5cb9d6' }, desc: '豌豆附带冰冻减速' },
+    { id: 'threepeater', name: '三线射手', cat: 'attack', cost: 325, cd: 9, hp: 300, kind: 'shooter',
+      proj: { type: 'pea', dmg: 20, interval: 1.6, count: 1, rows: 3 },
+      art: { family: 'shooter', style: 'pea', head: '#6ec44f', dark: '#3f8b2a' }, desc: '同时攻击上中下三行' },
+    { id: 'firepea', name: '火焰豌豆', cat: 'attack', cost: 225, cd: 8, hp: 300, kind: 'shooter',
+      proj: { type: 'fire', dmg: 32, interval: 1.4, count: 1, rows: 1 },
+      art: { family: 'shooter', style: 'fire', head: '#e8622c', dark: '#a83712' }, desc: '灼热的火焰豌豆，伤害更高' },
+    { id: 'gatling', name: '机枪射手', cat: 'attack', cost: 450, cd: 22, hp: 400, kind: 'shooter',
+      proj: { type: 'pea', dmg: 22, interval: 1.2, count: 4, rows: 1 },
+      art: { family: 'shooter', style: 'gatling', head: '#7f9a5a', dark: '#485c2f', barrels: 4 }, desc: '四联装连射，火力凶猛' },
+    { id: 'cactus', name: '仙人掌', cat: 'attack', cost: 125, cd: 6, hp: 320, kind: 'shooter',
+      proj: { type: 'spike', dmg: 28, interval: 1.5, count: 1, rows: 1, pierce: true },
+      art: { family: 'shooter', style: 'cactus', head: '#4fae4a', dark: '#2f7a28' }, desc: '发射尖刺，可穿透多个僵尸' },
+    { id: 'starfruit', name: '杨桃', cat: 'attack', cost: 200, cd: 9, hp: 300, kind: 'shooter',
+      proj: { type: 'star', dmg: 20, interval: 1.5, count: 1, rows: 1, fiveWay: true },
+      art: { family: 'shooter', style: 'star', head: '#ffd23f', dark: '#c99a10' }, desc: '向五个方向发射星星' },
+    { id: 'laserbean', name: '激光豆', cat: 'attack', cost: 300, cd: 12, hp: 350, kind: 'laser',
+      dmg: 55, interval: 2.4, art: { family: 'shooter', style: 'tech', head: '#7fd0e8', dark: '#327b92' },
+      desc: '发射穿透整行的激光' },
+    { id: 'lightning', name: '电击菇', cat: 'attack', cost: 250, cd: 12, hp: 300, kind: 'chain',
+      dmg: 28, interval: 2.0, chains: 3, art: { family: 'mushroom', variant: 'zap', cap: '#a97fe0', spot: '#e9dbff', scale: 1 },
+      desc: '闪电在僵尸之间连锁跳跃' },
+    { id: 'flamegrass', name: '火龙草', cat: 'attack', cost: 250, cd: 10, hp: 320, kind: 'flame',
+      dps: 60, range: 170, art: { family: 'shooter', style: 'flame', head: '#e04a2a', dark: '#8f2a12' },
+      desc: '持续喷射火焰，同时灼烧前方僵尸' },
+    { id: 'boomerang', name: '回旋镖射手', cat: 'attack', cost: 175, cd: 9, hp: 300, kind: 'boomerang',
+      dmg: 25, interval: 2.0, art: { family: 'shooter', style: 'boomer', head: '#c9a05a', dark: '#8a5a24' },
+      desc: '回旋镖飞出后折返，可多次命中' },
+    { id: 'icecone', name: '冰锥射手', cat: 'attack', cost: 250, cd: 10, hp: 320, kind: 'shooter',
+      proj: { type: 'snow', dmg: 30, interval: 1.8, count: 1, rows: 1, slow: 4 },
+      art: { family: 'shooter', style: 'snow', head: '#9fe3f7', dark: '#4aa8c8', scale: 1.05 }, desc: '冰锥伤害更高、减速更久' },
+    { id: 'toxicpea', name: '毒豆射手', cat: 'attack', cost: 225, cd: 10, hp: 300, kind: 'shooter',
+      proj: { type: 'toxic', dmg: 18, interval: 1.5, count: 1, rows: 1, poison: 10 },
+      art: { family: 'shooter', style: 'toxic', head: '#9fd14a', dark: '#5f8f1f' }, desc: '毒液持续腐蚀僵尸' },
+    { id: 'doublesnow', name: '双发寒冰', cat: 'attack', cost: 350, cd: 14, hp: 320, kind: 'shooter',
+      proj: { type: 'snow', dmg: 20, interval: 1.6, count: 2, rows: 1, slow: 3 },
+      art: { family: 'shooter', style: 'snow', head: '#7fd4ec', dark: '#3f97b5', barrels: 2 }, desc: '双倍冰豌豆压制' },
+    { id: 'triplerep', name: '三线双发', cat: 'attack', cost: 550, cd: 25, hp: 360, kind: 'shooter',
+      proj: { type: 'pea', dmg: 20, interval: 1.7, count: 2, rows: 3 },
+      art: { family: 'shooter', style: 'pea', head: '#57b93c', dark: '#2f7a28', barrels: 3 }, desc: '三行×双发的重型火力' },
+    { id: 'spikepea', name: '尖刺射手', cat: 'attack', cost: 225, cd: 10, hp: 320, kind: 'shooter',
+      proj: { type: 'spike', dmg: 26, interval: 1.5, count: 1, rows: 1 },
+      art: { family: 'shooter', style: 'cactus', head: '#7fc44a', dark: '#3f8b2a' }, desc: '尖刺射击，性价比高' },
+    { id: 'peacannon', name: '豌豆炮台', cat: 'attack', cost: 400, cd: 20, hp: 500, kind: 'shooter',
+      proj: { type: 'pea', dmg: 60, interval: 2.2, count: 1, rows: 1, splash: 45 },
+      art: { family: 'shooter', style: 'gatling', head: '#6f9a4a', dark: '#3f5c2f', barrels: 1, scale: 1.12 },
+      desc: '重炮豌豆，落点范围伤害' },
+
+    /* ---------- 投手系 ---------- */
+    { id: 'cabbage', name: '卷心菜投手', cat: 'attack', cost: 100, cd: 7, hp: 300, kind: 'lobber',
+      dmg: 40, interval: 2.9, splash: 50, art: { family: 'lobber', fruit: 'cabbage', body: '#5fbf4a' }, desc: '抛出卷心菜越墙攻击' },
+    { id: 'corn', name: '玉米投手', cat: 'attack', cost: 150, cd: 8, hp: 300, kind: 'lobber',
+      dmg: 20, interval: 2.9, splash: 45, stun: 0.25, art: { family: 'lobber', fruit: 'corn', body: '#7fb43f' }, desc: '75% 玉米粒、25% 黄油，黄油可定身' },
+    { id: 'melon', name: '西瓜投手', cat: 'attack', cost: 300, cd: 12, hp: 340, kind: 'lobber',
+      dmg: 80, interval: 3.2, splash: 95, art: { family: 'lobber', fruit: 'melon', body: '#4f9e3a' }, desc: '西瓜爆炸造成范围伤害' },
+    { id: 'wintermelon', name: '冰西瓜', cat: 'attack', cost: 500, cd: 22, hp: 360, kind: 'lobber',
+      dmg: 60, interval: 3.5, splash: 100, slow: 4, art: { family: 'lobber', fruit: 'wintermelon', body: '#4aa88f' }, desc: '冰西瓜范围伤害并减速' },
+    { id: 'pumpkinlob', name: '南瓜投手', cat: 'attack', cost: 250, cd: 12, hp: 340, kind: 'lobber',
+      dmg: 55, interval: 3, splash: 80, burn: true, art: { family: 'lobber', fruit: 'pumpkin', body: '#6f9e3a' }, desc: '燃烧的南瓜造成灼伤' },
+    { id: 'stonethrower', name: '投石车', cat: 'attack', cost: 350, cd: 16, hp: 650, kind: 'lobber',
+      dmg: 110, interval: 4, splash: 70, art: { family: 'lobber', fruit: 'stone', body: '#8a7a63' }, desc: '沉重石块，伤害极高' },
+    { id: 'cobcannon', name: '玉米加农炮', cat: 'attack', cost: 500, cd: 30, hp: 650, kind: 'lobber',
+      dmg: 400, interval: 12, splash: 150, art: { family: 'lobber', fruit: 'cob', body: '#8a9e3a' }, desc: '毁灭性范围轰炸，冷却很长' },
+
+    /* ---------- 防御系 ---------- */
+    { id: 'wallnut', name: '坚果墙', cat: 'defense', cost: 50, cd: 20, hp: 4000, kind: 'wall',
+      art: { family: 'nut', shape: 'round', body: '#c98a4b' }, desc: '高血量屏障，阻挡僵尸' },
+    { id: 'tallnut', name: '高坚果', cat: 'defense', cost: 125, cd: 22, hp: 6000, kind: 'wall', blockVault: true,
+      art: { family: 'nut', shape: 'tall', body: '#c08a4a' }, desc: '更高更硬，撑杆僵尸无法跳过' },
+    { id: 'metalnut', name: '铁坚果', cat: 'defense', cost: 250, cd: 25, hp: 8000, kind: 'wall', reduce: 0.4,
+      art: { family: 'nut', shape: 'metal', body: '#9aa4ad' }, desc: '铁壳护体，受到的啃食伤害降低' },
+    { id: 'pumpkinhead', name: '南瓜头', cat: 'defense', cost: 125, cd: 20, hp: 4500, kind: 'wall',
+      art: { family: 'nut', shape: 'pumpkin', body: '#e08a2c' }, desc: '厚实的南瓜外壳' },
+    { id: 'garlic', name: '大蒜', cat: 'defense', cost: 75, cd: 20, hp: 900, kind: 'garlic',
+      art: { family: 'garlic' }, desc: '被吃掉后把僵尸赶到相邻行' },
+    { id: 'thornwall', name: '荆棘墙', cat: 'defense', cost: 150, cd: 20, hp: 3500, kind: 'wall', reflect: 25,
+      art: { family: 'nut', shape: 'thorn', body: '#5f8f3a' }, desc: '啃食它的僵尸会被荆棘反伤' },
+    { id: 'ironpumpkin', name: '钢铁南瓜', cat: 'defense', cost: 300, cd: 28, hp: 9000, kind: 'wall', reduce: 0.5,
+      art: { family: 'nut', shape: 'ironpumpkin', body: '#7f8a94' }, desc: '最强的防御植物，减伤一半' },
+    { id: 'chomper', name: '大嘴花', cat: 'defense', cost: 150, cd: 12, hp: 400, kind: 'chomper',
+      dmg: 3000, interval: 20, art: { family: 'chomper' }, desc: '一口吞掉僵尸，之后需要咀嚼' },
+
+    /* ---------- 陷阱 / 瞬发 ---------- */
+    { id: 'potatomine', name: '土豆雷', cat: 'trap', cost: 25, cd: 12, hp: 300, kind: 'mine',
+      arm: 14, dmg: 1800, art: { family: 'bomb', variant: 'potato' }, desc: '埋入地下，14 秒后炸飞踩中的僵尸' },
+    { id: 'cherrybomb', name: '樱桃炸弹', cat: 'trap', cost: 150, cd: 25, hp: 9999, kind: 'instant',
+      fuse: 1.1, effect: 'explode', dmg: 1800, radius: 125, art: { family: 'bomb', variant: 'cherry' }, desc: '立刻炸毁周围 3×3 区域的僵尸' },
+    { id: 'squash', name: '窝瓜', cat: 'trap', cost: 50, cd: 18, hp: 400, kind: 'squash',
+      dmg: 1500, art: { family: 'bomb', variant: 'squash' }, desc: '压扁靠近的第一只僵尸' },
+    { id: 'icelettuce', name: '冰冻生菜', cat: 'trap', cost: 75, cd: 20, hp: 300, kind: 'instant',
+      fuse: 0.8, effect: 'freeze', radius: 115, freeze: 4, art: { family: 'bomb', variant: 'lettuce' }, desc: '冻结周围僵尸 4 秒' },
+    { id: 'jalapeno', name: '火爆辣椒', cat: 'trap', cost: 125, cd: 25, hp: 9999, kind: 'instant',
+      fuse: 1.0, effect: 'burnrow', dmg: 2000, art: { family: 'bomb', variant: 'chili' }, desc: '烧毁整行的所有僵尸' },
+    { id: 'spikeweed', name: '地刺', cat: 'trap', cost: 100, cd: 12, hp: 2000, kind: 'spike', dps: 22,
+      art: { family: 'spike', tone: '#b0b8c0', count: 4 }, desc: '僵尸经过时持续受伤' },
+    { id: 'spikerock', name: '地刺王', cat: 'trap', cost: 250, cd: 18, hp: 3600, kind: 'spike', dps: 45,
+      art: { family: 'spike', tone: '#c7d0d8', count: 6, crystal: true }, desc: '更强更高的地刺' },
+    { id: 'magnetshroom', name: '磁力菇', cat: 'trap', cost: 100, cd: 20, hp: 300, kind: 'magnet',
+      interval: 8, range: 3, art: { family: 'mushroom', variant: 'magnet', cap: '#b07fd8', spot: '#f0e0ff' }, desc: '吸走僵尸身上的金属装备' },
+    { id: 'glueshroom', name: '粘液菇', cat: 'trap', cost: 125, cd: 18, hp: 300, kind: 'slowaura',
+      interval: 2.2, slow: 2.6, radius: 150, art: { family: 'mushroom', variant: 'glue', cap: '#8fc46a', spot: '#dff0c0' }, desc: '持续减速周围僵尸' },
+    { id: 'doomshroom', name: '毁灭菇', cat: 'trap', cost: 500, cd: 40, hp: 9999, kind: 'instant',
+      fuse: 1.4, effect: 'doom', dmg: 4500, radius: 210, art: { family: 'mushroom', variant: 'doom', cap: '#4a3a5a', spot: '#7a5a9a', scale: 1.1 }, desc: '超大范围毁灭性爆炸' },
+    { id: 'iceshroom', name: '寒冰菇', cat: 'trap', cost: 200, cd: 35, hp: 9999, kind: 'instant',
+      fuse: 1.0, effect: 'freezeall', freeze: 3.5, art: { family: 'mushroom', variant: 'ice', cap: '#9fd8ef', spot: '#e8faff' }, desc: '冻结全场僵尸数秒' },
+
+    /* ---------- 辅助系 ---------- */
+    { id: 'torchwood', name: '火炬树桩', cat: 'support', cost: 200, cd: 12, hp: 600, kind: 'torchwood',
+      art: { family: 'support', variant: 'torch' }, desc: '穿过它的豌豆会变成火焰，伤害 +50%' },
+    { id: 'aloe', name: '芦荟', cat: 'support', cost: 150, cd: 15, hp: 300, kind: 'healer', heal: 45,
+      art: { family: 'support', variant: 'aloe' }, desc: '持续治疗周围受伤的植物' },
+    { id: 'buffvine', name: '强化藤', cat: 'support', cost: 250, cd: 20, hp: 400, kind: 'buff', dmgMul: 0.35,
+      art: { family: 'support', variant: 'vine' }, desc: '相邻植物伤害提高 35%' },
+    { id: 'clover', name: '三叶草', cat: 'support', cost: 150, cd: 18, hp: 300, kind: 'gust',
+      interval: 12, push: 55, art: { family: 'support', variant: 'clover' }, desc: '定期刮起强风把僵尸吹退' }
+  ];
+
+  const PLANTS = {};
+  PLANT_LIST.forEach((p) => { PLANTS[p.id] = p; });
+  const CAT_NAMES = { sun: '阳光', attack: '攻击', defense: '防御', trap: '陷阱', support: '辅助' };
+
+  /* =========================================================
+     僵尸配置
+     ========================================================= */
+  const ZOMBIE_TYPES = {
+    basic:      { hp: 270, speed: 20, name: '普通僵尸' },
+    cone:       { hp: 640, speed: 20, name: '路障僵尸' },
+    bucket:     { hp: 1370, speed: 18, name: '铁桶僵尸' },
+    newspaper:  { hp: 380, speed: 21, name: '读报僵尸' },
+    screendoor: { hp: 750, speed: 19, name: '铁门僵尸', reduce: 0.6 },
+    polevaulter:{ hp: 380, speed: 33, name: '撑杆僵尸', vault: true },
+    football:   { hp: 1600, speed: 34, name: '橄榄球僵尸' },
+    giant:      { hp: 5000, speed: 13, name: '巨人僵尸', big: true, eatDps: 400 },
+    flag:       { hp: 270, speed: 28, name: '旗帜僵尸' },
+    imp:        { hp: 140, speed: 42, name: '小鬼僵尸', small: true },
+    torch:      { hp: 350, speed: 31, name: '火把僵尸', eatDps: 240 },
+    hammer:     { hp: 600, speed: 18, name: '锤子僵尸', reduce: 0.35 },
+    knight:     { hp: 1900, speed: 16, name: '骑士僵尸', reduce: 0.25 }
   };
 
-  const WAVES = [
-    ['basic', 'basic', 'basic'],
-    ['basic', 'basic', 'basic', 'basic'],
-    ['basic', 'cone', 'basic', 'cone', 'basic'],
-    ['basic', 'basic', 'cone', 'cone', 'basic', 'basic'],
-    ['basic', 'cone', 'basic', 'cone', 'bucket', 'basic', 'cone', 'basic'],
-    ['cone', 'basic', 'cone', 'bucket', 'cone', 'basic', 'basic'],
-    ['cone', 'cone', 'bucket', 'basic', 'cone', 'bucket', 'basic', 'cone'],
-    ['bucket', 'cone', 'basic', 'cone', 'bucket', 'cone', 'basic', 'cone', 'bucket'],
-    ['cone', 'bucket', 'cone', 'bucket', 'cone', 'bucket', 'basic', 'cone', 'bucket', 'cone'],
-    ['bucket', 'bucket', 'cone', 'cone', 'bucket', 'cone', 'bucket', 'cone', 'bucket', 'bucket', 'cone', 'bucket', 'cone', 'cone']
+  /* =========================================================
+     关卡配置
+     ========================================================= */
+  const LEVELS = [
+    {
+      name: '前院草坪', stars: 1, waves: 8, hpMul: 1, speedMul: 1, density: 0.9,
+      startSun: 150, sky: [9, 12], tint: null, fog: 0, blocked: [],
+      pool: ['basic', 'cone', 'bucket'],
+      desc: '熟悉节奏与能量豆：普通、路障、铁桶僵尸轮番登场。'
+    },
+    {
+      name: '黄昏前院', stars: 2, waves: 10, hpMul: 1.2, speedMul: 1.02, density: 1.0,
+      startSun: 175, sky: [9, 12], tint: 'rgba(120, 60, 20, .14)', fog: 0, blocked: [],
+      pool: ['basic', 'cone', 'bucket', 'newspaper', 'flag'],
+      desc: '读报僵尸被激怒后加速，旗帜僵尸领着更密集的波次。'
+    },
+    {
+      name: '浓雾庭院', stars: 3, waves: 12, hpMul: 1.4, speedMul: 1.06, density: 1.12,
+      startSun: 200, sky: [10, 13], tint: 'rgba(60, 70, 90, .18)', fog: 1, blocked: [],
+      pool: ['basic', 'cone', 'bucket', 'newspaper', 'screendoor', 'polevaulter', 'imp'],
+      desc: '浓雾遮蔽视线，小鬼僵尸行动迅速，撑杆僵尸会跳过植物。'
+    },
+    {
+      name: '废墟庭院', stars: 4, waves: 14, hpMul: 1.58, speedMul: 1.1, density: 1.22,
+      startSun: 225, sky: [10, 13], tint: 'rgba(50, 40, 30, .2)', fog: 0,
+      blocked: ['0,5', '1,2', '2,7', '3,4', '4,1', '2,5'],
+      pool: ['basic', 'cone', 'bucket', 'screendoor', 'polevaulter', 'football', 'torch'],
+      desc: '碎石占据草坪，橄榄球僵尸冲锋，火把会快速烧毁防线。'
+    },
+    {
+      name: '僵尸狂欢', stars: 5, waves: 16, hpMul: 1.78, speedMul: 1.15, density: 1.35,
+      startSun: 250, sky: [11, 14], tint: 'rgba(30, 20, 40, .22)', fog: 0, blocked: [],
+      pool: ['basic', 'cone', 'bucket', 'newspaper', 'polevaulter', 'football', 'giant', 'hammer'],
+      desc: '巨人与锤子僵尸压境，投手可绕过锤子的远程减伤。'
+    },
+    {
+      name: '寒霜庭院', stars: 6, waves: 18, hpMul: 1.98, speedMul: 1.2, density: 1.45,
+      startSun: 275, sky: [10, 13], tint: 'rgba(90, 140, 180, .18)', fog: 0, blocked: [],
+      pool: ['cone', 'bucket', 'screendoor', 'football', 'giant', 'imp', 'torch', 'knight'],
+      desc: '高耐久骑士加入进攻，寒霜庭院需要持续火力与控场。'
+    },
+    {
+      name: '暗夜庭院', stars: 7, waves: 20, hpMul: 2.18, speedMul: 1.25, density: 1.55,
+      startSun: 300, sky: [12, 15], tint: 'rgba(15, 25, 45, .38)', fog: 1, blocked: [],
+      pool: ['bucket', 'newspaper', 'screendoor', 'polevaulter', 'football', 'giant', 'hammer', 'imp'],
+      desc: '黑夜与浓雾叠加，阳光稀少，能量豆是翻盘关键。'
+    },
+    {
+      name: '末日草坪', stars: 8, waves: 22, hpMul: 2.42, speedMul: 1.3, density: 1.65,
+      startSun: 325, sky: [12, 16], tint: 'rgba(40, 10, 20, .35)', fog: 0,
+      blocked: ['0,3', '3,6', '4,2'],
+      pool: ['bucket', 'screendoor', 'football', 'giant', 'flag', 'torch', 'hammer', 'knight'],
+      desc: '22 波强化尸潮，高速火把与重甲巨人同时逼近。'
+    },
+    {
+      name: '沙漠遗迹', stars: 9, waves: 24, hpMul: 2.68, speedMul: 1.34, density: 1.75,
+      startSun: 350, sky: [11, 15], tint: 'rgba(160, 105, 35, .22)', fog: 0,
+      blocked: ['0,6', '1,3', '2,5', '3,1', '4,7'],
+      pool: ['cone', 'bucket', 'polevaulter', 'giant', 'flag', 'imp', 'torch', 'hammer'],
+      desc: '遗迹碎石压缩阵型，24 波快速小鬼与巨人轮番突击。'
+    },
+    {
+      name: '功夫庭院', stars: 9, waves: 26, hpMul: 2.95, speedMul: 1.38, density: 1.86,
+      startSun: 375, sky: [11, 15], tint: 'rgba(85, 35, 20, .28)', fog: 0, blocked: [],
+      pool: ['bucket', 'football', 'giant', 'flag', 'imp', 'torch', 'hammer', 'knight'],
+      desc: '锤子、火把和重甲联手，26 波进攻考验植物大招衔接。'
+    },
+    {
+      name: '风暴之夜', stars: 10, waves: 28, hpMul: 3.25, speedMul: 1.43, density: 1.96,
+      startSun: 400, sky: [13, 17], tint: 'rgba(15, 25, 55, .46)', fog: 1,
+      blocked: ['0,2', '1,7', '2,4', '3,6', '4,3'],
+      pool: ['bucket', 'screendoor', 'football', 'giant', 'imp', 'torch', 'hammer', 'knight'],
+      desc: '阳光更稀少、雾中高速尸潮，28 波没有安全的一行。'
+    },
+    {
+      name: '僵王决战', stars: 10, waves: 30, hpMul: 3.6, speedMul: 1.48, density: 2.08,
+      startSun: 450, sky: [12, 16], tint: 'rgba(55, 8, 25, .46)', fog: 1,
+      blocked: ['0,4', '1,1', '2,7', '3,3', '4,5'],
+      pool: ['bucket', 'football', 'giant', 'flag', 'imp', 'torch', 'hammer', 'knight'],
+      desc: '最终 30 波：全精英阵容、强化巨人与连续大波，守住最后防线。'
+    }
   ];
 
   /* =========================================================
@@ -314,10 +710,20 @@
   let clock = 0;
   const mouse = { x: -999, y: -999, inside: false };
   let cardRefs = [];
+  let currentLevelIndex = 0;
+  let selectedSeeds = new Set();
+  let seedFilter = 'all';
+  let completed = {};
+  try {
+    completed = JSON.parse(localStorage.getItem('pvz-progress-v3') || '{}') || {};
+  } catch (e) { completed = {}; }
 
   function resetGame() {
     G = {
-      phase: 'ready',
+      phase: 'menu',
+      level: LEVELS[0],
+      levelIndex: 0,
+      loadout: [],
       sun: 150,
       plants: [],
       zombies: [],
@@ -336,9 +742,11 @@
       spawnQueue: [],
       waveElapsed: 0,
       kills: 0,
+      energyBeans: 0,
+      selectedEnergy: null,
+      beanPity: 0,
       shake: 0
     };
-    PLANT_ORDER.forEach((k) => { G.cooldowns[k] = 0; });
     for (let r = 0; r < ROWS; r++) {
       G.mowers.push({ row: r, x: GRID_X - 42, active: false, used: false });
     }
@@ -346,189 +754,91 @@
 
   const plantAt = (row, col) =>
     G.plants.find((p) => p.row === row && p.col === col) || null;
+  const isBlocked = (row, col) =>
+    !!(G.level && G.level.blocked && G.level.blocked.indexOf(row + ',' + col) >= 0);
 
   /* =========================================================
-     背景（预渲染一次）
+     植物美术（按家族参数化绘制）
      ========================================================= */
-  const bgCanvas = document.createElement('canvas');
-  bgCanvas.width = W;
-  bgCanvas.height = H;
-
-  function buildBackground() {
-    const c = bgCanvas.getContext('2d');
-    const rnd = mulberry32(20261114);
-
-    // 泥土底
-    c.fillStyle = '#6f4f2e';
-    c.fillRect(0, 0, W, H);
-
-    // 左侧砖墙（房子）
-    c.fillStyle = '#a5673c';
-    c.fillRect(0, 0, GRID_X - 6, H);
-    c.fillStyle = '#8d5630';
-    for (let y = 8; y < H; y += 26) {
-      const offset = ((y / 26) | 0) % 2 === 0 ? 0 : 26;
-      for (let x = -26 + offset; x < GRID_X - 6; x += 52) {
-        c.fillRect(x + 2, y + 2, 48, 22);
-      }
+  function drawPlantBody(c, p) {
+    const art = (p.def && p.def.art) || {};
+    switch (art.family) {
+      case 'flower': artFlower(c, art, p); break;
+      case 'shooter': artShooter(c, art, p); break;
+      case 'lobber': artLobber(c, art, p); break;
+      case 'nut': artNut(c, art, p); break;
+      case 'mushroom': artMushroom(c, art, p); break;
+      case 'bomb': artBomb(c, art, p); break;
+      case 'spike': artSpike(c, art, p); break;
+      case 'support': artSupport(c, art, p); break;
+      case 'chomper': artChomper(c, art, p); break;
+      case 'garlic': artGarlic(c, art, p); break;
+      default: artFlower(c, art, p);
     }
-    // 砖墙上的暗角
-    const wallShade = c.createLinearGradient(0, 0, GRID_X, 0);
-    wallShade.addColorStop(0, 'rgba(0,0,0,.28)');
-    wallShade.addColorStop(0.55, 'rgba(0,0,0,.05)');
-    wallShade.addColorStop(1, 'rgba(0,0,0,.3)');
-    c.fillStyle = wallShade;
-    c.fillRect(0, 0, GRID_X - 6, H);
-
-    // 右侧泥土路（僵尸出来的方向）
-    const roadX = GRID_X + GRID_W + 8;
-    c.fillStyle = '#7b5733';
-    c.fillRect(roadX, 0, W - roadX, H);
-    c.fillStyle = 'rgba(0,0,0,.12)';
-    for (let y = 20; y < H; y += 64) c.fillRect(roadX, y, W - roadX, 10);
-    // 路上的碎石
-    c.fillStyle = 'rgba(255,255,255,.1)';
-    for (let i = 0; i < 90; i++) {
-      const x = roadX + rnd() * (W - roadX);
-      const y = rnd() * H;
-      ellipse(c, x, y, 2 + rnd() * 4, 2 + rnd() * 3, rnd() * 3);
-    }
-
-    // 草坪
-    c.fillStyle = '#5da33c';
-    roundRectPath(c, GRID_X - 10, GRID_Y - 10, GRID_W + 20, GRID_H + 20, 14);
-    c.fill();
-    for (let r = 0; r < ROWS; r++) {
-      c.fillStyle = r % 2 === 0 ? '#8ed158' : '#80c74b';
-      c.fillRect(GRID_X - 10, GRID_Y + r * CELL_H, GRID_W + 20, CELL_H);
-    }
-
-    // 草坪上的草簇
-    c.strokeStyle = 'rgba(40, 120, 40, .18)';
-    c.lineWidth = 2;
-    c.lineCap = 'round';
-    for (let i = 0; i < 220; i++) {
-      const x = GRID_X + rnd() * GRID_W;
-      const y = GRID_Y + rnd() * GRID_H;
-      c.beginPath();
-      c.moveTo(x, y);
-      c.lineTo(x + 1, y - 5 - rnd() * 4);
-      c.stroke();
-    }
-
-    // 格子线
-    c.strokeStyle = 'rgba(255,255,255,.13)';
-    c.lineWidth = 1;
-    for (let col = 0; col <= COLS; col++) {
-      c.beginPath();
-      c.moveTo(GRID_X + col * CELL_W, GRID_Y);
-      c.lineTo(GRID_X + col * CELL_W, GRID_Y + GRID_H);
-      c.stroke();
-    }
-    for (let row = 0; row <= ROWS; row++) {
-      c.beginPath();
-      c.moveTo(GRID_X, GRID_Y + row * CELL_H);
-      c.lineTo(GRID_X + GRID_W, GRID_Y + row * CELL_H);
-      c.stroke();
-    }
-
-    // 顶部 / 底部树篱
-    function hedge(yTop, yBottom) {
-      c.fillStyle = '#2f6b2c';
-      c.fillRect(0, yTop, W, yBottom - yTop);
-      for (let x = -10; x < W + 30; x += 30) {
-        c.fillStyle = x % 60 === 0 ? '#3f8437' : '#356f2f';
-        circle(c, x, yTop + 4, 22);
-        circle(c, x + 12, yTop + 2, 16);
-      }
-      c.fillStyle = 'rgba(255,255,255,.08)';
-      c.fillRect(0, yTop, W, 4);
-    }
-    hedge(-16, GRID_Y - 12);
-    hedge(GRID_Y + GRID_H + 12, H + 10);
-
-    // 小花装饰
-    const flowers = ['#ffd84a', '#ff8fa3', '#f5f1e6', '#c69bff'];
-    for (let i = 0; i < 26; i++) {
-      const onBottom = rnd() > 0.5;
-      const x = 20 + rnd() * (W - 40);
-      const y = onBottom ? GRID_Y + GRID_H + 28 + rnd() * 16 : rnd() * 24 + 8;
-      if (x > GRID_X - 10 && x < GRID_X + GRID_W + 10 && !onBottom && y > 55) continue;
-      c.fillStyle = flowers[(rnd() * flowers.length) | 0];
-      circle(c, x, y, 3.2);
-      c.fillStyle = '#ffe9a8';
-      circle(c, x, y, 1.3);
-    }
-
-    // 房子门口的台阶阴影
-    c.fillStyle = 'rgba(0,0,0,.18)';
-    c.fillRect(GRID_X - 10, GRID_Y - 10, 6, GRID_H + 20);
   }
-  buildBackground();
 
-  /* =========================================================
-     植物绘制
-     ========================================================= */
-  function drawSunflower(c, p) {
-    const bob = Math.sin(clock * 2 + p.anim) * 1.6;
+  function artFlower(c, a, p) {
+    const s = a.scale || 1;
     c.save();
-    c.translate(0, bob);
-    // 影子
+    c.scale(s, s);
     c.fillStyle = 'rgba(0,0,0,.14)';
     ellipse(c, 0, 36, 22, 7);
-    // 茎
     c.strokeStyle = '#3f9b46';
     c.lineWidth = 8;
     c.lineCap = 'round';
     c.beginPath();
     c.moveTo(0, 34);
-    c.quadraticCurveTo(3, 16, 0, 2);
+    c.quadraticCurveTo(2, 16, 0, 2);
     c.stroke();
-    // 叶子
     c.fillStyle = '#57b95c';
     ellipse(c, -16, 25, 15, 7, -0.42);
     ellipse(c, 16, 29, 14, 6.5, 0.4);
-    // 花瓣
-    const spin = Math.sin(clock * 0.8 + p.anim) * 0.08;
-    c.fillStyle = '#ffd34d';
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2 + spin;
+
+    const heads = a.heads || 1;
+    const spots = heads === 2 ? [[-12, -6, 0.82], [13, -6, 0.82]] : [[0, 0, 1]];
+    for (let h = 0; h < spots.length; h++) {
+      const hx = spots[h][0], hy = spots[h][1], hs = spots[h][2];
       c.save();
-      c.rotate(a);
-      ellipse(c, 0, -27, 8, 14, 0);
+      c.translate(hx, hy);
+      c.scale(hs, hs);
+      const spin = Math.sin(clock * 0.8 + p.anim) * 0.08;
+      c.fillStyle = a.petal || '#ffd34d';
+      for (let i = 0; i < 12; i++) {
+        c.save();
+        c.rotate((i / 12) * Math.PI * 2 + spin);
+        ellipse(c, 0, -27, 8, 14, 0);
+        c.restore();
+      }
+      c.fillStyle = a.center || '#f0a92a';
+      circle(c, 0, 0, 19);
+      c.fillStyle = 'rgba(255,255,255,.22)';
+      ellipse(c, -6, -7, 9, 7, -0.5);
+      c.fillStyle = '#6e4410';
+      circle(c, -6, -3, 2.6);
+      circle(c, 6, -3, 2.6);
+      c.strokeStyle = '#6e4410';
+      c.lineWidth = 2.5;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.arc(0, 3, 7, 0.22 * Math.PI, 0.78 * Math.PI);
+      c.stroke();
+      c.fillStyle = 'rgba(255,120,90,.28)';
+      circle(c, -12, 5, 4);
+      circle(c, 12, 5, 4);
       c.restore();
     }
-    // 花盘
-    c.fillStyle = '#f2a92c';
-    circle(c, 0, 0, 19);
-    c.fillStyle = 'rgba(255,255,255,.22)';
-    ellipse(c, -6, -7, 9, 7, -0.5);
-    // 表情
-    c.fillStyle = '#6e4410';
-    circle(c, -6, -3, 2.6);
-    circle(c, 6, -3, 2.6);
-    c.strokeStyle = '#6e4410';
-    c.lineWidth = 2.5;
-    c.lineCap = 'round';
-    c.beginPath();
-    c.arc(0, 3, 7, 0.22 * Math.PI, 0.78 * Math.PI);
-    c.stroke();
-    // 腮红
-    c.fillStyle = 'rgba(255,120,90,.28)';
-    circle(c, -12, 5, 4);
-    circle(c, 12, 5, 4);
     c.restore();
   }
 
-  function drawShooter(c, p, kind) {
-    const bob = Math.sin(clock * 2.4 + p.anim) * 1.2;
-    const recoil = p.recoil || 0;
+  function artShooter(c, a, p) {
+    const s = a.scale || 1;
+    const style = a.style || 'pea';
+    const head = a.head || '#5fbf4a';
+    const dark = a.dark || '#3f9b33';
     c.save();
-    c.translate(0, bob);
-    // 影子
+    c.scale(s, s);
     c.fillStyle = 'rgba(0,0,0,.14)';
     ellipse(c, 0, 36, 24, 7);
-    // 茎
     c.strokeStyle = '#3f9b46';
     c.lineWidth = 8;
     c.lineCap = 'round';
@@ -536,85 +846,356 @@
     c.moveTo(0, 34);
     c.quadraticCurveTo(-3, 16, 0, 0);
     c.stroke();
-    // 叶子
     c.fillStyle = '#57b95c';
     ellipse(c, -17, 26, 15, 7, -0.4);
     ellipse(c, 16, 31, 13, 6, 0.42);
 
-    const isSnow = kind === 'snow';
-    const headColor = isSnow ? '#8fd9ec' : '#5fbf4a';
-    const darkColor = isSnow ? '#5cb9d6' : '#3f9b33';
-    const lightColor = isSnow ? '#c6f0fb' : '#8ddc6f';
+    if (style === 'star') {
+      c.save();
+      c.translate(2, -12);
+      c.fillStyle = head;
+      starPath(c, 0, 0, 23, 10, 5, Math.sin(clock * 2) * 0.1);
+      c.fill();
+      c.fillStyle = '#fff';
+      ellipse(c, -5, -3, 4.6, 5.6);
+      c.fillStyle = '#26331f';
+      circle(c, -3, -3, 2.2);
+      c.restore();
+      c.restore();
+      return;
+    }
 
-    // 头部
-    c.fillStyle = headColor;
+    if (style === 'cactus') {
+      c.fillStyle = head;
+      circle(c, -1, -13, 20);
+      c.fillStyle = dark;
+      for (let i = 0; i < 10; i++) {
+        const ang = (i / 10) * Math.PI * 2;
+        c.save();
+        c.translate(-1 + Math.cos(ang) * 18, -13 + Math.sin(ang) * 18);
+        c.rotate(ang);
+        c.beginPath();
+        c.moveTo(-3, -2);
+        c.lineTo(0, -8);
+        c.lineTo(3, -2);
+        c.closePath();
+        c.fill();
+        c.restore();
+      }
+      c.fillStyle = '#fff';
+      ellipse(c, -7, -17, 5, 6);
+      c.fillStyle = '#26331f';
+      circle(c, -5, -17, 2.2);
+      c.fillStyle = dark;
+      ellipse(c, -6, -5, 6, 2.6);
+      c.restore();
+      return;
+    }
+
+    c.fillStyle = head;
     circle(c, 0, -11, 19);
     c.fillStyle = 'rgba(255,255,255,.25)';
     ellipse(c, -7, -18, 8, 6, -0.5);
 
-    // 炮管
-    const bx = 10 - recoil;
-    c.fillStyle = darkColor;
-    roundRectPath(c, bx, -26, 28, 20, 9);
-    c.fill();
-    c.fillStyle = isSnow ? '#eafaff' : '#2f7a28';
-    ellipse(c, bx + 26, -16, 4, 5.5, 0.1);
-    if (kind === 'repeater') {
-      c.fillStyle = darkColor;
-      roundRectPath(c, bx - 2, -6, 26, 16, 8);
+    const barrels = a.barrels || 1;
+    const bx = 10 - (p.recoil || 0);
+
+    if (style === 'flame') {
+      c.fillStyle = dark;
+      c.beginPath();
+      c.moveTo(8, -26);
+      c.quadraticCurveTo(40, -30, 46, -16);
+      c.quadraticCurveTo(40, -2, 8, -6);
+      c.closePath();
       c.fill();
-      c.fillStyle = '#2f7a28';
-      ellipse(c, bx + 22, 2, 3.5, 4.5, 0.1);
+      c.fillStyle = '#ff9f43';
+      c.beginPath();
+      c.arc(41, -16, 7 + Math.sin(clock * 12) * 1.5, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#ffe066';
+      c.beginPath();
+      c.arc(41, -16, 4 + Math.sin(clock * 12) * 1.2, 0, Math.PI * 2);
+      c.fill();
+    } else {
+      const spacing = 12;
+      const startY = barrels >= 3 ? -11 - spacing * (barrels - 1) / 2 : (barrels === 2 ? -22 : -25);
+      for (let i = 0; i < barrels; i++) {
+        const y = startY + i * spacing;
+        c.fillStyle = dark;
+        roundRectPath(c, bx, y, 28, 15, 7);
+        c.fill();
+        c.fillStyle = style === 'snow' ? '#eafaff' : (style === 'tech' ? '#bff6ff' : '#2f7a28');
+        ellipse(c, bx + 26, y + 7.5, 3.6, 4.6, 0.1);
+        c.fillStyle = 'rgba(255,255,255,.18)';
+        roundRectPath(c, bx + 3, y + 2, 18, 4, 2);
+        c.fill();
+      }
     }
-    // 眼睛
+
     c.fillStyle = '#ffffff';
     ellipse(c, -7, -19, 5.5, 6.5);
     c.fillStyle = '#26331f';
     circle(c, -5, -19, 2.6);
-    c.fillStyle = 'rgba(255,255,255,.8)';
-    circle(c, -6, -20.5, 0.9);
-    // 眉毛
-    c.strokeStyle = darkColor;
+    c.fillStyle = 'rgba(255,255,255,.85)';
+    circle(c, -6, -20.6, 1);
+    c.strokeStyle = dark;
     c.lineWidth = 2.4;
     c.beginPath();
     c.moveTo(-12, -27);
     c.lineTo(-2, -25);
     c.stroke();
-    // 冰晶
-    if (isSnow) {
-      c.fillStyle = lightColor;
+
+    if (style === 'snow') {
+      c.fillStyle = '#e8fbff';
       for (let i = 0; i < 3; i++) {
         const x = -8 + i * 8;
         c.beginPath();
         c.moveTo(x, -27);
-        c.lineTo(x + 3.5, -36);
+        c.lineTo(x + 3.5, -37);
         c.lineTo(x + 7, -27);
         c.closePath();
         c.fill();
       }
+    } else if (style === 'fire') {
+      c.fillStyle = '#ffb347';
+      c.beginPath();
+      c.moveTo(-15, -28);
+      c.quadraticCurveTo(-8, -43, -2, -30);
+      c.quadraticCurveTo(3, -41, 9, -28);
+      c.closePath();
+      c.fill();
+    } else if (style === 'tech') {
+      c.strokeStyle = '#bff6ff';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(0, -11, 22, Math.PI * 0.15, Math.PI * 0.85);
+      c.stroke();
+    } else if (style === 'toxic') {
+      c.fillStyle = 'rgba(160, 230, 80, .35)';
+      circle(c, 0, -11, 23);
+    } else if (style === 'gatling') {
+      c.fillStyle = '#5c6b4a';
+      roundRectPath(c, -16, -31, 32, 10, 4);
+      c.fill();
+    } else if (style === 'boomer') {
+      c.fillStyle = '#8a5a24';
+      c.beginPath();
+      c.arc(0, -11, 22, 0, Math.PI);
+      c.lineTo(0, -11);
+      c.closePath();
+      c.fill();
     }
     c.restore();
   }
 
-  function drawWallnut(c, p) {
-    const ratio = Math.max(0, Math.min(1, p.hp / p.maxHp));
-    const wobble = Math.sin(clock * 2 + p.anim) * 0.03;
+  function drawFruit(c, fruit, x, y, s) {
+    s = s || 1;
     c.save();
-    c.rotate(wobble);
+    c.translate(x, y);
+    c.scale(s, s);
+    if (fruit === 'cabbage') {
+      c.fillStyle = '#7fc44a';
+      circle(c, 0, 0, 12);
+      c.strokeStyle = '#4f8b2a';
+      c.lineWidth = 1.6;
+      c.beginPath(); c.arc(0, 0, 8, 0, Math.PI); c.stroke();
+      c.beginPath(); c.arc(0, 0, 4, 0, Math.PI); c.stroke();
+      c.fillStyle = '#a8dd72';
+      ellipse(c, -4, -4, 4, 3, -0.5);
+    } else if (fruit === 'corn') {
+      c.fillStyle = '#ffd23f';
+      ellipse(c, 0, 0, 8, 13);
+      c.fillStyle = '#e8a91e';
+      for (let i = 0; i < 3; i++) c.fillRect(-5, -8 + i * 6, 10, 2);
+      c.fillStyle = '#6fa03a';
+      c.beginPath();
+      c.moveTo(-8, 10); c.quadraticCurveTo(-15, 0, -8, -6); c.lineTo(-4, 8);
+      c.closePath(); c.fill();
+    } else if (fruit === 'melon' || fruit === 'wintermelon') {
+      c.fillStyle = fruit === 'melon' ? '#4f9e3a' : '#4aa88f';
+      circle(c, 0, 0, 13);
+      c.strokeStyle = fruit === 'melon' ? '#2f6b22' : '#2f7a6b';
+      c.lineWidth = 2.4;
+      for (let i = -1; i <= 1; i++) {
+        c.beginPath();
+        c.arc(i * 5, 0, 11, Math.PI * 0.15, Math.PI * 0.85);
+        c.stroke();
+      }
+      c.fillStyle = 'rgba(255,255,255,.25)';
+      ellipse(c, -4, -5, 4, 3, -0.5);
+    } else if (fruit === 'pumpkin') {
+      c.fillStyle = '#e08a2c';
+      ellipse(c, 0, 0, 12, 13);
+      c.strokeStyle = '#b5651c';
+      c.lineWidth = 1.8;
+      for (let i = -1; i <= 1; i++) {
+        c.beginPath();
+        c.moveTo(i * 5, -12);
+        c.quadraticCurveTo(i * 7, 0, i * 5, 12);
+        c.stroke();
+      }
+      c.fillStyle = '#5f8f3a';
+      c.fillRect(-2, -15, 4, 4);
+    } else if (fruit === 'stone') {
+      c.fillStyle = '#8a8f96';
+      c.beginPath();
+      c.moveTo(-11, -4); c.lineTo(-6, -12); c.lineTo(4, -11);
+      c.lineTo(12, -3); c.lineTo(8, 9); c.lineTo(-4, 11);
+      c.closePath();
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,.25)';
+      ellipse(c, -4, -4, 4, 3, -0.4);
+    } else {
+      c.fillStyle = '#f0c02c';
+      ellipse(c, 0, 0, 9, 15);
+      c.fillStyle = '#d19a14';
+      for (let i = 0; i < 4; i++) c.fillRect(-6, -10 + i * 6, 12, 2);
+      c.fillStyle = '#6fa03a';
+      c.beginPath();
+      c.moveTo(-9, 12); c.quadraticCurveTo(-16, 0, -9, -8); c.lineTo(-5, 10);
+      c.closePath(); c.fill();
+      c.beginPath();
+      c.moveTo(9, 12); c.quadraticCurveTo(16, 0, 9, -8); c.lineTo(5, 10);
+      c.closePath(); c.fill();
+    }
+    c.restore();
+  }
+
+  function artLobber(c, a, p) {
+    c.fillStyle = 'rgba(0,0,0,.14)';
+    ellipse(c, 0, 36, 25, 7);
+    c.strokeStyle = '#3f9b46';
+    c.lineWidth = 7;
+    c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(0, 33);
+    c.quadraticCurveTo(-3, 18, 0, 8);
+    c.stroke();
+    c.fillStyle = '#57b95c';
+    ellipse(c, -16, 27, 14, 6, -0.4);
+    ellipse(c, 15, 31, 12, 5.5, 0.4);
+
+    const body = a.body || '#5fbf4a';
+    // 叶球
+    c.fillStyle = body;
+    c.beginPath();
+    c.ellipse(0, 0, 24, 23, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = 'rgba(0,0,0,.12)';
+    c.beginPath();
+    c.ellipse(0, 9, 21, 12, 0, 0, Math.PI);
+    c.fill();
+    c.fillStyle = 'rgba(255,255,255,.2)';
+    ellipse(c, -12, -7, 8, 6, -0.5);
+
+    // 杯口
+    c.fillStyle = '#2f6b28';
+    c.beginPath();
+    c.ellipse(0, -13, 21, 9, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#3d8433';
+    c.beginPath();
+    c.ellipse(0, -14, 17, 7, 0, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = '#2f6b28';
+    c.lineWidth = 2.6;
+    for (let i = -2; i <= 2; i++) {
+      c.beginPath();
+      c.arc(i * 8, -13, 4, 0, Math.PI);
+      c.stroke();
+    }
+
+    // 弹丸稳稳嵌在叶杯里
+    drawFruit(c, a.fruit, 0, -27, 0.92);
+
+    c.fillStyle = '#ffffff';
+    ellipse(c, -9, 0, 5.2, 6.2);
+    ellipse(c, 8, 0, 5.2, 6.2);
+    c.fillStyle = '#26331f';
+    circle(c, -7.5, 0, 2.6);
+    circle(c, 9.5, 0, 2.6);
+    c.fillStyle = 'rgba(255,255,255,.85)';
+    circle(c, -8.5, -1.6, 1);
+    circle(c, 8.5, -1.6, 1);
+    c.strokeStyle = '#2f5a1f';
+    c.lineWidth = 2.4;
+    c.beginPath();
+    c.arc(0, 10, 6, 0.15 * Math.PI, 0.85 * Math.PI);
+    c.stroke();
+  }
+
+  function artNut(c, a, p) {
+    const shape = a.shape || 'round';
+    const ratio = clamp(p.hp / p.maxHp, 0, 1);
     c.fillStyle = 'rgba(0,0,0,.14)';
     ellipse(c, 0, 37, 26, 7);
-    // 身体
-    c.fillStyle = '#c98a4b';
-    c.beginPath();
-    c.ellipse(0, 0, 29, 35, 0, 0, Math.PI * 2);
-    c.fill();
-    c.strokeStyle = '#96602f';
-    c.lineWidth = 3;
-    c.stroke();
-    // 高光
-    c.fillStyle = 'rgba(255,255,255,.22)';
+    c.save();
+    c.rotate(Math.sin(clock * 2 + p.anim) * 0.03);
+    const body = a.body || '#c98a4b';
+
+    if (shape === 'tall') {
+      c.fillStyle = body;
+      c.beginPath(); c.ellipse(0, -4, 26, 42, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#96602f'; c.lineWidth = 3; c.stroke();
+    } else if (shape === 'metal') {
+      c.fillStyle = body;
+      c.beginPath(); c.ellipse(0, 0, 29, 35, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#6d767e'; c.lineWidth = 3; c.stroke();
+      // 顶部金属高光
+      c.fillStyle = 'rgba(255,255,255,.3)';
+      c.beginPath();
+      c.ellipse(0, -2, 27, 31, 0, Math.PI * 1.08, Math.PI * 1.92);
+      c.fill();
+      // 内圈铆钉
+      c.strokeStyle = '#7d878f'; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(0, 0, 23, 29, 0, 0, Math.PI * 2); c.stroke();
+      c.fillStyle = '#d9e0e6';
+      for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
+        circle(c, Math.cos(ang) * 23, Math.sin(ang) * 29, 2.1);
+      }
+    } else if (shape === 'pumpkin' || shape === 'ironpumpkin') {
+      const iron = shape === 'ironpumpkin';
+      c.fillStyle = body;
+      c.beginPath(); c.ellipse(0, 0, 30, 34, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = iron ? '#5a646e' : '#b5651c';
+      c.lineWidth = 2.2;
+      for (let i = -2; i <= 2; i++) {
+        c.beginPath();
+        c.moveTo(i * 10, -33);
+        c.quadraticCurveTo(i * 15, 0, i * 10, 33);
+        c.stroke();
+      }
+      c.fillStyle = iron ? '#5a646e' : '#5f8f3a';
+      c.fillRect(-4, -40, 8, 8);
+      if (iron) {
+        c.fillStyle = '#d5dbe0';
+        circle(c, -16, -20, 2.2);
+        circle(c, 16, -20, 2.2);
+      }
+    } else if (shape === 'thorn') {
+      c.fillStyle = body;
+      c.beginPath(); c.ellipse(0, 0, 29, 34, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#2f5a1f';
+      for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * Math.PI * 2;
+        c.save();
+        c.translate(Math.cos(ang) * 27, Math.sin(ang) * 31);
+        c.rotate(ang);
+        c.beginPath();
+        c.moveTo(-4, -4); c.lineTo(0, -12); c.lineTo(4, -4);
+        c.closePath(); c.fill();
+        c.restore();
+      }
+    } else {
+      c.fillStyle = body;
+      c.beginPath(); c.ellipse(0, 0, 29, 35, 0, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#96602f'; c.lineWidth = 3; c.stroke();
+    }
+
+    c.fillStyle = 'rgba(255,255,255,.2)';
     ellipse(c, -10, -13, 9, 14, -0.32);
-    // 表情
+
     const hurt = ratio < 0.5;
     c.fillStyle = '#5e3a14';
     if (hurt) {
@@ -642,107 +1223,621 @@
       c.arc(0, 6, 7, 0.2 * Math.PI, 0.8 * Math.PI);
     }
     c.stroke();
-    // 裂纹
+
     c.strokeStyle = '#7c4a1c';
     c.lineWidth = 2.2;
     if (ratio < 0.66) {
-      c.beginPath();
-      c.moveTo(-22, 6);
-      c.lineTo(-13, 10);
-      c.lineTo(-16, 18);
-      c.stroke();
-      c.beginPath();
-      c.moveTo(18, -22);
-      c.lineTo(11, -14);
-      c.lineTo(17, -8);
-      c.stroke();
+      c.beginPath(); c.moveTo(-22, 6); c.lineTo(-13, 10); c.lineTo(-16, 18); c.stroke();
+      c.beginPath(); c.moveTo(18, -22); c.lineTo(11, -14); c.lineTo(17, -8); c.stroke();
     }
     if (ratio < 0.33) {
+      c.beginPath(); c.moveTo(22, 10); c.lineTo(13, 14); c.lineTo(17, 24); c.stroke();
+      c.beginPath(); c.moveTo(-8, -30); c.lineTo(-4, -22); c.lineTo(-12, -18); c.stroke();
+    }
+    c.restore();
+  }
+
+  function artMushroom(c, a, p) {
+    const s = a.scale || 1;
+    const variant = a.variant || 'sun';
+    c.save();
+    c.scale(s, s);
+    c.fillStyle = 'rgba(0,0,0,.14)';
+    ellipse(c, 0, 36, 24, 7);
+
+    if (variant === 'magnet') {
+      c.fillStyle = '#d8d8e0';
       c.beginPath();
-      c.moveTo(22, 10);
-      c.lineTo(13, 14);
-      c.lineTo(17, 24);
+      c.arc(0, -30, 13, Math.PI, 0);
+      c.lineTo(13, -14);
+      c.lineTo(7, -14);
+      c.lineTo(7, -28);
+      c.arc(0, -28, 7, 0, Math.PI, true);
+      c.lineTo(-7, -14);
+      c.lineTo(-13, -14);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#d33';
+      c.fillRect(-13, -16, 6, 5);
+      c.fillRect(7, -16, 6, 5);
+    }
+
+    c.fillStyle = '#efe3c4';
+    roundRectPath(c, -9, 4, 18, 28, 7);
+    c.fill();
+    c.fillStyle = a.cap || '#e8d178';
+    c.beginPath();
+    c.ellipse(0, -6, 31, 24, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = 'rgba(0,0,0,.1)';
+    c.beginPath();
+    c.ellipse(0, 14, 26, 6, 0, 0, Math.PI);
+    c.fill();
+
+    c.fillStyle = a.spot || '#fff6cf';
+    circle(c, -16, -12, 5);
+    circle(c, 0, -20, 6);
+    circle(c, 15, -10, 4.5);
+    circle(c, 9, -2, 3.2);
+
+    if (variant === 'doom') {
+      c.fillStyle = '#ff5a5a';
+      c.beginPath(); c.moveTo(-14, 6); c.lineTo(-7, 2); c.lineTo(-13, 10); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(14, 6); c.lineTo(7, 2); c.lineTo(13, 10); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(150, 80, 220, .25)';
+      circle(c, 0, -4, 38);
+    }
+    if (variant === 'glue') {
+      c.fillStyle = 'rgba(160, 220, 120, .75)';
+      c.beginPath();
+      c.moveTo(-24, 8);
+      c.quadraticCurveTo(-26, 24, -20, 22);
+      c.quadraticCurveTo(-16, 20, -18, 8);
+      c.closePath();
+      c.fill();
+      ellipse(c, 20, 22, 4, 6);
+    }
+    if (variant === 'zap') {
+      c.fillStyle = '#ffe066';
+      c.beginPath();
+      c.moveTo(-4, -34); c.lineTo(4, -34); c.lineTo(0, -27);
+      c.lineTo(7, -27); c.lineTo(-3, -16); c.lineTo(0, -24);
+      c.lineTo(-7, -24); c.closePath();
+      c.fill();
+    }
+    if (variant === 'ice') {
+      c.fillStyle = '#dff6ff';
+      for (let i = 0; i < 4; i++) {
+        const x = -21 + i * 14;
+        c.beginPath();
+        c.moveTo(x, 2);
+        c.lineTo(x + 5, 2);
+        c.lineTo(x + 2.5, 12 + (i % 2) * 4);
+        c.closePath();
+        c.fill();
+      }
+    }
+
+    c.fillStyle = '#4a3a28';
+    circle(c, -7, 12, 2.4);
+    circle(c, 7, 12, 2.4);
+    c.strokeStyle = '#4a3a28';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(0, 18, 4, 0.15 * Math.PI, 0.85 * Math.PI);
+    c.stroke();
+    c.restore();
+  }
+
+  function artBomb(c, a, p) {
+    const variant = a.variant || 'cherry';
+    c.save();
+    c.fillStyle = 'rgba(0,0,0,.14)';
+    ellipse(c, 0, 36, 24, 7);
+
+    if (variant === 'cherry') {
+      const pulse = 1 + Math.sin(clock * 12) * 0.055;
+      c.scale(pulse, pulse);
+      c.strokeStyle = '#4c8b2f';
+      c.lineWidth = 4;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(-9, -2);
+      c.quadraticCurveTo(0, -30, 10, -26);
       c.stroke();
       c.beginPath();
-      c.moveTo(-8, -30);
-      c.lineTo(-4, -22);
-      c.lineTo(-12, -18);
+      c.moveTo(10, -26);
+      c.quadraticCurveTo(4, -38, -2, -34);
+      c.stroke();
+      c.fillStyle = '#cc3333';
+      circle(c, -11, 8, 17);
+      circle(c, 13, 2, 16);
+      c.fillStyle = 'rgba(255,255,255,.32)';
+      ellipse(c, -17, 1, 5, 7, -0.4);
+      ellipse(c, 7, -4, 4.5, 6, -0.4);
+      c.fillStyle = '#fff2e8';
+      ellipse(c, -16, 4, 5, 5.5);
+      ellipse(c, -4, 5, 4.5, 5.5);
+      c.fillStyle = '#2a1414';
+      circle(c, -15, 5, 2.2);
+      circle(c, -3, 6, 2.2);
+      c.strokeStyle = '#3a1a1a';
+      c.lineWidth = 2.6;
+      c.beginPath(); c.moveTo(-22, -3); c.lineTo(-11, 0); c.stroke();
+      c.beginPath(); c.moveTo(1, 0); c.lineTo(11, 3); c.stroke();
+      c.fillStyle = '#5a1010';
+      ellipse(c, -9, 17, 6, 3);
+    } else if (variant === 'potato') {
+      const armed = p.armed;
+      if (armed) {
+        c.fillStyle = 'rgba(255, 200, 80, .28)';
+        circle(c, 0, 12, 30 + Math.sin(clock * 6) * 4);
+      }
+      c.fillStyle = '#b5834a';
+      c.beginPath();
+      c.ellipse(0, 14, 26, 19, 0, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = '#8a5f2c';
+      c.lineWidth = 2.5;
+      c.stroke();
+      c.fillStyle = '#8a5f2c';
+      circle(c, -10, 8, 2.6);
+      circle(c, 9, 18, 2.2);
+      c.fillStyle = '#3a2a18';
+      circle(c, -7, 12, 2.4);
+      circle(c, 7, 12, 2.4);
+      c.strokeStyle = '#3a2a18';
+      c.lineWidth = 2;
+      c.beginPath();
+      if (armed) {
+        c.arc(0, 18, 5, 0.15 * Math.PI, 0.85 * Math.PI);
+      } else {
+        c.moveTo(-5, 18); c.lineTo(5, 18);
+      }
+      c.stroke();
+      // 引线
+      c.strokeStyle = armed ? '#ff7043' : '#6b5a45';
+      c.lineWidth = 2.5;
+      c.beginPath();
+      c.moveTo(0, -4);
+      c.quadraticCurveTo(10, -18, 4, -26);
+      c.stroke();
+      if (armed) {
+        c.fillStyle = '#ffe066';
+        circle(c, 4, -28, 3 + Math.sin(clock * 10));
+      }
+    } else if (variant === 'squash') {
+      c.fillStyle = '#7fae3f';
+      c.beginPath();
+      c.ellipse(0, 4, 25, 30, 0.1, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#5f8f2a';
+      c.beginPath();
+      c.ellipse(0, -22, 9, 8, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = '#fff';
+      ellipse(c, -10, 0, 6, 7);
+      ellipse(c, 8, 0, 6, 7);
+      c.fillStyle = '#26331f';
+      circle(c, -9, 0, 3);
+      circle(c, 9, 0, 3);
+      c.fillStyle = '#2f4a1a';
+      ellipse(c, 0, 16, 8, 4);
+      c.strokeStyle = '#4a6a24';
+      c.lineWidth = 2.4;
+      c.beginPath();
+      c.arc(-4, -12, 7, 0, Math.PI);
+      c.stroke();
+    } else if (variant === 'lettuce') {
+      c.fillStyle = '#9fe0d8';
+      for (let i = 0; i < 7; i++) {
+        c.save();
+        c.rotate((i / 7) * Math.PI * 2);
+        c.beginPath();
+        c.ellipse(0, -16, 9, 17, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+      c.fillStyle = '#d8f6f2';
+      circle(c, 0, 0, 12);
+      c.fillStyle = '#4fa8a0';
+      circle(c, -5, -3, 2.6);
+      circle(c, 5, -3, 2.6);
+      c.strokeStyle = '#4fa8a0';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(0, 4, 4, 0.15 * Math.PI, 0.85 * Math.PI);
+      c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.6)';
+      for (let i = 0; i < 5; i++) circle(c, -18 + i * 9, -22 + (i % 2) * 6, 1.8);
+    } else if (variant === 'chili') {
+      c.fillStyle = '#d32f2f';
+      c.beginPath();
+      c.moveTo(0, -20);
+      c.quadraticCurveTo(20, -10, 14, 14);
+      c.quadraticCurveTo(8, 32, 0, 30);
+      c.quadraticCurveTo(-8, 32, -10, 12);
+      c.quadraticCurveTo(-12, -8, 0, -20);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = '#a51f1f';
+      c.lineWidth = 2;
+      c.stroke();
+      c.fillStyle = '#4c8b2f';
+      c.beginPath();
+      c.moveTo(-2, -20);
+      c.quadraticCurveTo(2, -32, 12, -30);
+      c.lineTo(8, -22);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#fff';
+      ellipse(c, -6, 2, 4.5, 5.5);
+      ellipse(c, 5, 2, 4.5, 5.5);
+      c.fillStyle = '#2a1414';
+      circle(c, -5, 2, 2.2);
+      circle(c, 6, 2, 2.2);
+      c.strokeStyle = '#2a1414';
+      c.lineWidth = 2.4;
+      c.beginPath(); c.moveTo(-13, -6); c.lineTo(-4, -3); c.stroke();
+      c.beginPath(); c.moveTo(12, -6); c.lineTo(3, -3); c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.25)';
+      ellipse(c, -5, 14, 3, 8, 0.2);
+    }
+    c.restore();
+  }
+
+  function artSpike(c, a, p) {
+    const tone = a.tone || '#b0b8c0';
+    c.fillStyle = 'rgba(0,0,0,.14)';
+    ellipse(c, 0, 35, 29, 7);
+    // 草土底座
+    c.fillStyle = '#4a7a2a';
+    c.beginPath();
+    c.ellipse(0, 27, 29, 11, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#5f8f3a';
+    c.beginPath();
+    c.ellipse(0, 24, 27, 9, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#567f31';
+    for (let i = -2; i <= 2; i++) {
+      c.beginPath();
+      c.moveTo(i * 9 - 3, 26);
+      c.lineTo(i * 9, 33);
+      c.lineTo(i * 9 + 3, 26);
+      c.closePath();
+      c.fill();
+    }
+
+    const n = a.count || 4;
+    for (let i = 0; i < n; i++) {
+      const x = -25 + (i + 0.5) * (50 / n);
+      const h = (a.crystal ? 34 : 25) * (i % 2 ? 0.86 : 1);
+      // 后方暗面增加厚度
+      c.fillStyle = 'rgba(35,45,52,.4)';
+      c.beginPath();
+      c.moveTo(x - 6, 26);
+      c.lineTo(x + 3, 26 - h);
+      c.lineTo(x + 8, 26);
+      c.closePath();
+      c.fill();
+      // 棱主体
+      c.fillStyle = tone;
+      c.beginPath();
+      c.moveTo(x - 6, 26);
+      c.lineTo(x, 26 - h);
+      c.lineTo(x + 6, 26);
+      c.closePath();
+      c.fill();
+      // 受光面
+      c.fillStyle = 'rgba(255,255,255,.55)';
+      c.beginPath();
+      c.moveTo(x - 5, 25);
+      c.lineTo(x, 27 - h);
+      c.lineTo(x - 1, 25);
+      c.closePath();
+      c.fill();
+      // 暗面
+      c.fillStyle = 'rgba(40,55,65,.22)';
+      c.beginPath();
+      c.moveTo(x + 5, 25);
+      c.lineTo(x, 27 - h);
+      c.lineTo(x + 1, 25);
+      c.closePath();
+      c.fill();
+      if (a.crystal) {
+        c.fillStyle = 'rgba(150, 225, 255, .75)';
+        circle(c, x - 1, 28 - h + 5, 2.6);
+      }
+    }
+    if (p.hp < p.maxHp * 0.5) {
+      c.fillStyle = 'rgba(0,0,0,.15)';
+      ellipse(c, 8, 27, 10, 4, 0.2);
+    }
+  }
+
+  function artSupport(c, a, p) {
+    const v = a.variant || 'torch';
+    const s = a.scale || 1;
+    c.save();
+    c.scale(s, s);
+    c.fillStyle = 'rgba(0,0,0,.14)';
+    ellipse(c, 0, 36, 24, 7);
+
+    if (v === 'torch') {
+      c.fillStyle = '#8a5a2a';
+      roundRectPath(c, -15, 0, 30, 34, 6);
+      c.fill();
+      c.fillStyle = '#a06a3a';
+      roundRectPath(c, -15, 0, 30, 8, 4);
+      c.fill();
+      c.strokeStyle = '#6b4420';
+      c.lineWidth = 2;
+      c.beginPath(); c.moveTo(-6, 8); c.lineTo(-6, 30); c.stroke();
+      c.beginPath(); c.moveTo(7, 8); c.lineTo(7, 30); c.stroke();
+      const f = Math.sin(clock * 8 + p.anim) * 4;
+      c.fillStyle = '#ff7a1a';
+      c.beginPath();
+      c.moveTo(0, -2);
+      c.quadraticCurveTo(16, -18, 6, -30 - f);
+      c.quadraticCurveTo(2, -20, -2, -26 - f);
+      c.quadraticCurveTo(-14, -16, 0, -2);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#ffd23f';
+      c.beginPath();
+      c.moveTo(0, -6);
+      c.quadraticCurveTo(8, -16, 3, -24 - f * 0.6);
+      c.quadraticCurveTo(-6, -16, 0, -6);
+      c.closePath();
+      c.fill();
+    } else if (v === 'aloe') {
+      c.fillStyle = '#4f9e5a';
+      for (let i = 0; i < 6; i++) {
+        c.save();
+        c.rotate((i - 2.5) * 0.35);
+        c.beginPath();
+        c.ellipse(0, -18, 8, 22, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+      c.fillStyle = '#7fc47a';
+      for (let i = 0; i < 5; i++) {
+        c.save();
+        c.rotate((i - 2) * 0.4);
+        c.beginPath();
+        c.ellipse(0, -16, 5, 17, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      }
+      c.fillStyle = 'rgba(255,255,255,.5)';
+      circle(c, -10, -22, 3);
+      circle(c, 9, -18, 2.4);
+    } else if (v === 'vine') {
+      c.strokeStyle = '#3f8b3a';
+      c.lineWidth = 6;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(0, 30);
+      c.bezierCurveTo(22, 20, -22, 2, 4, -8);
+      c.bezierCurveTo(22, -16, 2, -26, 0, -30);
+      c.stroke();
+      c.fillStyle = '#57b95c';
+      ellipse(c, 15, 14, 10, 6, 0.5);
+      ellipse(c, -14, 2, 10, 6, -0.5);
+      ellipse(c, 13, -14, 9, 5.5, 0.4);
+      c.fillStyle = '#ffcf3f';
+      circle(c, 0, -34, 7);
+      c.fillStyle = '#e8a91e';
+      circle(c, 0, -34, 3.4);
+    } else if (v === 'clover') {
+      c.strokeStyle = '#3f8b3a';
+      c.lineWidth = 6;
+      c.beginPath();
+      c.moveTo(0, 34);
+      c.quadraticCurveTo(-6, 12, 0, 2);
+      c.stroke();
+      const leaves = [[0, -14, 0], [-16, -4, -0.9], [16, -4, 0.9]];
+      for (let i = 0; i < leaves.length; i++) {
+        const L = leaves[i];
+        c.save();
+        c.translate(L[0], L[1]);
+        c.rotate(L[2]);
+        c.fillStyle = '#5fbf4a';
+        c.beginPath();
+        c.ellipse(0, -12, 12, 16, 0, 0, Math.PI * 2);
+        c.fill();
+        c.strokeStyle = '#3f9b33';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(0, 0);
+        c.lineTo(0, -22);
+        c.stroke();
+        c.restore();
+      }
+      c.fillStyle = '#8bdc6f';
+      circle(c, 0, -4, 5);
+    } else if (v === 'moon') {
+      c.fillStyle = 'rgba(220, 225, 180, .3)';
+      circle(c, 0, -6, 32);
+      c.strokeStyle = '#7fae6a';
+      c.lineWidth = 7;
+      c.beginPath();
+      c.moveTo(0, 34);
+      c.quadraticCurveTo(3, 16, 0, 2);
+      c.stroke();
+      c.fillStyle = '#8fbf7a';
+      ellipse(c, -16, 27, 13, 6, -0.4);
+      ellipse(c, 16, 31, 12, 5.5, 0.4);
+      c.fillStyle = '#f2f0d0';
+      for (let i = 0; i < 9; i++) {
+        c.save();
+        c.rotate((i / 9) * Math.PI * 2);
+        ellipse(c, 0, -20, 6, 12, 0);
+        c.restore();
+      }
+      c.fillStyle = '#e8e4a8';
+      circle(c, 0, 0, 15);
+      c.fillStyle = '#fff8cf';
+      circle(c, -4, -4, 10);
+      c.fillStyle = '#c9c47a';
+      circle(c, -5, -2, 2);
+      circle(c, 6, -2, 2);
+      c.strokeStyle = '#c9c47a';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(0, 4, 5, 0.15 * Math.PI, 0.85 * Math.PI);
       c.stroke();
     }
     c.restore();
   }
 
-  function drawCherryBomb(c, p) {
-    const pulse = 1 + Math.sin(clock * 12) * 0.055;
-    c.save();
-    c.scale(pulse, pulse);
+  function artChomper(c, a, p) {
     c.fillStyle = 'rgba(0,0,0,.14)';
-    ellipse(c, 0, 36, 26, 7);
-    // 梗
-    c.strokeStyle = '#4c8b2f';
-    c.lineWidth = 4;
+    ellipse(c, 0, 36, 24, 7);
+    c.strokeStyle = '#3f9b46';
+    c.lineWidth = 8;
     c.lineCap = 'round';
     c.beginPath();
-    c.moveTo(-9, -2);
-    c.quadraticCurveTo(0, -30, 10, -26);
+    c.moveTo(0, 34);
+    c.quadraticCurveTo(-4, 14, 0, 0);
     c.stroke();
+    c.fillStyle = '#57b95c';
+    ellipse(c, -17, 27, 14, 6.5, -0.4);
+    ellipse(c, 16, 31, 13, 6, 0.4);
+
+    const chewing = p.chew > 0;
+    c.fillStyle = '#8a4fb0';
     c.beginPath();
-    c.moveTo(10, -26);
-    c.quadraticCurveTo(4, -38, -2, -34);
-    c.stroke();
-    // 两颗樱桃
-    c.fillStyle = '#cc3333';
-    circle(c, -11, 8, 17);
-    circle(c, 13, 2, 16);
-    c.fillStyle = 'rgba(255,255,255,.32)';
-    ellipse(c, -17, 1, 5, 7, -0.4);
-    ellipse(c, 7, -4, 4.5, 6, -0.4);
-    // 生气的眼睛
-    c.fillStyle = '#fff2e8';
-    ellipse(c, -16, 4, 5, 5.5);
-    ellipse(c, -4, 5, 4.5, 5.5);
-    c.fillStyle = '#2a1414';
-    circle(c, -15, 5, 2.2);
-    circle(c, -3, 6, 2.2);
-    c.strokeStyle = '#3a1a1a';
-    c.lineWidth = 2.6;
-    c.beginPath(); c.moveTo(-22, -3); c.lineTo(-11, 0); c.stroke();
-    c.beginPath(); c.moveTo(1, 0); c.lineTo(11, 3); c.stroke();
-    // 嘴
-    c.fillStyle = '#5a1010';
-    ellipse(c, -9, 17, 6, 3);
-    c.restore();
+    c.ellipse(0, -14, 26, 24, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#6b3a8f';
+    c.beginPath();
+    c.ellipse(0, -14, 26, 24, 0, 0.1 * Math.PI, 0.9 * Math.PI);
+    c.fill();
+    if (chewing) {
+      c.fillStyle = '#4a2a63';
+      ellipse(c, 0, -12, 16, 6, 0);
+      c.fillStyle = '#8a4fb0';
+      ellipse(c, 0, -20, 22, 10, 0);
+    } else {
+      c.fillStyle = '#3a1a52';
+      c.beginPath();
+      c.moveTo(-20, -16);
+      c.quadraticCurveTo(0, 4, 20, -16);
+      c.quadraticCurveTo(0, -30, -20, -16);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#fff';
+      for (let i = 0; i < 4; i++) {
+        c.beginPath();
+        c.moveTo(-13 + i * 8, -18);
+        c.lineTo(-9 + i * 8, -11);
+        c.lineTo(-5 + i * 8, -18);
+        c.closePath();
+        c.fill();
+      }
+      c.fillStyle = '#c98ae0';
+      circle(c, -8, -26, 3.4);
+      circle(c, 8, -26, 3.4);
+      c.fillStyle = '#2a1233';
+      circle(c, -8, -26, 1.7);
+      circle(c, 8, -26, 1.7);
+    }
+    c.fillStyle = '#5fbf4a';
+    c.beginPath();
+    c.ellipse(0, 36, 10, 4, 0, 0, Math.PI * 2);
+    c.fill();
   }
 
-  function drawPlantBody(c, type, p) {
-    switch (type) {
-      case 'sunflower': drawSunflower(c, p); break;
-      case 'peashooter': drawShooter(c, p, 'pea'); break;
-      case 'snowpea': drawShooter(c, p, 'snow'); break;
-      case 'repeater': drawShooter(c, p, 'repeater'); break;
-      case 'wallnut': drawWallnut(c, p); break;
-      case 'cherrybomb': drawCherryBomb(c, p); break;
-    }
+  function artGarlic(c, a, p) {
+    c.fillStyle = 'rgba(0,0,0,.14)';
+    ellipse(c, 0, 36, 23, 7);
+    // 蒜头外轮廓
+    c.fillStyle = '#f6f0de';
+    c.beginPath();
+    c.moveTo(0, -28);
+    c.bezierCurveTo(17, -26, 28, -7, 26, 11);
+    c.quadraticCurveTo(23, 34, 0, 34);
+    c.quadraticCurveTo(-23, 34, -26, 11);
+    c.bezierCurveTo(-28, -7, -17, -26, 0, -28);
+    c.closePath();
+    c.fill();
+    // 外沿描边，避免在浅色背景上糊成一团
+    c.strokeStyle = '#ded0b0';
+    c.lineWidth = 2.2;
+    c.stroke();
+    c.fillStyle = 'rgba(120, 96, 60, .1)';
+    ellipse(c, 12, 6, 9, 20, 0.12);
+    // 三瓣凹槽
+    c.strokeStyle = '#ded2b6';
+    c.lineWidth = 2.2;
+    c.beginPath();
+    c.moveTo(0, -22);
+    c.quadraticCurveTo(-1, 4, 0, 30);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(-12, -18);
+    c.quadraticCurveTo(-16, 6, -9, 30);
+    c.stroke();
+    c.beginPath();
+    c.moveTo(12, -18);
+    c.quadraticCurveTo(16, 6, 9, 30);
+    c.stroke();
+    // 淡紫蒜皮
+    c.fillStyle = 'rgba(178, 140, 198, .28)';
+    ellipse(c, -15, 16, 7, 9, -0.3);
+    ellipse(c, 15, 18, 6, 8, 0.3);
+    c.fillStyle = 'rgba(255,255,255,.65)';
+    ellipse(c, -10, -12, 6, 8, -0.5);
+    // 顶部干茎
+    c.fillStyle = '#c3b090';
+    c.beginPath();
+    c.moveTo(-3, -27);
+    c.quadraticCurveTo(0, -38, 7, -32);
+    c.lineTo(2, -25);
+    c.closePath();
+    c.fill();
+    // 表情
+    c.fillStyle = '#5e4a32';
+    circle(c, -7, 2, 2.6);
+    circle(c, 7, 2, 2.6);
+    c.strokeStyle = '#5e4a32';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(0, 9, 5, 0.15 * Math.PI, 0.85 * Math.PI);
+    c.stroke();
+    c.fillStyle = 'rgba(255,120,140,.18)';
+    circle(c, -14, 10, 5);
+    circle(c, 14, 10, 5);
   }
 
   /* =========================================================
-     僵尸绘制
+     僵尸美术
      ========================================================= */
   function drawZombie(c, z) {
-    const walk = z.walkPhase;
-    const swing = z.eating ? 0 : Math.sin(walk) * 9;
-    const bob = z.eating ? Math.sin(clock * 16) * 1.5 : Math.abs(Math.sin(walk)) * -2;
-    const frozen = z.slowTimer > 0;
+    const def = ZOMBIE_TYPES[z.type] || ZOMBIE_TYPES.basic;
+    const scale = def.big ? 1.55 : (def.small ? 0.72 : (z.type === 'football' ? 1.1 : 1));
+    const moving = !z.eating && z.freezeTimer <= 0 && z.stunTimer <= 0;
+    const swing = moving ? Math.sin(z.walkPhase) * 9 : 0;
+    const bob = z.eating ? Math.sin(clock * 16) * 1.5 : (moving ? Math.abs(Math.sin(z.walkPhase)) * -2 : 0);
+    const frozen = z.freezeTimer > 0;
+    const jump = z.jumpTimer > 0 ? -Math.sin((1 - z.jumpTimer / 0.45) * Math.PI) * 26 : 0;
 
     c.save();
-    c.translate(z.x, z.y + bob);
+    c.translate(z.x, z.y + bob + jump);
+    c.scale(scale, scale);
 
     // 影子
     c.fillStyle = 'rgba(0,0,0,.18)';
     ellipse(c, 0, 46, 26, 8);
 
+    const skin = frozen ? '#a9c8d8' : '#8cba68';
+    const skinDark = frozen ? '#8fb0c2' : '#7fae5e';
+    const cloth = frozen ? '#7d9ec4' : (def.big ? '#4a4f5a' : '#5d7280');
+
     // 腿
-    c.strokeStyle = '#3c4752';
+    c.strokeStyle = frozen ? '#6f8a9a' : '#3c4752';
     c.lineWidth = 9;
     c.lineCap = 'round';
     c.beginPath();
@@ -753,43 +1848,50 @@
     c.moveTo(7, 14);
     c.lineTo(8 + swing * 0.7, 44);
     c.stroke();
-    // 鞋
     c.fillStyle = '#2b333c';
     ellipse(c, -8 - swing * 0.7, 45, 9, 5);
     ellipse(c, 8 + swing * 0.7, 45, 9, 5);
 
     // 身体
-    c.fillStyle = frozen ? '#7d9ec4' : '#5d7280';
+    c.fillStyle = cloth;
     roundRectPath(c, -18, -14, 36, 36, 10);
     c.fill();
     c.fillStyle = 'rgba(0,0,0,.12)';
     roundRectPath(c, -18, 6, 36, 16, 9);
     c.fill();
-    // 破烂衣角
-    c.fillStyle = frozen ? '#7d9ec4' : '#5d7280';
+    c.fillStyle = cloth;
     c.beginPath(); c.moveTo(-16, 19); c.lineTo(-10, 30); c.lineTo(-3, 19); c.closePath(); c.fill();
     c.beginPath(); c.moveTo(2, 19); c.lineTo(8, 29); c.lineTo(15, 19); c.closePath(); c.fill();
 
+    if (z.type === 'football') {
+      c.fillStyle = '#b5342a';
+      roundRectPath(c, -19, -15, 38, 32, 10);
+      c.fill();
+      c.fillStyle = '#f2f2e8';
+      c.fillRect(-4, -14, 8, 18);
+      c.fillStyle = '#e8c33a';
+      c.fillRect(-11, 2, 22, 4);
+    }
+
     // 前伸的手臂
-    const armSwing = z.eating ? Math.sin(clock * 14) * 5 : Math.sin(walk) * 3;
-    c.strokeStyle = '#8cba68';
+    const armSwing = z.eating ? Math.sin(clock * 14) * 5 : (moving ? Math.sin(z.walkPhase) * 3 : 0);
+    c.strokeStyle = skin;
     c.lineWidth = 8;
     c.beginPath();
     c.moveTo(-12, -6);
     c.lineTo(-30, -2 + armSwing);
     c.lineTo(-40, 4 + armSwing);
     c.stroke();
-    c.fillStyle = '#7fae5e';
+    c.fillStyle = skinDark;
     ellipse(c, -41, 5 + armSwing, 6, 5.5);
 
     // 头
     const hx = -6;
     const hy = -32;
-    c.fillStyle = '#8cba68';
+    c.fillStyle = skin;
     circle(c, hx, hy, 17);
-    c.fillStyle = '#7fae5e';
+    c.fillStyle = skinDark;
     circle(c, hx + 15, hy + 2, 4.5);
-    // 头发
     c.strokeStyle = '#4a3a28';
     c.lineWidth = 2.5;
     c.lineCap = 'round';
@@ -801,13 +1903,11 @@
     ellipse(c, hx - 6, hy - 3, 5, 6);
     c.fillStyle = '#1f2429';
     circle(c, hx - 8, hy - 3, 2.4);
-    c.strokeStyle = '#5c7a45';
+    c.strokeStyle = frozen ? '#5f7f8f' : '#5c7a45';
     c.lineWidth = 2;
     c.beginPath(); c.moveTo(hx - 11, hy - 11); c.lineTo(hx - 2, hy - 9); c.stroke();
-    // 鼻子
-    c.fillStyle = '#7fae5e';
+    c.fillStyle = skinDark;
     circle(c, hx - 12, hy + 3, 2.6);
-    // 嘴
     c.fillStyle = '#4a2323';
     ellipse(c, hx - 3, hy + 9, 8, z.eating ? 4.6 : 3);
     c.fillStyle = '#eee6c8';
@@ -834,7 +1934,7 @@
       c.closePath();
       c.fill();
     }
-    if (z.type === 'bucket' && ratio > 0.18) {
+    if (z.type === 'bucket' && ratio > 0.18 && !z.metalStolen) {
       c.fillStyle = '#9aa4ad';
       roundRectPath(c, hx - 19, hy - 38, 38, 32, 5);
       c.fill();
@@ -844,7 +1944,6 @@
       c.fillRect(hx - 19, hy - 32, 38, 3);
       c.fillStyle = 'rgba(255,255,255,.35)';
       c.fillRect(hx - 11, hy - 29, 4, 19);
-      // 铁桶破损
       if (ratio < 0.5) {
         c.fillStyle = '#6c757c';
         c.beginPath();
@@ -858,16 +1957,122 @@
         c.fill();
       }
     }
+    if (z.type === 'newspaper' && !z.enraged) {
+      c.fillStyle = '#efe9d2';
+      roundRectPath(c, -52, -18, 26, 30, 3);
+      c.fill();
+      c.fillStyle = '#b8b09a';
+      for (let i = 0; i < 5; i++) c.fillRect(-49, -13 + i * 5, 20, 2);
+    }
+    if (z.type === 'screendoor') {
+      c.fillStyle = '#7f8a94';
+      roundRectPath(c, -60, -54, 14, 96, 4);
+      c.fill();
+      c.fillStyle = '#5f6a74';
+      roundRectPath(c, -57, -48, 8, 84, 3);
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,.22)';
+      c.fillRect(-14, -50, 3, 88);
+    }
+    if (z.type === 'polevaulter') {
+      c.strokeStyle = '#c9a05a';
+      c.lineWidth = 5;
+      c.beginPath();
+      c.moveTo(-48, 40);
+      c.lineTo(26, -46);
+      c.stroke();
+      c.fillStyle = '#f2f2e8';
+      c.fillRect(hx - 16, hy - 16, 32, 5);
+    }
+    if (z.type === 'flag') {
+      c.strokeStyle = '#6b4a24'; c.lineWidth = 4;
+      c.beginPath(); c.moveTo(20, 34); c.lineTo(20, -62); c.stroke();
+      c.fillStyle = '#c94132';
+      c.beginPath(); c.moveTo(22, -59); c.lineTo(57, -49); c.lineTo(22, -35); c.closePath(); c.fill();
+      c.fillStyle = '#ffe19a'; circle(c, 33, -48, 4);
+    }
+    if (z.type === 'torch') {
+      c.strokeStyle = '#6b3c1c'; c.lineWidth = 6;
+      c.beginPath(); c.moveTo(-38, 12); c.lineTo(-48, -35); c.stroke();
+      if (!z.torchOut) {
+        c.fillStyle = 'rgba(255,125,35,.28)'; circle(c, -49, -44, 16 + Math.sin(clock * 13) * 2);
+        c.fillStyle = '#ff7426'; circle(c, -49, -43, 10);
+        c.fillStyle = '#ffe66d'; circle(c, -48, -46, 5);
+      } else {
+        c.fillStyle = 'rgba(170,190,200,.45)'; circle(c, -49, -43, 6);
+      }
+    }
+    if (z.type === 'hammer') {
+      c.strokeStyle = '#6a4324'; c.lineWidth = 6;
+      c.beginPath(); c.moveTo(-36, 6); c.lineTo(-54, -28); c.stroke();
+      c.fillStyle = '#7f8a94'; roundRectPath(c, -70, -39, 30, 18, 4); c.fill();
+      c.fillStyle = '#b8c2ca'; c.fillRect(-66, -36, 20, 3);
+    }
+    if (z.type === 'knight' && !z.metalStolen) {
+      c.fillStyle = '#87939e';
+      c.beginPath(); c.arc(hx, hy - 5, 21, Math.PI, 0); c.lineTo(hx + 20, hy + 4); c.lineTo(hx - 20, hy + 4); c.closePath(); c.fill();
+      c.fillStyle = '#424d57'; c.fillRect(hx - 20, hy - 7, 40, 8);
+      c.fillStyle = '#d0d7dd'; c.fillRect(hx - 3, hy - 27, 5, 28);
+    }
+    if (z.type === 'football') {
+      c.fillStyle = '#b5342a';
+      c.beginPath();
+      c.arc(hx, hy - 5, 20, Math.PI, 0);
+      c.fill();
+      c.fillStyle = '#f2f2e8';
+      c.fillRect(hx - 4, hy - 26, 8, 8);
+      c.strokeStyle = '#8f231b';
+      c.lineWidth = 3;
+      c.beginPath();
+      c.arc(hx, hy - 2, 18, Math.PI * 0.1, Math.PI * 0.9);
+      c.stroke();
+    }
+    if (def.big) {
+      // 巨人：大棒
+      c.strokeStyle = '#5a3a1a';
+      c.lineWidth = 9;
+      c.beginPath();
+      c.moveTo(-42, 2 + armSwing);
+      c.lineTo(-62, -26 + armSwing);
+      c.stroke();
+      c.fillStyle = '#8a5a2a';
+      circle(c, -66, -32 + armSwing, 12);
+      c.fillStyle = '#a06a3a';
+      circle(c, -72, -32 + armSwing, 4);
+      circle(c, -62, -38 + armSwing, 4);
+      // 血条
+      c.fillStyle = 'rgba(0,0,0,.4)';
+      roundRectPath(c, -26, -76, 52, 6, 3);
+      c.fill();
+      c.fillStyle = '#e05a4a';
+      roundRectPath(c, -26, -76, 52 * clamp(ratio, 0, 1), 6, 3);
+      c.fill();
+    }
 
-    // 被冰冻的蓝色覆盖
+    // 冰冻
     if (frozen) {
-      c.globalAlpha = 0.25;
+      c.globalAlpha = 0.3;
       c.fillStyle = '#8fd8ff';
+      roundRectPath(c, -22, -52, 44, 100, 14);
+      c.fill();
+      c.globalAlpha = 1;
+    }
+    // 黄油定身
+    if (z.stunTimer > 0) {
+      c.fillStyle = '#ffe066';
+      roundRectPath(c, hx - 13, hy - 42, 26, 12, 4);
+      c.fill();
+      c.fillStyle = '#e8b81e';
+      c.fillRect(hx - 13, hy - 31, 26, 2);
+    }
+    // 中毒
+    if (z.poison > 0) {
+      c.globalAlpha = 0.18;
+      c.fillStyle = '#8fe04a';
       roundRectPath(c, -22, -50, 44, 96, 14);
       c.fill();
       c.globalAlpha = 1;
     }
-
     // 命中闪白
     if (z.hitFlash > 0) {
       c.globalAlpha = Math.min(0.5, z.hitFlash * 6);
@@ -877,35 +2082,60 @@
       c.fill();
       c.globalAlpha = 1;
     }
-
+    if (z.hasBean) {
+      c.save();
+      const pulse = 0.38 + (Math.sin(clock * 9 + z.anim * 2) + 1) * 0.12;
+      c.globalAlpha = pulse;
+      c.strokeStyle = '#ffe66d';
+      c.lineWidth = 1.8;
+      c.shadowColor = '#ffe66d'; c.shadowBlur = 7;
+      for (const side of [-1, 1]) {
+        c.beginPath();
+        c.moveTo(side * 18, -42);
+        c.lineTo(side * 27, -31);
+        c.lineTo(side * 19, -20);
+        c.lineTo(side * 29, -8);
+        c.lineTo(side * 21, 5);
+        c.stroke();
+      }
+      drawEnergyBean(c, 17, -57, 0.32, 0.85);
+      c.restore();
+    }
     c.restore();
   }
 
   /* =========================================================
-     其它绘制
+     阳光 / 子弹 / 小推车
      ========================================================= */
-  function drawPea(c, pea) {
-    const isSnow = pea.snow;
+  function drawEnergyBean(c, x, y, scale, alpha) {
     c.save();
-    c.translate(pea.x, pea.y);
-    c.fillStyle = 'rgba(0,0,0,.12)';
-    ellipse(c, 0, 10, 7, 3);
-    c.fillStyle = isSnow ? '#9fe6f5' : '#79c94b';
-    circle(c, 0, 0, 7.5);
-    c.strokeStyle = isSnow ? '#63c3dc' : '#4f9c2c';
-    c.lineWidth = 1.5;
+    c.translate(x, y);
+    c.scale(scale || 1, scale || 1);
+    c.globalAlpha = alpha == null ? 1 : alpha;
+    c.shadowColor = '#c6ff5b';
+    c.shadowBlur = 10;
+    const g = c.createLinearGradient(-18, -24, 20, 25);
+    g.addColorStop(0, '#d8ff72');
+    g.addColorStop(0.45, '#83cf3e');
+    g.addColorStop(1, '#3f8f2f');
+    c.fillStyle = g;
     c.beginPath();
-    c.arc(0, 0, 7.5, 0, Math.PI * 2);
-    c.stroke();
-    c.fillStyle = 'rgba(255,255,255,.6)';
-    circle(c, -2.4, -2.6, 2.2);
-    if (isSnow) {
-      c.fillStyle = 'rgba(180, 240, 255, .55)';
-      c.beginPath();
-      c.moveTo(-8, -4); c.lineTo(-16, 0); c.lineTo(-8, 4);
-      c.closePath();
-      c.fill();
-    }
+    c.moveTo(-4, -25);
+    c.bezierCurveTo(18, -30, 28, -9, 20, 8);
+    c.bezierCurveTo(14, 25, -8, 30, -20, 16);
+    c.bezierCurveTo(-32, 1, -21, -18, -4, -25);
+    c.closePath();
+    c.fill();
+    c.shadowBlur = 0;
+    c.strokeStyle = '#3d7f2b'; c.lineWidth = 2.2; c.stroke();
+    c.fillStyle = 'rgba(255,255,255,.42)';
+    ellipse(c, -9, -12, 6, 10, -0.55);
+    c.fillStyle = '#244d22';
+    ellipse(c, -5, 2, 2.8, 4.2); ellipse(c, 9, -1, 2.8, 4.2);
+    c.strokeStyle = '#285927'; c.lineWidth = 2;
+    c.beginPath(); c.arc(3, 8, 7, 0.2, Math.PI - 0.15); c.stroke();
+    c.fillStyle = '#6fb83c';
+    ellipse(c, -3, -28, 10, 4, -0.4); ellipse(c, 8, -26, 9, 3.5, 0.55);
     c.restore();
   }
 
@@ -916,14 +2146,12 @@
     c.translate(s.x, s.y);
     c.globalAlpha = fade;
     c.scale(pulse, pulse);
-    // 光晕
     const g = c.createRadialGradient(0, 0, 3, 0, 0, 30);
     g.addColorStop(0, 'rgba(255, 250, 200, .95)');
     g.addColorStop(0.55, 'rgba(255, 216, 64, .55)');
     g.addColorStop(1, 'rgba(255, 200, 40, 0)');
     c.fillStyle = g;
     circle(c, 0, 0, 30);
-    // 光芒
     c.fillStyle = 'rgba(255, 226, 90, .85)';
     for (let i = 0; i < 8; i++) {
       c.save();
@@ -936,7 +2164,6 @@
       c.fill();
       c.restore();
     }
-    // 主体
     c.fillStyle = '#ffd93b';
     circle(c, 0, 0, 19);
     c.fillStyle = '#ffe97a';
@@ -946,43 +2173,112 @@
     c.restore();
   }
 
+  function drawProjectile(c, pr) {
+    if (pr.delay > 0) return;
+    c.save();
+    c.translate(pr.x, pr.y);
+    if (pr.type === 'lob') {
+      drawFruit(c, pr.fruit, 0, 0, pr.size || 0.9);
+      c.restore();
+      return;
+    }
+    if (pr.type === 'star') {
+      c.rotate(clock * 8);
+      c.fillStyle = pr.color || '#ffd23f';
+      starPath(c, 0, 0, 9, 4, 5, 0);
+      c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.6)';
+      c.lineWidth = 1.2;
+      c.stroke();
+      c.restore();
+      return;
+    }
+    if (pr.type === 'boomerang') {
+      c.rotate(clock * 10);
+      c.strokeStyle = '#c9a05a';
+      c.lineWidth = 5;
+      c.beginPath();
+      c.arc(0, 0, 11, Math.PI * 0.15, Math.PI * 1.1);
+      c.stroke();
+      c.fillStyle = '#8a5a24';
+      circle(c, 0, 0, 3);
+      c.restore();
+      return;
+    }
+    const isSnow = pr.type === 'snow';
+    const isFire = pr.type === 'fire';
+    const isToxic = pr.type === 'toxic';
+    const isSpike = pr.type === 'spike';
+    let color = '#79c94b';
+    let edge = '#4f9c2c';
+    if (isSnow) { color = '#9fe6f5'; edge = '#63c3dc'; }
+    if (isFire) { color = '#ff8a3d'; edge = '#d84a12'; }
+    if (isToxic) { color = '#b7e04a'; edge = '#6f9c1f'; }
+    if (isSpike) { color = '#d8dde2'; edge = '#9aa4ad'; }
+    c.fillStyle = 'rgba(0,0,0,.12)';
+    ellipse(c, 0, 10, 7, 3);
+    if (isSpike) {
+      c.fillStyle = color;
+      c.beginPath();
+      c.moveTo(-9, -2);
+      c.lineTo(2, -4);
+      c.lineTo(9, 0);
+      c.lineTo(2, 4);
+      c.lineTo(-9, 2);
+      c.closePath();
+      c.fill();
+    } else {
+      c.fillStyle = color;
+      circle(c, 0, 0, isFire ? 8.5 : 7.5);
+      c.strokeStyle = edge;
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.arc(0, 0, isFire ? 8.5 : 7.5, 0, Math.PI * 2);
+      c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.6)';
+      circle(c, -2.4, -2.6, 2.2);
+    }
+    if (isFire) {
+      c.fillStyle = 'rgba(255, 220, 100, .6)';
+      c.beginPath();
+      c.moveTo(-8, -4); c.lineTo(-18, 0); c.lineTo(-8, 4);
+      c.closePath();
+      c.fill();
+    }
+    if (isSnow) {
+      c.fillStyle = 'rgba(180, 240, 255, .55)';
+      c.beginPath();
+      c.moveTo(-8, -4); c.lineTo(-16, 0); c.lineTo(-8, 4);
+      c.closePath();
+      c.fill();
+    }
+    c.restore();
+  }
+
   function drawMower(c, m) {
     const y = cellCenterY(m.row) + 16;
     c.save();
     c.translate(m.x, y);
     c.fillStyle = 'rgba(0,0,0,.2)';
     ellipse(c, 0, 18, 26, 6);
-    // 车身
     c.fillStyle = '#c0392b';
     roundRectPath(c, -24, -16, 46, 26, 9);
     c.fill();
     c.fillStyle = '#e8543f';
     roundRectPath(c, -20, -14, 36, 8, 4);
     c.fill();
-    // 前部刀片
     c.strokeStyle = '#b9c4cc';
     c.lineWidth = 4;
     c.lineCap = 'round';
-    c.beginPath();
-    c.moveTo(24, -10);
-    c.lineTo(36, -18);
-    c.stroke();
-    c.beginPath();
-    c.moveTo(24, -2);
-    c.lineTo(38, -2);
-    c.stroke();
-    c.beginPath();
-    c.moveTo(24, 6);
-    c.lineTo(36, 12);
-    c.stroke();
-    // 轮子
+    c.beginPath(); c.moveTo(24, -10); c.lineTo(36, -18); c.stroke();
+    c.beginPath(); c.moveTo(24, -2); c.lineTo(38, -2); c.stroke();
+    c.beginPath(); c.moveTo(24, 6); c.lineTo(36, 12); c.stroke();
     c.fillStyle = '#2c3e50';
     circle(c, -13, 12, 9);
     circle(c, 13, 12, 9);
     c.fillStyle = '#7f8c8d';
     circle(c, -13, 12, 3.4);
     circle(c, 13, 12, 3.4);
-    // 把手
     c.strokeStyle = '#8d99a6';
     c.lineWidth = 3;
     c.beginPath();
@@ -993,7 +2289,112 @@
   }
 
   /* =========================================================
-     特效
+     背景
+     ========================================================= */
+  const bgCanvas = document.createElement('canvas');
+  bgCanvas.width = W;
+  bgCanvas.height = H;
+
+  function buildBackground() {
+    const c = bgCanvas.getContext('2d');
+    const rnd = mulberry32(20261116);
+
+    c.fillStyle = '#6f4f2e';
+    c.fillRect(0, 0, W, H);
+
+    c.fillStyle = '#a5673c';
+    c.fillRect(0, 0, GRID_X - 6, H);
+    c.fillStyle = '#8d5630';
+    for (let y = 8; y < H; y += 26) {
+      const offset = ((y / 26) | 0) % 2 === 0 ? 0 : 26;
+      for (let x = -26 + offset; x < GRID_X - 6; x += 52) {
+        c.fillRect(x + 2, y + 2, 48, 22);
+      }
+    }
+    const wallShade = c.createLinearGradient(0, 0, GRID_X, 0);
+    wallShade.addColorStop(0, 'rgba(0,0,0,.28)');
+    wallShade.addColorStop(0.55, 'rgba(0,0,0,.05)');
+    wallShade.addColorStop(1, 'rgba(0,0,0,.3)');
+    c.fillStyle = wallShade;
+    c.fillRect(0, 0, GRID_X - 6, H);
+
+    const roadX = GRID_X + GRID_W + 8;
+    c.fillStyle = '#7b5733';
+    c.fillRect(roadX, 0, W - roadX, H);
+    c.fillStyle = 'rgba(0,0,0,.12)';
+    for (let y = 20; y < H; y += 64) c.fillRect(roadX, y, W - roadX, 10);
+    c.fillStyle = 'rgba(255,255,255,.1)';
+    for (let i = 0; i < 90; i++) {
+      const x = roadX + rnd() * (W - roadX);
+      const y = rnd() * H;
+      ellipse(c, x, y, 2 + rnd() * 4, 2 + rnd() * 3, rnd() * 3);
+    }
+
+    c.fillStyle = '#5da33c';
+    roundRectPath(c, GRID_X - 10, GRID_Y - 10, GRID_W + 20, GRID_H + 20, 14);
+    c.fill();
+    for (let r = 0; r < ROWS; r++) {
+      c.fillStyle = r % 2 === 0 ? '#8ed158' : '#80c74b';
+      c.fillRect(GRID_X - 10, GRID_Y + r * CELL_H, GRID_W + 20, CELL_H);
+    }
+    c.strokeStyle = 'rgba(40, 120, 40, .18)';
+    c.lineWidth = 2;
+    c.lineCap = 'round';
+    for (let i = 0; i < 220; i++) {
+      const x = GRID_X + rnd() * GRID_W;
+      const y = GRID_Y + rnd() * GRID_H;
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(x + 1, y - 5 - rnd() * 4);
+      c.stroke();
+    }
+    c.strokeStyle = 'rgba(255,255,255,.13)';
+    c.lineWidth = 1;
+    for (let col = 0; col <= COLS; col++) {
+      c.beginPath();
+      c.moveTo(GRID_X + col * CELL_W, GRID_Y);
+      c.lineTo(GRID_X + col * CELL_W, GRID_Y + GRID_H);
+      c.stroke();
+    }
+    for (let row = 0; row <= ROWS; row++) {
+      c.beginPath();
+      c.moveTo(GRID_X, GRID_Y + row * CELL_H);
+      c.lineTo(GRID_X + GRID_W, GRID_Y + row * CELL_H);
+      c.stroke();
+    }
+
+    function hedge(yTop, yBottom) {
+      c.fillStyle = '#2f6b2c';
+      c.fillRect(0, yTop, W, yBottom - yTop);
+      for (let x = -10; x < W + 30; x += 30) {
+        c.fillStyle = x % 60 === 0 ? '#3f8437' : '#356f2f';
+        circle(c, x, yTop + 4, 22);
+        circle(c, x + 12, yTop + 2, 16);
+      }
+      c.fillStyle = 'rgba(255,255,255,.08)';
+      c.fillRect(0, yTop, W, 4);
+    }
+    hedge(-16, GRID_Y - 12);
+    hedge(GRID_Y + GRID_H + 12, H + 10);
+
+    const flowers = ['#ffd84a', '#ff8fa3', '#f5f1e6', '#c69bff'];
+    for (let i = 0; i < 26; i++) {
+      const onBottom = rnd() > 0.5;
+      const x = 20 + rnd() * (W - 40);
+      const y = onBottom ? GRID_Y + GRID_H + 28 + rnd() * 16 : rnd() * 24 + 8;
+      c.fillStyle = flowers[(rnd() * flowers.length) | 0];
+      circle(c, x, y, 3.2);
+      c.fillStyle = '#ffe9a8';
+      circle(c, x, y, 1.3);
+    }
+
+    c.fillStyle = 'rgba(0,0,0,.18)';
+    c.fillRect(GRID_X - 10, GRID_Y - 10, 6, GRID_H + 20);
+  }
+  buildBackground();
+
+  /* =========================================================
+     特效 / 通用
      ========================================================= */
   function spawnParticles(x, y, color, count, power) {
     for (let i = 0; i < count; i++) {
@@ -1003,8 +2404,8 @@
         x, y,
         vx: Math.cos(a) * sp,
         vy: Math.sin(a) * sp - power * 0.35,
-        life: 0.5 + Math.random() * 0.6,
-        maxLife: 0.5 + Math.random() * 0.6,
+        life: 0.45 + Math.random() * 0.6,
+        maxLife: 0.45 + Math.random() * 0.6,
         size: 2 + Math.random() * 4,
         color: color || '#8bd35a'
       });
@@ -1020,27 +2421,58 @@
     refreshHUD();
   }
 
+  function spawnSunFromPlant(p, amount) {
+    G.suns.push({
+      x: p.x + (Math.random() * 22 - 11),
+      y: p.y - 22,
+      ty: p.y + 34,
+      vy: -120,
+      value: amount,
+      life: 15,
+      anim: Math.random() * 10
+    });
+  }
+
   /* =========================================================
-     游戏逻辑
+     种植 / 移除
      ========================================================= */
-  function makePlant(type, row, col) {
-    const def = PLANTS[type];
-    const p = {
-      type, row, col,
+  function initialTimer(def) {
+    const k = def.kind;
+    if (k === 'sun' || k === 'sunbuff') return def.sun.f;
+    if (k === 'shooter') return 0.5;
+    if (k === 'lobber') return 1.0;
+    if (k === 'laser' || k === 'chain') return (def.interval || 2) * 0.6;
+    if (k === 'flame') return 0.25;
+    if (k === 'boomerang') return 0.6;
+    if (k === 'magnet') return 1.5;
+    if (k === 'slowaura') return 1;
+    if (k === 'gust') return 3;
+    return 0;
+  }
+
+  function makePlant(id, row, col) {
+    const def = PLANTS[id];
+    return {
+      def, id, row, col,
       x: cellCenterX(col),
       y: cellCenterY(row) + 6,
       hp: def.hp,
       maxHp: def.hp,
       anim: Math.random() * 6,
-      timer: 0,
+      timer: initialTimer(def),
+      arm: def.arm || 0,
+      armed: false,
+      fuse: def.fuse || 0,
       recoil: 0,
-      fuse: 1.1,
-      hitFlash: 0
+      chew: 0,
+      hitFlash: 0,
+      dmgMul: 1,
+      sunMul: 1,
+      shield: 0,
+      invuln: 0,
+      ultFlash: 0,
+      ultTimer: 0
     };
-    if (type === 'sunflower') p.timer = 6;
-    else if (type === 'peashooter' || type === 'repeater') p.timer = 0.5;
-    else if (type === 'snowpea') p.timer = 0.5;
-    return p;
   }
 
   function tryPlant(row, col) {
@@ -1057,15 +2489,16 @@
       return;
     }
 
-    const key = G.selected;
-    if (!key) return;
-    const def = PLANTS[key];
-    if (G.cooldowns[key] > 0 || G.sun < def.cost) return;
-    if (plantAt(row, col)) return;
+    const id = G.selected;
+    if (!id) return;
+    const def = PLANTS[id];
+    if (!def) return;
+    if (G.cooldowns[id] > 0 || G.sun < def.cost) return;
+    if (plantAt(row, col) || isBlocked(row, col)) return;
 
     G.sun -= def.cost;
-    G.cooldowns[key] = def.cooldown;
-    G.plants.push(makePlant(key, row, col));
+    G.cooldowns[id] = def.cd;
+    G.plants.push(makePlant(id, row, col));
     G.selected = null;
     spawnParticles(cellCenterX(col), cellCenterY(row) + 30, '#b7e08a', 8, 90);
     refreshHUD();
@@ -1076,152 +2509,864 @@
     if (i >= 0) G.plants.splice(i, 1);
   }
 
-  function zombieInRowAhead(p) {
-    return G.zombies.some(
-      (z) => z.row === p.row && z.x > p.x - 12 && z.x < W + 90
+  function damagePlant(p, dmg, z) {
+    if (!p || p.invuln > 0) return false;
+    if (p.def.reduce) dmg *= (1 - p.def.reduce);
+    if (p.shield > 0) {
+      const absorbed = Math.min(p.shield, dmg);
+      p.shield -= absorbed;
+      dmg -= absorbed;
+    }
+    if (dmg <= 0) { p.hitFlash = 0.06; return false; }
+    p.hp -= dmg;
+    p.hitFlash = 0.06;
+    if (p.hp <= 0) {
+      spawnParticles(p.x, p.y, '#c98a4b', 12, 150);
+      removePlant(p);
+      return true;
+    }
+    return false;
+  }
+
+  /* =========================================================
+     植物行为
+     ========================================================= */
+  function zombieInRowAhead(p, rows) {
+    rows = rows || 1;
+    const lo = Math.max(0, p.row - Math.floor(rows / 2));
+    const hi = Math.min(ROWS - 1, lo + rows - 1);
+    return G.zombies.some((z) =>
+      !z.dead && z.row >= lo && z.row <= hi && z.x > p.x - 16 && z.x < W + 90
     );
   }
 
-  function updatePlants(dt) {
-    for (let i = G.plants.length - 1; i >= 0; i--) {
-      const p = G.plants[i];
-      p.anim += dt;
-      if (p.recoil > 0) p.recoil = Math.max(0, p.recoil - dt * 40);
-      if (p.hitFlash > 0) p.hitFlash -= dt;
+  function updateShooter(p, dt) {
+    const pr = p.def.proj;
+    p.timer -= dt;
+    if (p.timer > 0 || !zombieInRowAhead(p, pr.rows)) return;
+    p.timer = pr.interval;
+    p.recoil = 6;
 
-      if (p.type === 'sunflower') {
-        p.timer -= dt;
-        if (p.timer <= 0) {
-          p.timer = 8;
-          G.suns.push({
-            x: p.x + (Math.random() * 22 - 11),
-            y: p.y - 22,
-            ty: p.y + 34,
-            vy: -120,
-            value: 25,
-            life: 14,
-            anim: Math.random() * 10
-          });
+    if (pr.fiveWay) {
+      const angles = [0, -0.75, 0.75, -2.2, 2.2];
+      for (const a of angles) {
+        G.peas.push({
+          type: 'star', x: p.x + 20, y: p.y - 18, row: p.row,
+          vx: Math.cos(a) * 330, vy: Math.sin(a) * 330,
+          dmg: pr.dmg * p.dmgMul, hitSet: new Set(), anim: 0
+        });
+      }
+      return;
+    }
+
+    const rows = pr.rows || 1;
+    const lo = Math.max(0, p.row - Math.floor(rows / 2));
+    const hi = Math.min(ROWS - 1, lo + rows - 1);
+    const count = pr.count || 1;
+
+    for (let r = lo; r <= hi; r++) {
+      for (let c = 0; c < count; c++) {
+        G.peas.push({
+          type: pr.type,
+          x: p.x + 36 - c * 16,
+          y: p.y - 16 + (c % 2 === 0 ? 0 : 2),
+          row: r,
+          dmg: pr.dmg * p.dmgMul,
+          speed: pr.type === 'spike' ? 430 : 380,
+          slow: pr.slow || 0,
+          poison: pr.poison || 0,
+          splash: pr.splash || 0,
+          pierce: !!pr.pierce,
+          hitSet: new Set(),
+          anim: Math.random() * 4
+        });
+      }
+    }
+  }
+
+  function updateLobber(p, dt) {
+    p.timer -= dt;
+    if (p.timer > 0) return;
+    const def = p.def;
+    let target = null;
+    for (const z of G.zombies) {
+      if (z.dead || z.row !== p.row) continue;
+      if (z.x < p.x - 30 || z.x > W + 30) continue;
+      if (!target || z.x < target.x) target = z;
+    }
+    if (!target) return;
+    p.timer = def.interval;
+    const tx = clamp(target.x, p.x + 70, W - 24);
+    G.peas.push({
+      type: 'lob',
+      x: p.x, y: p.y - 34,
+      startX: p.x, startY: p.y - 34,
+      tx, ty: target.y - 8,
+      t: 0, dur: 0.55 + Math.abs(tx - p.x) / 950,
+      row: p.row,
+      dmg: def.dmg * p.dmgMul,
+      splash: def.splash || 45,
+      slow: def.slow || 0,
+      stun: def.stun || 0,
+      fruit: p.def.art.fruit,
+      size: 0.95,
+      anim: 0
+    });
+  }
+
+  function explodeAt(x, y, radius, dmg, opt) {
+    opt = opt || {};
+    for (const z of G.zombies) {
+      if (z.dead) continue;
+      const d = Math.hypot(z.x - x, (z.y - y) * 0.85);
+      if (d < radius) damageZombie(z, dmg, { ignoreShield: true });
+    }
+    G.effects.push({ type: 'boom', x, y, radius: radius * 1.3, age: 0, life: opt.big ? 0.8 : 0.6 });
+    spawnParticles(x, y, '#ff9f43', opt.big ? 40 : 24, opt.big ? 360 : 280);
+    spawnParticles(x, y, '#ffe066', opt.big ? 26 : 14, 220);
+    G.shake = opt.big ? 24 : 15;
+  }
+
+  function applyInstant(p) {
+    const def = p.def;
+    if (def.effect === 'explode') {
+      explodeAt(p.x, p.y, def.radius, def.dmg);
+    } else if (def.effect === 'doom') {
+      explodeAt(p.x, p.y, def.radius, def.dmg, { big: true });
+    } else if (def.effect === 'freeze') {
+      for (const z of G.zombies) {
+        if (z.dead) continue;
+        if (Math.hypot(z.x - p.x, (z.y - p.y) * 0.85) < def.radius) {
+          z.freezeTimer = Math.max(z.freezeTimer, def.freeze);
         }
-      } else if (p.type === 'peashooter' || p.type === 'snowpea' || p.type === 'repeater') {
-        p.timer -= dt;
-        if (p.timer <= 0 && zombieInRowAhead(p)) {
-          p.timer = p.type === 'peashooter' ? 1.3 : 1.5;
-          p.recoil = 6;
-          const snow = p.type === 'snowpea';
-          G.peas.push({
-            x: p.x + 38, y: p.y - 16, row: p.row,
-            dmg: snow ? 20 : 25, snow, anim: Math.random() * 5
-          });
-          if (p.type === 'repeater') {
+      }
+      G.effects.push({ type: 'ring', x: p.x, y: p.y, radius: def.radius, age: 0, life: 0.5, color: 'rgba(150, 230, 255, .9)' });
+      spawnParticles(p.x, p.y, '#bff1ff', 18, 180);
+    } else if (def.effect === 'freezeall') {
+      for (const z of G.zombies) {
+        if (!z.dead) z.freezeTimer = Math.max(z.freezeTimer, def.freeze);
+      }
+      G.effects.push({ type: 'freezeall', age: 0, life: 0.6 });
+      spawnParticles(p.x, p.y, '#cfefff', 30, 220);
+    } else if (def.effect === 'burnrow') {
+      for (const z of G.zombies) {
+        if (!z.dead && z.row === p.row) damageZombie(z, def.dmg, { ignoreShield: true });
+      }
+      G.effects.push({ type: 'burnrow', row: p.row, age: 0, life: 0.7 });
+      spawnParticles(p.x, p.y, '#ff7a1a', 30, 260);
+      G.shake = 12;
+    }
+    removePlant(p);
+  }
+
+  /* =========================================================
+     能量豆 / 植物大招
+     ========================================================= */
+  function ultimateDescription(def) {
+    if (def.id === 'sunflower') return '立即生产 150 阳光';
+    if (def.id === 'twinsun') return '立即生产 250 阳光';
+    if (def.id === 'peashooter') return '连续发射 60 颗豌豆';
+    if (def.id === 'potatomine') return '立即出土并复制 2 个土豆雷';
+    switch (def.kind) {
+      case 'sun': case 'sunbuff': return '立即生产大量阳光';
+      case 'shooter': return '向攻击方向发射超强弹幕';
+      case 'lobber': return '向全场僵尸投掷重型弹药';
+      case 'wall': return '恢复耐久并获得铁甲护盾';
+      case 'laser': return '贯穿三行的高能激光';
+      case 'chain': return '召唤多道连锁闪电';
+      case 'flame': return '焚烧前方三行区域';
+      case 'boomerang': return '向三行发射回旋镖风暴';
+      case 'mine': return '立即武装并复制地雷';
+      case 'squash': return '连续重压本行僵尸';
+      case 'instant': return '强化并立即触发自身效果';
+      case 'spike': return '拉拽本行僵尸并造成大量伤害';
+      case 'magnet': return '吸走全场金属装备';
+      case 'slowaura': return '冻结并减速全场僵尸';
+      case 'healer': return '治疗所有植物并附加护盾';
+      case 'gust': return '全场强风击退并造成伤害';
+      case 'chomper': return '连续吞食本行最多 3 只僵尸';
+      case 'garlic': return '获得护盾并驱赶附近僵尸';
+      case 'torchwood': return '强化穿过的豌豆并灼烧本行';
+      case 'buff': return '短时间内大幅强化相邻植物';
+      default: return '释放强力技能';
+    }
+  }
+
+  function shooterMuzzle(p) {
+    const a = p.def.art || {};
+    const style = a.style || 'pea';
+    if (style === 'star') return { x: p.x + 6, y: p.y - 12 };
+    if (style === 'cactus') return { x: p.x + 20, y: p.y - 13 };
+    if (style === 'flame') return { x: p.x + 46, y: p.y - 16 };
+    const barrels = a.barrels || 1;
+    const y = barrels >= 3 ? -15 : (barrels === 2 ? -18 : -22);
+    return { x: p.x + 37, y: p.y + y };
+  }
+
+  function fireUltimateLob(p, target) {
+    const def = p.def;
+    const tx = target ? target.x : W - 35;
+    const ty = target ? target.y - 8 : cellCenterY(p.row);
+    G.peas.push({
+      type: 'lob', x: p.x, y: p.y - 38,
+      startX: p.x, startY: p.y - 38, tx, ty,
+      t: 0, dur: 0.5 + Math.abs(tx - p.x) / 900,
+      row: target ? target.row : p.row,
+      dmg: Math.max(200, def.dmg * 2.5) * p.dmgMul,
+      splash: Math.max(75, def.splash || 45),
+      slow: def.slow ? def.slow * 1.5 : 0,
+      stun: def.id === 'corn' ? 1 : (def.stun || 0),
+      stunDuration: def.id === 'corn' ? 6 : 2.5,
+      fruit: def.art.fruit, size: 1.45, anim: 0
+    });
+  }
+
+  function activatePlantUltimate(p) {
+    const def = p.def;
+    const kind = def.kind;
+    p.hp = p.maxHp;
+    p.invuln = 2;
+    p.ultFlash = 1.4;
+
+    if (kind === 'sun' || kind === 'sunbuff') {
+      const amount = def.id === 'sunflower' ? 150 : (def.id === 'twinsun' ? 250 : Math.max(100, def.sun.a * 5));
+      spawnSunFromPlant(p, amount);
+      p.timer = def.sun.i;
+    } else if (kind === 'shooter') {
+      const pr = def.proj;
+      const muzzle = shooterMuzzle(p);
+      if (pr.fiveWay) {
+        const angles = [0, -0.75, 0.75, -2.2, 2.2];
+        for (let i = 0; i < 10; i++) {
+          for (const a of angles) {
+            G.peas.push({ type: 'star', x: muzzle.x, y: muzzle.y, row: p.row,
+              vx: Math.cos(a) * 350, vy: Math.sin(a) * 350,
+              dmg: pr.dmg * 2 * p.dmgMul, hitSet: new Set(), anim: 0, delay: i * 0.06 });
+          }
+        }
+      } else {
+        const rows = pr.rows || 1;
+        const lo = Math.max(0, p.row - Math.floor(rows / 2));
+        const hi = Math.min(ROWS - 1, lo + rows - 1);
+        const shots = rows === 3 ? 30 : 60;
+        for (let r = lo; r <= hi; r++) {
+          for (let i = 0; i < shots; i++) {
             G.peas.push({
-              x: p.x + 22, y: p.y - 16, row: p.row,
-              dmg: 25, snow: false, anim: Math.random() * 5
+              type: pr.type, x: muzzle.x, y: cellCenterY(r) - 16,
+              row: r, dmg: pr.dmg * p.dmgMul, speed: 430,
+              slow: pr.slow || 0, poison: pr.poison || 0,
+              splash: pr.splash || 0, pierce: !!pr.pierce,
+              hitSet: new Set(), anim: Math.random() * 4, delay: i * 0.032
             });
           }
         }
-      } else if (p.type === 'cherrybomb') {
-        p.fuse -= dt;
-        if (p.fuse <= 0) explodeCherry(p);
+      }
+      p.recoil = 9;
+      p.timer = pr.interval;
+    } else if (kind === 'lobber') {
+      const targets = G.zombies.filter((z) => !z.dead);
+      if (targets.length) targets.forEach((z) => fireUltimateLob(p, z));
+      else for (let i = 0; i < 5; i++) fireUltimateLob(p, null);
+      p.timer = def.interval;
+    } else if (kind === 'wall') {
+      p.shield += def.id === 'wallnut' ? 8000 : Math.max(5000, p.maxHp);
+    } else if (kind === 'laser') {
+      for (let r = Math.max(0, p.row - 1); r <= Math.min(ROWS - 1, p.row + 1); r++) {
+        G.effects.push({ type: 'beam', row: r, x: p.x, age: 0, life: 0.8 });
+        for (const z of G.zombies) {
+          if (!z.dead && z.row === r && z.x > p.x - 15) damageZombie(z, 650 * p.dmgMul, { ignoreShield: true });
+        }
+      }
+    } else if (kind === 'chain') {
+      const targets = G.zombies.filter((z) => !z.dead).slice(0, 12);
+      let x1 = p.x, y1 = p.y - 20;
+      targets.forEach((z) => {
+        damageZombie(z, 180 * p.dmgMul, { ignoreShield: true });
+        G.effects.push({ type: 'bolt', x1, y1, x2: z.x, y2: z.y - 25, age: 0, life: 0.65, color: '#ffe66d' });
+        x1 = z.x; y1 = z.y - 25;
+      });
+    } else if (kind === 'flame') {
+      for (const z of G.zombies) {
+        if (!z.dead && Math.abs(z.row - p.row) <= 1 && z.x > p.x - 20 && z.x < p.x + CELL_W * 3.6) {
+          damageZombie(z, 1800 * p.dmgMul, { ignoreShield: true });
+        }
+      }
+      for (let r = Math.max(0, p.row - 1); r <= Math.min(ROWS - 1, p.row + 1); r++) {
+        G.effects.push({ type: 'burnrow', row: r, age: 0, life: 1.1 });
+      }
+      G.shake = 14;
+    } else if (kind === 'boomerang') {
+      for (let r = Math.max(0, p.row - 1); r <= Math.min(ROWS - 1, p.row + 1); r++) {
+        for (let i = 0; i < 12; i++) {
+          G.peas.push({ type: 'boomerang', kind: 'boomerang', x: p.x + 34,
+            y: p.y - 18, startX: p.x + 34, row: r, dir: 1, delay: i * 0.045,
+            dmg: def.dmg * 2.5 * p.dmgMul, hitSet: new Set(), anim: 0 });
+        }
+      }
+    } else if (kind === 'mine') {
+      p.armed = true; p.arm = 0;
+      let copies = 0;
+      for (let tries = 0; tries < 60 && copies < 2; tries++) {
+        const row = Math.floor(Math.random() * ROWS);
+        const col = Math.floor(Math.random() * COLS);
+        if (plantAt(row, col) || isBlocked(row, col)) continue;
+        const copy = makePlant(def.id, row, col);
+        copy.armed = true;
+        G.plants.push(copy);
+        copies++;
+      }
+    } else if (kind === 'squash') {
+      const targets = G.zombies.filter((z) => !z.dead && z.row === p.row).sort((a, b) => a.x - b.x).slice(0, 3);
+      targets.forEach((z) => explodeAt(z.x, z.y, 70, def.dmg * 1.5));
+    } else if (kind === 'instant') {
+      if (def.effect === 'explode' || def.effect === 'doom') {
+        explodeAt(p.x, p.y, (def.radius || 140) * 1.35, def.dmg * 1.5, { big: true });
+      } else if (def.effect === 'burnrow') {
+        for (const z of G.zombies) if (!z.dead && z.row === p.row) damageZombie(z, def.dmg * 1.5, { ignoreShield: true });
+        G.effects.push({ type: 'burnrow', row: p.row, age: 0, life: 1.1 });
+      } else {
+        for (const z of G.zombies) if (!z.dead) z.freezeTimer = Math.max(z.freezeTimer, 8);
+        G.effects.push({ type: 'freezeall', age: 0, life: 0.8 });
+      }
+      removePlant(p);
+    } else if (kind === 'spike') {
+      let n = 0;
+      for (const z of G.zombies) {
+        if (z.dead || z.row !== p.row) continue;
+        z.x = p.x + 50 + n++ * 7;
+        damageZombie(z, (def.dps || 20) * 18, { ignoreShield: true });
+      }
+      G.effects.push({ type: 'beam', row: p.row, x: p.x - 30, age: 0, life: 0.8 });
+    } else if (kind === 'magnet') {
+      for (const z of G.zombies) {
+        if (z.dead || (z.type !== 'bucket' && z.type !== 'knight') || z.metalStolen) continue;
+        z.metalStolen = true;
+        damageZombie(z, 700, { ignoreShield: true });
+        G.effects.push({ type: 'bolt', x1: p.x, y1: p.y - 20, x2: z.x, y2: z.y - 30, age: 0, life: 0.5, color: '#e5c5ff' });
+      }
+    } else if (kind === 'slowaura') {
+      for (const z of G.zombies) {
+        if (z.dead) continue;
+        z.freezeTimer = Math.max(z.freezeTimer, 4);
+        z.slowTimer = Math.max(z.slowTimer, 10);
+      }
+      G.effects.push({ type: 'freezeall', age: 0, life: 0.7 });
+    } else if (kind === 'healer') {
+      for (const q of G.plants) { q.hp = q.maxHp; q.shield += 400; }
+    } else if (kind === 'gust') {
+      for (const z of G.zombies) {
+        if (z.dead) continue;
+        z.x += 180;
+        damageZombie(z, 150, { ignoreShield: true });
+      }
+      G.effects.push({ type: 'wind', age: 0, life: 1.2 });
+    } else if (kind === 'chomper') {
+      const targets = G.zombies.filter((z) => !z.dead && z.row === p.row).sort((a, b) => a.x - b.x).slice(0, 3);
+      targets.forEach((z) => damageZombie(z, 4000, { ignoreShield: true }));
+      p.chew = 0;
+    } else if (kind === 'garlic') {
+      p.shield += 2500;
+      for (const z of G.zombies) {
+        if (!z.dead && Math.abs(z.row - p.row) <= 1) { z.x += 90; z.stunTimer = Math.max(z.stunTimer, 1.5); }
+      }
+    } else if (kind === 'torchwood') {
+      p.ultTimer = 15;
+      for (const z of G.zombies) if (!z.dead && z.row === p.row) damageZombie(z, 350, { ignoreShield: true });
+      G.effects.push({ type: 'burnrow', row: p.row, age: 0, life: 0.9 });
+    } else if (kind === 'buff') {
+      p.ultTimer = 15;
+    } else {
+      explodeAt(p.x, p.y, 150, 900);
+    }
+  }
+
+  function useEnergyOnPlant(p) {
+    if (G.phase !== 'playing' || G.energyBeans <= 0 || !p || G.plants.indexOf(p) < 0) return false;
+    G.energyBeans--;
+    G.selectedEnergy = null;
+    G.selected = null;
+    activatePlantUltimate(p);
+    G.effects.push({ type: 'ring', x: p.x, y: p.y, radius: 105, age: 0, life: 0.8, color: 'rgba(198,255,91,.95)' });
+    spawnParticles(p.x, p.y - 12, '#c6ff5b', 24, 220);
+    showBanner(p.def.name + ' · 能量大招！');
+    refreshHUD();
+    return true;
+  }
+
+  function updatePlants(dt) {
+    // 光环类效果
+    for (const p of G.plants) { p.dmgMul = 1; p.sunMul = 1; }
+    for (const p of G.plants) {
+      if (p.def.kind === 'buff') {
+        for (const q of G.plants) {
+          if (q !== p && Math.abs(q.row - p.row) <= 1 && Math.abs(q.col - p.col) <= 1) {
+            q.dmgMul *= 1 + p.def.dmgMul + (p.ultTimer > 0 ? 1.65 : 0);
+          }
+        }
+      } else if (p.def.kind === 'sunbuff') {
+        for (const q of G.plants) {
+          if (q !== p && q.def.kind === 'sun' && Math.abs(q.row - p.row) <= 1 && Math.abs(q.col - p.col) <= 1) {
+            q.sunMul *= 1.5;
+          }
+        }
+      }
+    }
+
+    for (let i = G.plants.length - 1; i >= 0; i--) {
+      const p = G.plants[i];
+      if (!p) continue;
+      const def = p.def;
+      p.anim += dt;
+      if (p.recoil > 0) p.recoil = Math.max(0, p.recoil - dt * 40);
+      if (p.hitFlash > 0) p.hitFlash -= dt;
+      if (p.chew > 0) p.chew -= dt;
+      if (p.invuln > 0) p.invuln -= dt;
+      if (p.ultFlash > 0) p.ultFlash -= dt;
+      if (p.ultTimer > 0) p.ultTimer -= dt;
+
+      switch (def.kind) {
+        case 'sun':
+        case 'sunbuff': {
+          p.timer -= dt;
+          if (p.timer <= 0) {
+            p.timer = def.sun.i;
+            spawnSunFromPlant(p, Math.round(def.sun.a * p.sunMul));
+          }
+          break;
+        }
+        case 'shooter': updateShooter(p, dt); break;
+        case 'lobber': updateLobber(p, dt); break;
+        case 'laser': {
+          p.timer -= dt;
+          if (p.timer <= 0 && zombieInRowAhead(p, 1)) {
+            p.timer = def.interval;
+            G.effects.push({ type: 'beam', row: p.row, x: p.x, age: 0, life: 0.25 });
+            for (const z of G.zombies) {
+              if (!z.dead && z.row === p.row && z.x > p.x - 10) {
+                damageZombie(z, def.dmg * p.dmgMul, { ignoreShield: true });
+              }
+            }
+          }
+          break;
+        }
+        case 'chain': {
+          p.timer -= dt;
+          if (p.timer <= 0 && zombieInRowAhead(p, 1)) {
+            p.timer = def.interval;
+            chainZap(p);
+          }
+          break;
+        }
+        case 'flame': {
+          p.timer -= dt;
+          if (p.timer <= 0) {
+            p.timer = 0.25;
+            const dmg = def.dps * 0.25 * p.dmgMul;
+            let hit = false;
+            for (const z of G.zombies) {
+              if (!z.dead && z.row === p.row && z.x > p.x - 10 && z.x < p.x + def.range) {
+                damageZombie(z, dmg, { ranged: false });
+                hit = true;
+              }
+            }
+            if (hit && Math.random() < 0.45) {
+              G.particles.push({
+                x: p.x + 42, y: p.y - 14,
+                vx: 80 + Math.random() * 60, vy: (Math.random() - 0.5) * 40,
+                life: 0.4, maxLife: 0.4, size: 7 + Math.random() * 6, color: '#ff9f43'
+              });
+            }
+          }
+          break;
+        }
+        case 'boomerang': {
+          p.timer -= dt;
+          if (p.timer <= 0 && zombieInRowAhead(p, 1)) {
+            p.timer = def.interval;
+            p.recoil = 5;
+            G.peas.push({
+              type: 'boomerang', kind: 'boomerang',
+              x: p.x + 30, y: p.y - 18, startX: p.x + 30,
+              row: p.row, dir: 1, dmg: def.dmg * p.dmgMul,
+              hitSet: new Set(), anim: 0
+            });
+          }
+          break;
+        }
+        case 'mine': {
+          if (!p.armed) {
+            p.arm -= dt;
+            if (p.arm <= 0) {
+              p.armed = true;
+              spawnParticles(p.x, p.y + 10, '#ffe066', 8, 100);
+            }
+          } else {
+            const target = G.zombies.find((z) => !z.dead && z.row === p.row && Math.abs(z.x - p.x) < 30);
+            if (target) {
+              explodeAt(p.x, p.y, 62, def.dmg);
+              removePlant(p);
+            }
+          }
+          break;
+        }
+        case 'squash': {
+          let target = null;
+          for (const z of G.zombies) {
+            if (z.dead || z.row !== p.row) continue;
+            if (z.x < p.x - 20 || z.x > p.x + CELL_W * 1.7) continue;
+            if (!target || z.x < target.x) target = z;
+          }
+          if (target) {
+            explodeAt(target.x, target.y, 52, def.dmg);
+            spawnParticles(target.x, target.y, '#7fae3f', 16, 180);
+            removePlant(p);
+          }
+          break;
+        }
+        case 'instant': {
+          p.fuse -= dt;
+          if (p.fuse <= 0) applyInstant(p);
+          break;
+        }
+        case 'spike': {
+          for (const z of G.zombies) {
+            if (!z.dead && z.row === p.row && Math.abs(z.x - p.x) < 42) {
+              damageZombie(z, def.dps * dt, { ranged: false });
+            }
+          }
+          break;
+        }
+        case 'magnet': {
+          p.timer -= dt;
+          if (p.timer <= 0) {
+            p.timer = 0.6;
+            const target = G.zombies.find((z) =>
+              !z.dead && (z.type === 'bucket' || z.type === 'knight') && !z.metalStolen &&
+              Math.abs(z.row - p.row) <= 2 &&
+              Math.abs(z.x - p.x) < CELL_W * def.range
+            );
+            if (target) {
+              target.metalStolen = true;
+              damageZombie(target, 300, { ignoreShield: true });
+              p.timer = def.interval;
+              G.effects.push({ type: 'bolt', x1: p.x, y1: p.y - 20, x2: target.x, y2: target.y - 30, age: 0, life: 0.25, color: '#c9a0ff' });
+              spawnParticles(target.x, target.y - 30, '#c9a0ff', 10, 150);
+            }
+          }
+          break;
+        }
+        case 'slowaura': {
+          p.timer -= dt;
+          if (p.timer <= 0) {
+            p.timer = def.interval;
+            for (const z of G.zombies) {
+              if (!z.dead && Math.hypot(z.x - p.x, (z.y - p.y) * 0.8) < def.radius) {
+                z.slowTimer = Math.max(z.slowTimer, def.slow);
+              }
+            }
+            G.effects.push({ type: 'ring', x: p.x, y: p.y, radius: def.radius, age: 0, life: 0.5, color: 'rgba(150, 210, 110, .8)' });
+          }
+          break;
+        }
+        case 'healer': {
+          for (const q of G.plants) {
+            if (q === p || q.hp >= q.maxHp) continue;
+            if (Math.abs(q.row - p.row) <= 1 && Math.abs(q.col - p.col) <= 1) {
+              q.hp = Math.min(q.maxHp, q.hp + def.heal * dt);
+            }
+          }
+          break;
+        }
+        case 'gust': {
+          p.timer -= dt;
+          if (p.timer <= 0) {
+            p.timer = def.interval;
+            for (const z of G.zombies) {
+              if (!z.dead) z.x += def.push;
+            }
+            G.effects.push({ type: 'wind', age: 0, life: 0.6 });
+          }
+          break;
+        }
+        case 'chomper': {
+          if (p.chew > 0) break;
+          const target = G.zombies.find((z) =>
+            !z.dead && z.row === p.row && z.x > p.x - 10 && z.x < p.x + CELL_W * 1.4
+          );
+          if (target) {
+            damageZombie(target, def.dmg, { ignoreShield: true });
+            p.chew = def.interval;
+            p.recoil = 8;
+            spawnParticles(target.x, target.y - 10, '#8a4fb0', 12, 160);
+          }
+          break;
+        }
+        default: break;
       }
     }
   }
 
-  function explodeCherry(p) {
-    const cx = p.x;
-    const cy = p.y;
-    const radius = CELL_W * 1.45;
-    let hit = 0;
-    for (let i = G.zombies.length - 1; i >= 0; i--) {
-      const z = G.zombies[i];
-      const d = Math.hypot(z.x - cx, (z.y - cy) * 0.9);
-      if (d < radius) {
-        damageZombie(z, 1800);
-        hit++;
-      }
+  function chainZap(p) {
+    const used = new Set();
+    let fromX = p.x + 20;
+    let fromY = p.y - 20;
+    let current = G.zombies
+      .filter((z) => !z.dead && z.row === p.row && z.x > p.x - 20 && z.x < W + 40)
+      .sort((a, b) => a.x - b.x)[0];
+    for (let i = 0; i < (p.def.chains || 3); i++) {
+      if (!current || used.has(current)) break;
+      used.add(current);
+      damageZombie(current, p.def.dmg * p.dmgMul, { ranged: true });
+      G.effects.push({
+        type: 'bolt', x1: fromX, y1: fromY,
+        x2: current.x, y2: current.y - 24, age: 0, life: 0.22, color: '#c9a0ff'
+      });
+      fromX = current.x;
+      fromY = current.y - 24;
+      current = G.zombies
+        .filter((z) => !z.dead && !used.has(z) && Math.hypot(z.x - fromX, z.y - fromY) < 155)
+        .sort((a, b) => Math.hypot(a.x - fromX, a.y - fromY) - Math.hypot(b.x - fromX, b.y - fromY))[0];
     }
-    G.effects.push({ type: 'boom', x: cx, y: cy, age: 0, life: 0.6 });
-    spawnParticles(cx, cy, '#ff9f43', 26, 300);
-    spawnParticles(cx, cy, '#ffe066', 18, 220);
-    G.shake = 16;
-    removePlant(p);
-    if (hit > 0) refreshHUD();
   }
 
-  function damageZombie(z, dmg) {
+  /* =========================================================
+     僵尸行为
+     ========================================================= */
+  function damageZombie(z, dmg, opt) {
+    if (!z || z.dead) return;
+    opt = opt || {};
+    const def = ZOMBIE_TYPES[z.type] || {};
+    if (opt.ranged && def.reduce && !opt.ignoreShield) dmg *= (1 - def.reduce);
     z.hp -= dmg;
     z.hitFlash = 0.08;
-    if (z.hp <= 0 && !z.dead) {
-      z.dead = true;
-      killZombie(z);
+    if (z.type === 'newspaper' && !z.enraged && z.hp < z.maxHp * 0.45) {
+      z.enraged = true;
+      spawnParticles(z.x, z.y - 30, '#efe9d2', 8, 130);
     }
-  }
-
-  function killZombie(z) {
-    const i = G.zombies.indexOf(z);
-    if (i >= 0) G.zombies.splice(i, 1);
-    G.kills++;
-    spawnParticles(z.x, z.y - 10, z.type === 'bucket' ? '#b0b8c0' : '#8cba68', 14, 170);
-    spawnParticles(z.x, z.y - 10, '#5d7280', 8, 140);
-    refreshHUD();
+    if (z.hp <= 0) z.dead = true;
   }
 
   function updateZombies(dt) {
-    for (let i = G.zombies.length - 1; i >= 0; i--) {
+    const lv = G.level;
+    for (let i = 0; i < G.zombies.length; i++) {
       const z = G.zombies[i];
+      if (z.dead) continue;
+      const def = ZOMBIE_TYPES[z.type];
       z.anim += dt;
       if (z.hitFlash > 0) z.hitFlash -= dt;
+      if (z.jumpTimer > 0) z.jumpTimer -= dt;
+      if (z.poison > 0) {
+        z.poison -= dt;
+        damageZombie(z, z.poisonDps * dt, { ignoreShield: true });
+        if (z.dead) continue;
+      }
+      if (z.freezeTimer > 0) { z.freezeTimer -= dt; continue; }
+      if (z.stunTimer > 0) { z.stunTimer -= dt; continue; }
       if (z.slowTimer > 0) z.slowTimer -= dt;
 
-      // 找面前的植物
       let target = null;
       for (const p of G.plants) {
         if (p.row !== z.row) continue;
+        if (p.def.kind === 'spike') continue;
         const dx = z.x - p.x;
         if (dx > -18 && dx < 46) {
           if (!target || p.x > target.x) target = p;
         }
       }
 
+      if (target && def.vault && !z.vaulted && !target.def.blockVault) {
+        z.vaulted = true;
+        z.jumpTimer = 0.45;
+        z.x = target.x - CELL_W * 0.85;
+        continue;
+      }
+
       if (target) {
         z.eating = true;
-        target.hp -= 100 * dt;
-        target.hitFlash = 0.06;
-        if (target.hp <= 0) {
-          spawnParticles(target.x, target.y, '#c98a4b', 12, 150);
-          removePlant(target);
+        if (target.def.reflect) damageZombie(z, target.def.reflect * dt, { ignoreShield: true });
+        const eatDps = z.type === 'torch' && z.torchOut ? 100 : (def.eatDps || 100);
+        const died = damagePlant(target, eatDps * dt, z);
+        if (died) {
+          z.eating = false;
+          if (target.def.kind === 'garlic') {
+            const opts = [];
+            if (target.row > 0) opts.push(target.row - 1);
+            if (target.row < ROWS - 1) opts.push(target.row + 1);
+            if (opts.length) {
+              z.row = opts[Math.floor(Math.random() * opts.length)];
+              z.y = cellCenterY(z.row) + 6;
+              z.x = cellCenterX(target.col) + 20;
+              spawnParticles(z.x, z.y - 20, '#f2ecdc', 10, 160);
+            }
+          }
         }
       } else {
         z.eating = false;
-        const speed = ZOMBIES[z.type].speed * (z.slowTimer > 0 ? 0.45 : 1);
+        const enrage = z.enraged ? 2 : 1;
+        const speed = def.speed * enrage * (z.slowTimer > 0 ? 0.45 : 1) * (lv ? lv.speedMul : 1);
         z.x -= speed * dt;
         z.walkPhase += dt * (speed / 16) * 2.2;
       }
     }
   }
 
-  function updatePeas(dt) {
-    for (let i = G.peas.length - 1; i >= 0; i--) {
-      const pea = G.peas[i];
-      pea.x += 380 * dt;
-      pea.anim += dt;
-      if (pea.x > W + 30) {
-        G.peas.splice(i, 1);
-        continue;
-      }
-      for (const z of G.zombies) {
-        if (z.row !== pea.row) continue;
-        if (Math.abs(z.x - pea.x) < 26) {
-          damageZombie(z, pea.dmg);
-          if (pea.snow) z.slowTimer = 3.2;
-          spawnParticles(pea.x, pea.y, pea.snow ? '#bff1ff' : '#a6e06a', 5, 110);
-          G.peas.splice(i, 1);
-          break;
+  function flushDeadZombies() {
+    for (let i = G.zombies.length - 1; i >= 0; i--) {
+      const z = G.zombies[i];
+      if (!z.dead) continue;
+      G.kills++;
+      spawnParticles(z.x, z.y - 10, z.type === 'bucket' ? '#b0b8c0' : '#8cba68', 14, 170);
+      spawnParticles(z.x, z.y - 10, z.metalStolen ? '#5d7280' : '#5d7280', 8, 140);
+      if (z.hasBean) {
+        if (G.energyBeans < 3) {
+          G.energyBeans++;
+          showBanner('获得能量豆 · 拖到植物上释放大招');
+        } else {
+          showBanner('能量豆槽已满');
         }
+        spawnParticles(z.x, z.y - 24, '#ffe66d', 22, 210);
+        G.effects.push({ type: 'ring', x: z.x, y: z.y - 15, radius: 70, age: 0, life: 0.65, color: 'rgba(198,255,91,.9)' });
       }
+      G.zombies.splice(i, 1);
     }
   }
 
+  /* =========================================================
+     子弹
+     ========================================================= */
+  function lobImpact(pr) {
+    const radius = pr.splash || 45;
+    for (const z of G.zombies) {
+      if (z.dead) continue;
+      if (Math.hypot(z.x - pr.x, (z.y - pr.y) * 0.75) < radius + 16) {
+        damageZombie(z, pr.dmg, { ignoreShield: true });
+        if (pr.slow) {
+          z.slowTimer = Math.max(z.slowTimer, pr.slow);
+          if (z.type === 'torch') z.torchOut = true;
+        }
+        if (pr.stun && Math.random() < pr.stun) z.stunTimer = Math.max(z.stunTimer, pr.stunDuration || 1.5);
+      }
+    }
+    G.particles.push({
+      x: pr.x, y: pr.y + 6, vx: 0, vy: -20,
+      life: 0.35, maxLife: 0.35, size: 16, color: 'rgba(255,255,255,.35)'
+    });
+    spawnParticles(pr.x, pr.y + 4, '#c9d6a8', 8, 120);
+  }
+
+  function updatePeas(dt) {
+    for (let i = G.peas.length - 1; i >= 0; i--) {
+      const pr = G.peas[i];
+      pr.anim += dt;
+      if (pr.delay > 0) { pr.delay -= dt; continue; }
+
+      if (pr.type === 'lob') {
+        pr.t += dt / pr.dur;
+        const k = Math.min(1, pr.t);
+        pr.x = pr.startX + (pr.tx - pr.startX) * k;
+        pr.y = pr.startY + (pr.ty - pr.startY) * k - Math.sin(k * Math.PI) * 115;
+        if (pr.t >= 1) {
+          lobImpact(pr);
+          G.peas.splice(i, 1);
+        }
+        continue;
+      }
+
+      if (pr.kind === 'boomerang') {
+        pr.x += pr.dir * 320 * dt;
+        if (pr.dir === 1 && pr.x > pr.startX + 320) {
+          pr.dir = -1;
+          pr.hitSet.clear();
+        }
+        if (pr.dir === -1 && pr.x <= pr.startX - 8) {
+          G.peas.splice(i, 1);
+          continue;
+        }
+        for (const z of G.zombies) {
+          if (z.dead || z.row !== pr.row) continue;
+          if (pr.hitSet.has(z)) continue;
+          if (Math.abs(z.x - pr.x) < 28) {
+            pr.hitSet.add(z);
+            damageZombie(z, pr.dmg, { ranged: true });
+            spawnParticles(pr.x, pr.y, '#e8d6a8', 4, 90);
+          }
+        }
+        continue;
+      }
+
+      if (pr.type === 'star') {
+        pr.x += pr.vx * dt;
+        pr.y += pr.vy * dt;
+        if (pr.x < -40 || pr.x > W + 40 || pr.y < -40 || pr.y > H + 40) {
+          G.peas.splice(i, 1);
+          continue;
+        }
+        for (const z of G.zombies) {
+          if (z.dead || pr.hitSet.has(z)) continue;
+          if (Math.hypot(z.x - pr.x, (z.y - 10) - pr.y) < 28) {
+            pr.hitSet.add(z);
+            damageZombie(z, pr.dmg, { ranged: true });
+            spawnParticles(pr.x, pr.y, '#ffe066', 4, 90);
+          }
+        }
+        continue;
+      }
+
+      // 直线子弹
+      const prevX = pr.x;
+      pr.x += (pr.speed || 380) * dt;
+
+      if (pr.type !== 'fire') {
+        for (const t of G.plants) {
+          if (t.def.kind !== 'torchwood' || t.row !== pr.row) continue;
+          if (prevX <= t.x + 30 && pr.x > t.x + 30 && !pr.fire) {
+            pr.fire = true;
+            pr.dmg *= t.ultTimer > 0 ? 2.5 : 1.5;
+            pr.type = 'fire';
+            break;
+          }
+        }
+      }
+
+      let removed = false;
+      for (const z of G.zombies) {
+        if (z.dead || z.row !== pr.row) continue;
+        if (Math.abs(z.x - pr.x) >= 26) continue;
+        if (pr.hitSet.has(z)) continue;
+        pr.hitSet.add(z);
+        damageZombie(z, pr.dmg, { ranged: true });
+        if (pr.slow) {
+          z.slowTimer = Math.max(z.slowTimer, pr.slow);
+          if (z.type === 'torch') z.torchOut = true;
+        }
+        if (pr.poison) {
+          z.poison = 5;
+          z.poisonDps = pr.poison;
+        }
+        if (pr.splash) {
+          for (const z2 of G.zombies) {
+            if (z2.dead || z2 === z) continue;
+            if (Math.hypot(z2.x - pr.x, z2.y - pr.y) < 55) {
+              damageZombie(z2, pr.dmg * 0.5, { ranged: true });
+            }
+          }
+          spawnParticles(pr.x, pr.y, '#c9e08a', 6, 110);
+        }
+        spawnParticles(pr.x, pr.y, pr.type === 'snow' ? '#bff1ff' : '#a6e06a', 4, 100);
+        if (!pr.pierce) {
+          G.peas.splice(i, 1);
+          removed = true;
+          break;
+        }
+      }
+      if (removed) continue;
+      if (pr.x > W + 40) G.peas.splice(i, 1);
+    }
+  }
+
+  /* =========================================================
+     阳光 / 推车 / 特效
+     ========================================================= */
   function updateSuns(dt) {
     for (let i = G.suns.length - 1; i >= 0; i--) {
       const s = G.suns[i];
@@ -1242,14 +3387,15 @@
     for (const m of G.mowers) {
       if (!m.active) {
         if (m.used) continue;
-        const danger = G.zombies.some((z) => z.row === m.row && z.x < GRID_X - 12);
+        const danger = G.zombies.some((z) => !z.dead && z.row === m.row && z.x < GRID_X - 12);
         if (danger) m.active = true;
       }
       if (m.active) {
         m.x += 520 * dt;
-        for (let i = G.zombies.length - 1; i >= 0; i--) {
-          const z = G.zombies[i];
-          if (z.row === m.row && Math.abs(z.x - m.x) < 48) killZombie(z);
+        for (const z of G.zombies) {
+          if (!z.dead && z.row === m.row && Math.abs(z.x - m.x) < 48) {
+            damageZombie(z, 99999, { ignoreShield: true });
+          }
         }
         if (m.x > W + 80) {
           m.active = false;
@@ -1285,43 +3431,79 @@
      波次
      ========================================================= */
   function startWave(index) {
-    const list = WAVES[index];
+    const lv = G.level;
     G.waveIndex = index;
     G.waveState = 'active';
     G.waveElapsed = 0;
     G.spawnQueue = [];
 
-    const big = index === 4 || index === WAVES.length - 1;
-    const base = big ? 0.55 : Math.max(0.95, 2.4 - index * 0.14);
+    const isFinal = index === lv.waves - 1;
+    const isBig = isFinal || (index + 1) % 5 === 0;
+    let count;
+    if (index === 0) count = 1;
+    else if (index === 1) count = 2;
+    else if (index === 2) count = 3;
+    else count = Math.round((3 + index * lv.density) * (isBig ? 1.6 : 1));
+    count = Math.min(count, 44);
+    const pool = lv.pool;
+    const progress = index / Math.max(1, lv.waves - 1);
+    const base = Math.max(0.42, (2.3 - index * 0.07) * (isBig ? 0.7 : 1));
     let t = 0.5;
     let lastRow = -1;
 
-    for (const type of list) {
-      let row = (Math.random() * ROWS) | 0;
-      if (row === lastRow) row = (row + 1 + ((Math.random() * 2) | 0)) % ROWS;
+    for (let i = 0; i < count; i++) {
+      const strong = Math.random() < 0.18 + progress * 0.5;
+      const type = strong
+        ? pool[Math.floor(Math.random() * pool.length)]
+        : pool[Math.floor(Math.random() * Math.min(pool.length, 2))];
+      let row = Math.floor(Math.random() * ROWS);
+      if (row === lastRow) row = (row + 1 + Math.floor(Math.random() * 2)) % ROWS;
       lastRow = row;
       G.spawnQueue.push({ t, type, row });
       t += base * (0.65 + Math.random() * 0.7);
     }
+    if (isBig && lv.pool.indexOf('flag') >= 0) G.spawnQueue.push({ t: 0.15, type: 'flag', row: Math.floor(Math.random() * ROWS) });
+    if (isFinal) {
+      G.spawnQueue.push({ t: t + 1.2, type: G.levelIndex >= 4 ? 'giant' : 'bucket', row: 2 });
+      if (G.levelIndex >= 7) {
+        G.spawnQueue.push({ t: t + 2.4, type: 'giant', row: 1 });
+        G.spawnQueue.push({ t: t + 3.1, type: 'giant', row: 3 });
+      }
+    }
+    G.spawnQueue.sort((a, b) => a.t - b.t);
 
-    showBanner(big ? '一大波僵尸正在接近！' : '第 ' + (index + 1) + ' 波僵尸来袭');
+    showBanner(isBig ? '一大波僵尸正在接近！' : '第 ' + (index + 1) + ' 波僵尸来袭');
     refreshHUD();
   }
 
   function spawnZombie(type, row) {
-    const def = ZOMBIES[type];
+    const def = ZOMBIE_TYPES[type];
+    const lv = G.level;
+    const hp = Math.round(def.hp * lv.hpMul * (1 + Math.max(0, G.waveIndex) * 0.02));
+    const beanChance = Math.min(0.45, 0.12 + G.beanPity * 0.025);
+    const hasBean = Math.random() < beanChance;
+    G.beanPity = hasBean ? 0 : G.beanPity + 1;
     G.zombies.push({
       type, row,
       x: W + 30 + Math.random() * 50,
       y: cellCenterY(row) + 6,
-      hp: def.hp,
-      maxHp: def.hp,
+      hp, maxHp: hp,
       walkPhase: Math.random() * 6.28,
       anim: 0,
       slowTimer: 0,
+      freezeTimer: 0,
+      stunTimer: 0,
       hitFlash: 0,
       eating: false,
-      dead: false
+      dead: false,
+      vaulted: false,
+      jumpTimer: 0,
+      enraged: false,
+      metalStolen: false,
+      poison: 0,
+      poisonDps: 0,
+      hasBean,
+      torchOut: false
     });
   }
 
@@ -1342,8 +3524,8 @@
 
     if (G.spawnQueue.length === 0 && G.zombies.length === 0) {
       const next = G.waveIndex + 1;
-      if (next >= WAVES.length) {
-        winGame();
+      if (next >= G.level.waves) {
+        winLevel();
         return;
       }
       G.waveState = 'break';
@@ -1359,18 +3541,23 @@
   function checkLoss() {
     if (G.phase !== 'playing') return;
     for (const z of G.zombies) {
-      if (z.x < GRID_X - 66) {
-        loseGame();
+      if (!z.dead && z.x < GRID_X - 66) {
+        loseLevel();
         return;
       }
     }
   }
 
-  function winGame() {
+  function winLevel() {
     G.phase = 'won';
+    completed[currentLevelIndex] = true;
+    try {
+      localStorage.setItem('pvz-progress-v3', JSON.stringify(completed));
+    } catch (e) { /* 忽略存储失败 */ }
     showOverlay('won');
   }
-  function loseGame() {
+
+  function loseLevel() {
     G.phase = 'lost';
     G.shake = 12;
     showOverlay('lost');
@@ -1385,18 +3572,21 @@
       G.cooldowns[k] = Math.max(0, G.cooldowns[k] - dt);
     }
 
-    G.sunTimer -= dt;
-    if (G.sunTimer <= 0) {
-      G.sunTimer = 9 + Math.random() * 3;
-      G.suns.push({
-        x: GRID_X + 40 + Math.random() * (GRID_W - 80),
-        y: GRID_Y - 50,
-        ty: GRID_Y + 50 + Math.random() * (GRID_H - 130),
-        vy: 0,
-        value: 25,
-        life: 14,
-        anim: Math.random() * 10
-      });
+    if (G.level) {
+      G.sunTimer -= dt;
+      if (G.sunTimer <= 0) {
+        const sky = G.level.sky || [9, 12];
+        G.sunTimer = sky[0] + Math.random() * (sky[1] - sky[0]);
+        G.suns.push({
+          x: GRID_X + 40 + Math.random() * (GRID_W - 80),
+          y: GRID_Y - 50,
+          ty: GRID_Y + 50 + Math.random() * (GRID_H - 130),
+          vy: 0,
+          value: 25,
+          life: 15,
+          anim: Math.random() * 10
+        });
+      }
     }
 
     updatePlants(dt);
@@ -1404,56 +3594,128 @@
     updatePeas(dt);
     updateSuns(dt);
     updateMowers(dt);
+    flushDeadZombies();
     updateWaves(dt);
     updateEffects(dt);
     checkLoss();
   }
 
-  function render() {
-    ctx.clearRect(0, 0, W, H);
+  /* =========================================================
+     绘制
+     ========================================================= */
+  function drawObstacle(row, col) {
+    const x = cellCenterX(col);
+    const y = cellCenterY(row) + 12;
     ctx.save();
-    if (G.shake > 0) {
-      ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
+    ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(0,0,0,.2)';
+    ellipse(ctx, 0, 26, 32, 10);
+    ctx.fillStyle = '#8f959c';
+    ctx.beginPath();
+    ctx.moveTo(-30, 0);
+    ctx.lineTo(-16, -26);
+    ctx.lineTo(2, -22);
+    ctx.lineTo(16, -30);
+    ctx.lineTo(30, -2);
+    ctx.lineTo(22, 22);
+    ctx.lineTo(-6, 26);
+    ctx.lineTo(-26, 18);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#6d747b';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.fillStyle = '#a8b0b7';
+    ctx.beginPath();
+    ctx.moveTo(-20, -2);
+    ctx.lineTo(-9, -20);
+    ctx.lineTo(3, -16);
+    ctx.lineTo(-2, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(60,70,50,.6)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-24, 20);
+    ctx.quadraticCurveTo(-30, 6, -26, -4);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPlacementPreview() {
+    const energyMode = G.selectedEnergy !== null && G.selectedEnergy !== undefined;
+    if (G.phase !== 'playing' || (!G.selected && !energyMode) || !mouse.inside) return;
+    const col = Math.floor((mouse.x - GRID_X) / CELL_W);
+    const row = Math.floor((mouse.y - GRID_Y) / CELL_H);
+    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
+
+    const x = GRID_X + col * CELL_W;
+    const y = GRID_Y + row * CELL_H;
+    const occupied = !!plantAt(row, col);
+
+    if (energyMode) {
+      ctx.fillStyle = occupied ? 'rgba(198,255,91,.3)' : 'rgba(255,82,82,.16)';
+      roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8); ctx.fill();
+      ctx.strokeStyle = occupied ? '#c6ff5b' : '#ff8a70'; ctx.lineWidth = 3;
+      roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8); ctx.stroke();
+      if (occupied) drawEnergyBean(ctx, cellCenterX(col) + 27, cellCenterY(row) - 28, 0.55, 0.9);
+      return;
     }
 
-    ctx.drawImage(bgCanvas, 0, 0);
-
-    // 种植预览
-    drawPlacementPreview();
-
-    // 小推车
-    for (const m of G.mowers) {
-      if (m.active) drawMower(ctx, m);
-      else if (!m.used) drawMower(ctx, m);
-    }
-
-    // 植物
-    const plants = G.plants.slice().sort((a, b) => a.row - b.row);
-    for (const p of plants) {
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      if (p.hitFlash > 0) {
-        ctx.translate((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
+    if (G.selected === 'shovel') {
+      ctx.fillStyle = occupied ? 'rgba(255, 82, 82, .25)' : 'rgba(255,255,255,.08)';
+      roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8);
+      ctx.fill();
+      if (occupied) {
+        ctx.strokeStyle = '#ff5252';
+        ctx.lineWidth = 3;
+        roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8);
+        ctx.stroke();
       }
-      drawPlantBody(ctx, p.type, p);
+      return;
+    }
+
+    const def = PLANTS[G.selected];
+    if (!def) return;
+    const ok = !occupied && !isBlocked(row, col) && G.sun >= def.cost && (G.cooldowns[G.selected] || 0) <= 0;
+
+    ctx.fillStyle = ok ? 'rgba(255,255,255,.2)' : 'rgba(255, 82, 82, .2)';
+    roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8);
+    ctx.fill();
+    ctx.strokeStyle = ok ? 'rgba(255,255,255,.85)' : 'rgba(255, 82, 82, .9)';
+    ctx.lineWidth = 2.5;
+    roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8);
+    ctx.stroke();
+
+    if (!occupied && !isBlocked(row, col)) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      ctx.translate(cellCenterX(col), cellCenterY(row) + 6);
+      drawPlantBody(ctx, { def, hp: 1, maxHp: 1, anim: 0, recoil: 0, armed: false, chew: 0 });
       ctx.restore();
     }
+  }
 
-    // 僵尸
-    const zombies = G.zombies.slice().sort((a, b) => a.row - b.row);
-    for (const z of zombies) drawZombie(ctx, z);
+  function drawBolt(x1, y1, x2, y2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    const segs = 6;
+    for (let i = 1; i < segs; i++) {
+      const k = i / segs;
+      const jitter = (Math.random() - 0.5) * 18;
+      const dx = x2 - x1, dy = y2 - y1;
+      const len = Math.hypot(dx, dy) || 1;
+      ctx.lineTo(x1 + dx * k - dy / len * jitter, y1 + dy * k + dx / len * jitter);
+    }
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
 
-    // 豌豆
-    for (const pea of G.peas) drawPea(ctx, pea);
-
-    // 阳光
-    for (const s of G.suns) drawSun(ctx, s);
-
-    // 爆炸与粒子
+  function drawEffects() {
     for (const e of G.effects) {
+      const k = clamp(e.age / e.life, 0, 1);
       if (e.type === 'boom') {
-        const k = e.age / e.life;
-        const r = 34 + k * 120;
+        const r = e.radius * (0.35 + k * 0.85);
         ctx.save();
         ctx.globalAlpha = Math.max(0, 1 - k);
         const g = ctx.createRadialGradient(e.x, e.y, 4, e.x, e.y, r);
@@ -1465,11 +3727,169 @@
         ctx.strokeStyle = 'rgba(255, 230, 150, .85)';
         ctx.lineWidth = 4 * (1 - k) + 1;
         ctx.beginPath();
-        ctx.arc(e.x, e.y, r * 0.92, 0, Math.PI * 2);
+        ctx.arc(e.x, e.y, r * 0.9, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
+      } else if (e.type === 'ring') {
+        ctx.save();
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = e.color || 'rgba(180,240,255,.9)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius * (0.4 + k * 0.7), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      } else if (e.type === 'beam') {
+        const y = cellCenterY(e.row) + 6;
+        ctx.save();
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = 'rgba(150, 240, 255, .9)';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(e.x + 20, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(e.x + 20, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+        ctx.restore();
+      } else if (e.type === 'bolt') {
+        ctx.save();
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = e.color || '#c9a0ff';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        drawBolt(e.x1, e.y1, e.x2, e.y2);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.6;
+        drawBolt(e.x1, e.y1, e.x2, e.y2);
+        ctx.restore();
+      } else if (e.type === 'burnrow') {
+        const top = GRID_Y + e.row * CELL_H;
+        ctx.save();
+        ctx.globalAlpha = (1 - k) * 0.85;
+        const g = ctx.createLinearGradient(GRID_X, 0, W, 0);
+        g.addColorStop(0, 'rgba(255, 120, 20, .9)');
+        g.addColorStop(0.7, 'rgba(255, 60, 10, .7)');
+        g.addColorStop(1, 'rgba(255, 60, 10, .2)');
+        ctx.fillStyle = g;
+        ctx.fillRect(GRID_X, top + 6, GRID_W, CELL_H - 12);
+        ctx.fillStyle = 'rgba(255, 220, 120, ' + (0.5 * (1 - k)) + ')';
+        for (let i = 0; i < 12; i++) {
+          const fx = GRID_X + ((clock * 200 + i * 90) % GRID_W);
+          ctx.beginPath();
+          ctx.arc(fx, top + CELL_H / 2 + Math.sin(clock * 8 + i) * 16, 14, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else if (e.type === 'freezeall') {
+        ctx.save();
+        ctx.globalAlpha = (1 - k) * 0.55;
+        ctx.fillStyle = '#9fdcff';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      } else if (e.type === 'wind') {
+        ctx.save();
+        ctx.globalAlpha = (1 - k) * 0.7;
+        ctx.strokeStyle = '#e8f6ff';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 9; i++) {
+          const y = GRID_Y + 30 + i * 58;
+          const x = GRID_X + 60 + ((clock * 900 + i * 130) % (GRID_W + 100));
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + 60, y);
+          ctx.stroke();
+        }
         ctx.restore();
       }
     }
+  }
+
+  function drawFog() {
+    ctx.save();
+    const t = clock * 0.16;
+    for (let i = 0; i < 6; i++) {
+      const fx = 380 + Math.sin(t + i * 1.7) * 190 + i * 65;
+      const fy = 130 + Math.cos(t * 0.8 + i * 2.1) * 130 + i * 46;
+      const g = ctx.createRadialGradient(fx, fy, 20, fx, fy, 200);
+      g.addColorStop(0, 'rgba(236, 242, 246, .42)');
+      g.addColorStop(1, 'rgba(236, 242, 246, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 200, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (G.shake > 0) {
+      ctx.translate((Math.random() - 0.5) * G.shake, (Math.random() - 0.5) * G.shake);
+    }
+
+    ctx.drawImage(bgCanvas, 0, 0);
+
+    if (G.level && G.level.tint) {
+      ctx.fillStyle = G.level.tint;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    if (G.level && G.level.blocked) {
+      for (const key of G.level.blocked) {
+        const parts = key.split(',');
+        drawObstacle(parseInt(parts[0], 10), parseInt(parts[1], 10));
+      }
+    }
+
+    drawPlacementPreview();
+
+    for (const m of G.mowers) {
+      if (m.active || !m.used) drawMower(ctx, m);
+    }
+
+    const plants = G.plants.slice().sort((a, b) => a.row - b.row);
+    for (const p of plants) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      if (p.hitFlash > 0) {
+        ctx.translate((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
+      }
+      if (p.ultFlash > 0 || p.ultTimer > 0) {
+        ctx.shadowColor = '#c6ff5b';
+        ctx.shadowBlur = 18 + Math.sin(clock * 10) * 5;
+      }
+      drawPlantBody(ctx, p);
+      ctx.shadowBlur = 0;
+      if (p.shield > 0) {
+        ctx.strokeStyle = 'rgba(215,235,245,.82)'; ctx.lineWidth = 4;
+        ctx.setLineDash([9, 5]);
+        ctx.beginPath(); ctx.ellipse(0, -2, 35, 48, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(180,215,230,.18)';
+        ctx.beginPath(); ctx.ellipse(0, -2, 33, 46, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      if (p.invuln > 0) {
+        ctx.strokeStyle = 'rgba(198,255,91,.75)'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(0, 0, 40 + Math.sin(clock * 12) * 3, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    const zombies = G.zombies.slice().sort((a, b) => a.row - b.row);
+    for (const z of zombies) drawZombie(ctx, z);
+
+    for (const pr of G.peas) drawProjectile(ctx, pr);
+    for (const s of G.suns) drawSun(ctx, s);
+
+    drawEffects();
+
     for (const pt of G.particles) {
       ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
       ctx.fillStyle = pt.color;
@@ -1477,58 +3897,9 @@
     }
     ctx.globalAlpha = 1;
 
+    if (G.level && G.level.fog) drawFog();
+
     ctx.restore();
-  }
-
-  function drawPlacementPreview() {
-    if (G.phase !== 'playing' || !G.selected || !mouse.inside) return;
-    const col = Math.floor((mouse.x - GRID_X) / CELL_W);
-    const row = Math.floor((mouse.y - GRID_Y) / CELL_H);
-    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
-
-    const x = GRID_X + col * CELL_W;
-    const y = GRID_Y + row * CELL_H;
-    const occupied = !!plantAt(row, col);
-
-    if (G.selected === 'shovel') {
-      ctx.fillStyle = occupied ? 'rgba(255, 82, 82, .25)' : 'rgba(255,255,255,.08)';
-      roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8);
-      ctx.fill();
-      if (occupied) {
-        ctx.strokeStyle = '#ff5252';
-        ctx.lineWidth = 3;
-        roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8);
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(255,255,255,.9)';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(x + 28, y + 26);
-        ctx.lineTo(x + CELL_W - 28, y + CELL_H - 26);
-        ctx.moveTo(x + CELL_W - 28, y + 26);
-        ctx.lineTo(x + 28, y + CELL_H - 26);
-        ctx.stroke();
-      }
-      return;
-    }
-
-    const def = PLANTS[G.selected];
-    const ok = !occupied && G.sun >= def.cost && G.cooldowns[G.selected] <= 0;
-
-    ctx.fillStyle = ok ? 'rgba(255,255,255,.2)' : 'rgba(255, 82, 82, .2)';
-    roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8);
-    ctx.fill();
-    ctx.strokeStyle = ok ? 'rgba(255,255,255,.85)' : 'rgba(255, 82, 82, .9)';
-    ctx.lineWidth = 2.5;
-    roundRectPath(ctx, x + 2, y + 2, CELL_W - 4, CELL_H - 4, 8);
-    ctx.stroke();
-
-    if (!occupied) {
-      ctx.save();
-      ctx.globalAlpha = 0.5;
-      ctx.translate(cellCenterX(col), cellCenterY(row) + 6);
-      drawPlantBody(ctx, G.selected, { hp: 1, maxHp: 1, anim: 0, recoil: 0 });
-      ctx.restore();
-    }
   }
 
   /* =========================================================
@@ -1537,66 +3908,76 @@
   function refreshHUD() {
     const sunEl = $('sunCount');
     if (sunEl) sunEl.textContent = Math.floor(G.sun);
+    const waves = G.level ? G.level.waves : 8;
     const waveEl = $('waveNum');
-    if (waveEl) waveEl.textContent = Math.min(TOTAL_WAVES, Math.max(1, G.waveIndex + 1));
-    const killEl = $('killNum');
-    if (killEl) killEl.textContent = G.kills;
+    if (waveEl) waveEl.textContent = Math.min(waves, Math.max(1, G.waveIndex + 1));
+    const totalEl = $('waveTotal');
+    if (totalEl) totalEl.textContent = waves;
+    const lvEl = $('levelName');
+    if (lvEl) lvEl.textContent = G.level ? G.level.name : '前院草坪';
 
     for (const ref of cardRefs) {
-      const def = PLANTS[ref.key];
-      const cd = G.cooldowns[ref.key];
+      const def = PLANTS[ref.id];
+      if (!def) continue;
+      const cd = G.cooldowns[ref.id] || 0;
       const ready = cd <= 0 && G.sun >= def.cost;
-      ref.el.classList.toggle('selected', G.selected === ref.key);
+      ref.el.classList.toggle('selected', G.selected === ref.id);
       ref.el.classList.toggle('disabled', !ready);
-      ref.mask.style.height = (cd > 0 ? (cd / def.cooldown) * 100 : 0) + '%';
+      ref.mask.style.height = (cd > 0 ? (cd / def.cd) * 100 : 0) + '%';
     }
     const shovelBtn = $('shovelBtn');
     if (shovelBtn) shovelBtn.classList.toggle('active', G.selected === 'shovel');
     const pauseBtn = $('pauseBtn');
     if (pauseBtn) pauseBtn.textContent = G.phase === 'paused' ? '继续' : '暂停';
+    document.querySelectorAll('.energy-slot').forEach((slot) => {
+      const index = parseInt(slot.dataset.slot, 10);
+      slot.classList.toggle('filled', index < G.energyBeans);
+      slot.classList.toggle('selected', G.selectedEnergy === index && index < G.energyBeans);
+      slot.setAttribute('aria-label', index < G.energyBeans ? '能量豆 ' + (index + 1) + '，拖到植物上' : '空能量豆槽 ' + (index + 1));
+    });
+  }
+
+  function drawPlantIcon(cvs, id) {
+    const c = cvs.getContext('2d');
+    c.clearRect(0, 0, cvs.width, cvs.height);
+    const p = makePlant(id, 0, 0);
+    c.save();
+    c.scale(2, 2);
+    c.translate(26, 28);
+    c.scale(0.5, 0.5);
+    drawPlantBody(c, p);
+    c.restore();
   }
 
   function buildCards() {
     const wrap = $('seedCards');
     wrap.innerHTML = '';
     cardRefs = [];
-    PLANT_ORDER.forEach((key) => {
-      const def = PLANTS[key];
+    G.loadout.forEach((id) => {
+      const def = PLANTS[id];
+      if (!def) return;
       const el = document.createElement('div');
       el.className = 'card';
-      el.title = def.desc + '（' + def.cost + ' 阳光）';
+      el.title = def.name + '：' + def.desc + '\n能量豆：' + ultimateDescription(def);
       el.innerHTML =
-        '<canvas width="112" height="104" style="width:56px;height:52px;display:block"></canvas>' +
+        '<canvas width="104" height="96" style="width:52px;height:48px;display:block"></canvas>' +
         '<div class="name">' + def.name + '</div>' +
         '<div class="cost">' + def.cost + '</div>' +
         '<div class="mask"></div>';
       wrap.appendChild(el);
-
-      const iconCanvas = el.querySelector('canvas');
-      drawPlantIcon(iconCanvas, key);
-      el.addEventListener('click', () => onCardClick(key));
-      cardRefs.push({ key, el, mask: el.querySelector('.mask') });
+      drawPlantIcon(el.querySelector('canvas'), id);
+      el.addEventListener('click', () => onCardClick(id));
+      cardRefs.push({ id, el, mask: el.querySelector('.mask') });
     });
   }
 
-  function drawPlantIcon(cvs, key) {
-    const c = cvs.getContext('2d');
-    c.clearRect(0, 0, cvs.width, cvs.height);
-    c.save();
-    c.scale(2, 2);
-    c.translate(28, 31);
-    c.scale(0.58, 0.58);
-    drawPlantBody(c, key, { hp: 1, maxHp: 1, anim: 0, recoil: 0 });
-    c.restore();
-  }
-
-  function onCardClick(key) {
-    if (G.phase === 'ready') { startGame(); return; }
+  function onCardClick(id) {
     if (G.phase !== 'playing') return;
-    if (G.selected === key) { G.selected = null; refreshHUD(); return; }
-    if (G.cooldowns[key] > 0) return;
-    if (G.sun < PLANTS[key].cost) return;
-    G.selected = key;
+    G.selectedEnergy = null;
+    if (G.selected === id) { G.selected = null; refreshHUD(); return; }
+    if ((G.cooldowns[id] || 0) > 0) return;
+    if (G.sun < PLANTS[id].cost) return;
+    G.selected = id;
     refreshHUD();
   }
 
@@ -1611,6 +3992,226 @@
     bannerTimer = setTimeout(() => b.classList.remove('show'), 2300);
   }
 
+  /* =========================================================
+     图鉴
+     ========================================================= */
+  let codexTab = 'plants';
+  let codexSel = null;
+  let codexPrevPhase = 'menu';
+  let codexOpen = false;
+
+  function plantParamRows(def) {
+    const rows = [['阳光消耗', def.cost], ['冷却时间', def.cd + ' 秒'], ['耐久', def.hp]];
+    const proj = def.proj;
+    switch (def.kind) {
+      case 'shooter':
+        rows.push(['单发伤害', proj.dmg], ['攻击间隔', proj.interval + ' 秒'],
+          ['每次弹数', proj.count], ['攻击行数', proj.rows]);
+        if (proj.slow) rows.push(['减速', proj.slow + ' 秒']);
+        if (proj.poison) rows.push(['中毒', proj.poison + ' / 秒']);
+        if (proj.pierce) rows.push(['穿透', '可穿透多目标']);
+        if (proj.splash) rows.push(['溅射范围', proj.splash]);
+        break;
+      case 'lobber':
+        rows.push(['伤害', def.dmg], ['攻击间隔', def.interval + ' 秒'], ['溅射范围', def.splash]);
+        if (def.stun) rows.push(['黄油定身', Math.round(def.stun * 100) + '% 概率']);
+        if (def.slow) rows.push(['减速', def.slow + ' 秒']);
+        if (def.burn) rows.push(['灼烧', '附带燃烧伤害']);
+        break;
+      case 'laser': rows.push(['伤害', def.dmg], ['间隔', def.interval + ' 秒'], ['特性', '贯穿整行']); break;
+      case 'chain': rows.push(['伤害', def.dmg], ['间隔', def.interval + ' 秒'], ['连锁数', def.chains]); break;
+      case 'flame': rows.push(['每秒伤害', def.dps], ['灼烧范围', def.range]); break;
+      case 'boomerang': rows.push(['伤害', def.dmg], ['间隔', def.interval + ' 秒'], ['特性', '折返可多次命中']); break;
+      case 'sun': rows.push(['每次产量', def.sun.a], ['生产周期', def.sun.i + ' 秒']); break;
+      case 'sunbuff': rows.push(['每次产量', def.sun.a], ['生产周期', def.sun.i + ' 秒'], ['增益', '相邻阳光植物 +50%']); break;
+      case 'wall':
+        if (def.reduce) rows.push(['受到伤害降低', Math.round(def.reduce * 100) + '%']);
+        if (def.reflect) rows.push(['反伤', def.reflect]);
+        if (def.blockVault) rows.push(['特性', '阻挡撑杆僵尸跳跃']);
+        break;
+      case 'chomper': rows.push(['吞食伤害', def.dmg], ['咀嚼冷却', def.interval + ' 秒']); break;
+      case 'mine': rows.push(['爆炸伤害', def.dmg], ['准备时间', def.arm + ' 秒']); break;
+      case 'instant':
+        if (def.dmg) rows.push(['伤害', def.dmg]);
+        if (def.radius) rows.push(['作用范围', def.radius]);
+        if (def.freeze) rows.push(['冻结时长', def.freeze + ' 秒']);
+        rows.push(['触发延迟', def.fuse + ' 秒']);
+        break;
+      case 'spike': rows.push(['每秒伤害', def.dps]); break;
+      case 'magnet': rows.push(['吸取间隔', def.interval + ' 秒'], ['作用范围', def.range + ' 格']); break;
+      case 'slowaura': rows.push(['减速时长', def.slow + ' 秒'], ['作用范围', def.radius]); break;
+      case 'healer': rows.push(['每次治疗', def.heal]); break;
+      case 'buff': rows.push(['相邻植物伤害', '+' + Math.round(def.dmgMul * 100) + '%']); break;
+      case 'gust': rows.push(['击退距离', def.push], ['触发间隔', def.interval + ' 秒']); break;
+      case 'garlic': rows.push(['特性', '被吃掉后将僵尸赶到相邻行']); break;
+      default: break;
+    }
+    return rows;
+  }
+
+  function zombieParamRows(type) {
+    const def = ZOMBIE_TYPES[type] || ZOMBIE_TYPES.basic;
+    const rows = [['生命值', def.hp], ['移动速度', def.speed]];
+    if (def.reduce) rows.push(['远程减伤', Math.round(def.reduce * 100) + '%']);
+    if (def.eatDps) rows.push(['啃食伤害', def.eatDps + ' / 秒']);
+    const tags = [];
+    if (def.big) tags.push('巨型');
+    if (def.small) tags.push('小型·快速');
+    if (def.vault) tags.push('可跳过植物');
+    if (type === 'flag') tags.push('引领大波');
+    if (type === 'torch') tags.push('火把可被冰系熄灭');
+    if (type === 'hammer') tags.push('锤子格挡远程');
+    if (type === 'knight') tags.push('重甲护体');
+    if (type === 'football') tags.push('高速冲锋');
+    if (tags.length) rows.push(['特性', tags.join('、')]);
+    return rows;
+  }
+
+  function zombieDesc(type) {
+    const map = {
+      basic: '最常见的僵尸，各方面能力都很普通。',
+      cone: '头顶路障，生命比普通僵尸高一些。',
+      bucket: '戴着铁桶，生命很高；磁力菇可以吸走铁桶。',
+      newspaper: '读报僵尸，报纸被打掉后会狂暴加速。',
+      screendoor: '手持铁门，受到的远程伤害大幅降低。',
+      polevaulter: '撑杆僵尸，会跳过遇到的第一株植物，高坚果能挡住。',
+      football: '橄榄球僵尸，冲锋速度极快。',
+      giant: '巨人僵尸，生命极高、啃食伤害巨大，是最难对付的敌人之一。',
+      flag: '旗帜僵尸，它的出现意味着一大波僵尸即将来袭。',
+      imp: '小鬼僵尸，体型小、速度快，但生命很低。',
+      torch: '火把僵尸，啃食伤害更高；冰系攻击可以熄灭它的火把。',
+      hammer: '锤子僵尸，能格挡一部分远程伤害，投手类植物更有效。',
+      knight: '骑士僵尸，重甲护体，远程伤害降低，需要持续火力。'
+    };
+    return map[type] || '';
+  }
+
+  function drawPlantDetailIcon(cvs, id) {
+    const c = cvs.getContext('2d');
+    c.clearRect(0, 0, cvs.width, cvs.height);
+    const p = makePlant(id, 0, 0);
+    c.save();
+    c.translate(cvs.width / 2, cvs.height / 2 + 6);
+    c.scale(1.15, 1.15);
+    drawPlantBody(c, p);
+    c.restore();
+  }
+
+  function drawZombieIcon(cvs, type, detail) {
+    const c = cvs.getContext('2d');
+    c.clearRect(0, 0, cvs.width, cvs.height);
+    const def = ZOMBIE_TYPES[type] || ZOMBIE_TYPES.basic;
+    const z = {
+      type: type, x: 0, y: 0, hp: def.hp, maxHp: def.hp,
+      walkPhase: 0.7, eating: false, freezeTimer: 0, stunTimer: 0,
+      jumpTimer: 0, metalStolen: false
+    };
+    const base = def.big ? 0.68 : (def.small ? 0.95 : 0.8);
+    const s = detail ? base * 1.45 : base;
+    c.save();
+    c.translate(cvs.width / 2, cvs.height - (detail ? 16 : 10));
+    c.scale(s, s);
+    drawZombie(c, z);
+    c.restore();
+  }
+
+  function drawCodexIcons() {
+    const isPlant = codexTab === 'plants';
+    document.querySelectorAll('#codexList .codex-item').forEach((item) => {
+      const cvs = item.querySelector('canvas');
+      if (!cvs) return;
+      if (isPlant) drawPlantIcon(cvs, item.dataset.id);
+      else drawZombieIcon(cvs, item.dataset.id, false);
+    });
+    const detail = document.querySelector('#codexDetail .cd-icon');
+    if (detail) {
+      if (isPlant) drawPlantDetailIcon(detail, codexSel);
+      else drawZombieIcon(detail, codexSel, true);
+    }
+  }
+
+  function renderCodex() {
+    const o = $('overlay');
+    const isPlant = codexTab === 'plants';
+    const tabs = '<div class="codex-tabs">' +
+      '<button class="codex-tab' + (isPlant ? ' on' : '') + '" data-action="codex-tab" data-tab="plants">植物图鉴</button>' +
+      '<button class="codex-tab' + (!isPlant ? ' on' : '') + '" data-action="codex-tab" data-tab="zombies">僵尸图鉴</button>' +
+      '</div>';
+    let list = '';
+    let detail = '';
+    if (isPlant) {
+      if (!codexSel || !PLANTS[codexSel]) codexSel = PLANT_LIST[0].id;
+      list = PLANT_LIST.map((d) =>
+        '<button class="codex-item' + (codexSel === d.id ? ' sel' : '') + '" data-action="codex-item" data-id="' + d.id + '">' +
+        '<canvas width="100" height="92"></canvas>' +
+        '<span class="ci-name">' + d.name + '</span>' +
+        '<span class="ci-sub">' + d.cost + ' 阳光</span>' +
+        '</button>'
+      ).join('');
+      const def = PLANTS[codexSel];
+      const rows = plantParamRows(def).map((r) => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('');
+      detail =
+        '<canvas class="cd-icon" width="160" height="150"></canvas>' +
+        '<div class="cd-name">' + def.name + '</div>' +
+        '<div class="cd-cat">' + (CAT_NAMES[def.cat] || '') + ' 系 · ' + def.cost + ' 阳光</div>' +
+        '<table class="codex-stats">' + rows + '</table>' +
+        '<div class="codex-desc"><b>技能：</b>' + def.desc + '</div>' +
+        '<div class="codex-desc"><b>能量豆大招：</b>' + ultimateDescription(def) + '</div>';
+    } else {
+      const types = Object.keys(ZOMBIE_TYPES);
+      if (!codexSel || !ZOMBIE_TYPES[codexSel]) codexSel = types[0];
+      list = types.map((t) => {
+        const d = ZOMBIE_TYPES[t];
+        return '<button class="codex-item' + (codexSel === t ? ' sel' : '') + '" data-action="codex-item" data-id="' + t + '">' +
+          '<canvas width="100" height="100"></canvas>' +
+          '<span class="ci-name">' + d.name + '</span>' +
+          '<span class="ci-sub">' + d.hp + ' HP</span>' +
+          '</button>';
+      }).join('');
+      const def = ZOMBIE_TYPES[codexSel];
+      const rows = zombieParamRows(codexSel).map((r) => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('');
+      detail =
+        '<canvas class="cd-icon" width="160" height="160"></canvas>' +
+        '<div class="cd-name">' + def.name + '</div>' +
+        '<div class="cd-cat">僵尸</div>' +
+        '<table class="codex-stats">' + rows + '</table>' +
+        '<div class="codex-desc">' + zombieDesc(codexSel) + '</div>';
+    }
+    o.innerHTML =
+      '<div class="panel wide">' +
+        '<div class="codex-head">' +
+          '<h1>图鉴</h1>' + tabs +
+          '<button class="btn tool" data-action="codex-close">关闭</button>' +
+        '</div>' +
+        '<div class="codex-body">' +
+          '<div class="codex-list" id="codexList">' + list + '</div>' +
+          '<div class="codex-detail" id="codexDetail">' + detail + '</div>' +
+        '</div>' +
+        '<p class="codex-note">参数基于当前版本的平衡调整，实际效果以游戏内表现为准。</p>' +
+      '</div>';
+    o.classList.add('visible');
+    o.scrollTop = 0;
+    drawCodexIcons();
+  }
+
+  function openCodex() {
+    codexPrevPhase = G.phase;
+    if (G.phase === 'playing') G.phase = 'paused';
+    codexTab = 'plants';
+    codexSel = PLANT_LIST[0].id;
+    codexOpen = true;
+    renderCodex();
+  }
+  function closeCodex() {
+    codexOpen = false;
+    if (codexPrevPhase === 'playing' || codexPrevPhase === 'paused') { G.phase = 'paused'; showOverlay('paused'); }
+    else if (codexPrevPhase === 'select') { showOverlay('seeds'); renderSeedGrid(); }
+    else { showMenu(); }
+  }
+
+  /* =========================================================
+     覆盖层界面
+     ========================================================= */
   function showOverlay(kind) {
     const o = $('overlay');
     if (!kind) {
@@ -1618,57 +4219,187 @@
       o.innerHTML = '';
       return;
     }
-    const stats =
-      '<p class="stats">坚持到第 <b>' + Math.max(1, G.waveIndex + 1) + '</b> 波 ｜ 击杀僵尸 <b>' + G.kills + '</b> 只</p>';
 
-    if (kind === 'start') {
+    if (kind === 'menu') {
+      const cards = LEVELS.map((lv, i) => {
+        const stars = '★'.repeat(lv.stars) + '☆'.repeat(Math.max(0, 8 - lv.stars));
+        return '<button class="level-card' + (completed[i] ? ' done' : '') + '" data-action="level" data-level="' + i + '">' +
+          '<span class="lv-no">第 ' + (i + 1) + ' 关</span>' +
+          '<span class="lv-name">' + lv.name + '</span>' +
+          '<span class="lv-meta">' + lv.waves + ' 波 · ' + stars + '</span>' +
+          '<span class="lv-desc">' + lv.desc + '</span>' +
+          (completed[i] ? '<span class="lv-done">已通关</span>' : '') +
+          '</button>';
+      }).join('');
       o.innerHTML =
-        '<div class="panel">' +
+        '<div class="panel wide">' +
           '<h1>植物大战僵尸</h1>' +
-          '<p class="sub">在草坪上种下植物，守住你的房子</p>' +
-          '<ul class="tips">' +
-            '<li>点击上方植物卡牌，再点击草坪格子完成种植</li>' +
-            '<li>点击落下的阳光进行收集，阳光用于购买植物</li>' +
-            '<li>向日葵产阳光，豌豆射手攻击，坚果墙负责阻挡</li>' +
-            '<li>僵尸冲到最左侧时小推车会清场，但每行只有一次机会</li>' +
-            '<li>共 10 波僵尸，全部消灭即可获胜</li>' +
-          '</ul>' +
-          '<button class="btn" data-action="start">开始游戏</button>' +
+          '<p class="sub">54 种植物 · 8 张出战卡组 · ' + LEVELS.length + ' 个递进关卡 · 能量豆大招</p>' +
+          '<div class="level-grid">' + cards + '</div>' +
+          '<p class="sub" style="margin:8px 0 0">自由搭配 8 种植物；击败带黄色电光的僵尸获得能量豆，拖到植物上释放专属大招。</p>' +
+          '<div style="text-align:center;margin-top:14px"><button class="btn" data-action="codex">查看图鉴</button></div>' +
+        '</div>';
+    } else if (kind === 'seeds') {
+      const lv = LEVELS[currentLevelIndex];
+      const tabs = [['all', '全部'], ['sun', '阳光'], ['attack', '攻击'], ['defense', '防御'], ['trap', '陷阱'], ['support', '辅助']]
+        .map((t) => '<button class="tab' + (seedFilter === t[0] ? ' on' : '') + '" data-action="filter" data-cat="' + t[0] + '">' + t[1] + '</button>')
+        .join('');
+      o.innerHTML =
+        '<div class="panel wide">' +
+          '<h1>选择植物</h1>' +
+          '<p class="sub">第 ' + (currentLevelIndex + 1) + ' 关 · ' + lv.name + ' ｜ 最多选择 8 种</p>' +
+          '<div class="tabs">' + tabs + '</div>' +
+          '<div class="seed-grid" id="seedGrid"></div>' +
+          '<div class="sel-bar"><span>已选 <b id="selCount">0</b> / 8</span><span>点击卡牌选中 / 取消</span></div>' +
+          '<div class="actions">' +
+            '<button class="btn tool" data-action="auto">推荐配置</button>' +
+            '<button class="btn tool" data-action="clear">清空</button>' +
+            '<button class="btn" data-action="begin" id="beginBtn">开始战斗</button>' +
+          '</div>' +
         '</div>';
     } else if (kind === 'paused') {
       o.innerHTML =
         '<div class="panel">' +
           '<h1>游戏暂停</h1>' +
-          '<p class="sub">草坪暂时安静了下来</p>' +
-          stats +
+          '<p class="sub">' + (G.level ? G.level.name : '') + ' ｜ 第 ' + Math.max(1, G.waveIndex + 1) + ' / ' + (G.level ? G.level.waves : 8) + ' 波</p>' +
+          '<p class="stats">击杀僵尸 <b>' + G.kills + '</b> 只</p>' +
           '<button class="btn" data-action="resume">继续游戏</button>' +
           '<button class="btn tool" data-action="restart">重新开始</button>' +
+          '<button class="btn tool" data-action="menu">返回关卡</button>' +
         '</div>';
     } else if (kind === 'won') {
+      const last = currentLevelIndex >= LEVELS.length - 1;
       o.innerHTML =
         '<div class="panel">' +
-          '<h1>守住了！</h1>' +
-          '<p class="sub">僵尸全部被消灭，草坪平安无事</p>' +
-          stats +
-          '<button class="btn" data-action="restart">再来一局</button>' +
+          '<h1>关卡完成！</h1>' +
+          '<p class="sub">' + LEVELS[currentLevelIndex].name + ' 的僵尸已全部清除</p>' +
+          '<p class="stats">击杀僵尸 <b>' + G.kills + '</b> 只</p>' +
+          (last
+            ? '<p class="sub">你已通关全部关卡，僵尸们彻底服气了。</p><button class="btn" data-action="menu">返回关卡选择</button>'
+            : '<button class="btn" data-action="next">下一关</button><button class="btn tool" data-action="retry">重玩本关</button><button class="btn tool" data-action="menu">返回关卡</button>') +
         '</div>';
     } else if (kind === 'lost') {
       o.innerHTML =
         '<div class="panel">' +
           '<h1 class="bad">僵尸吃掉了你的脑子</h1>' +
-          '<p class="sub">再试一次，多种向日葵攒阳光</p>' +
-          stats +
-          '<button class="btn" data-action="restart">重新挑战</button>' +
+          '<p class="sub">调整卡组再试一次，多带向日葵和廉价防守植物</p>' +
+          '<p class="stats">坚持到第 <b>' + Math.max(1, G.waveIndex + 1) + '</b> 波 ｜ 击杀 <b>' + G.kills + '</b> 只</p>' +
+          '<button class="btn" data-action="retry">重选植物</button>' +
+          '<button class="btn tool" data-action="menu">返回关卡</button>' +
         '</div>';
     }
     o.classList.add('visible');
+    o.scrollTop = 0;
   }
 
-  function startGame() {
+  function showMenu() {
+    G.phase = 'menu';
+    G.selected = null;
+    G.selectedEnergy = null;
+    cancelEnergyDrag();
+    showOverlay('menu');
+    refreshHUD();
+  }
+
+  function showSeeds(levelIndex) {
+    currentLevelIndex = clamp(levelIndex, 0, LEVELS.length - 1);
+    G.phase = 'select';
+    seedFilter = 'all';
+    selectedSeeds = new Set(['sunflower', 'peashooter', 'wallnut', 'snowpea', 'cabbage', 'cherrybomb']);
+    showOverlay('seeds');
+    renderSeedGrid();
+  }
+
+  function renderSeedGrid() {
+    const grid = $('seedGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    PLANT_LIST.forEach((def) => {
+      const card = document.createElement('div');
+      card.className = 'seed-card';
+      card.dataset.id = def.id;
+      card.dataset.cat = def.cat;
+      card.title = def.name + '：' + def.desc + '（' + def.cost + ' 阳光，冷却 ' + def.cd + ' 秒）\n能量豆：' + ultimateDescription(def);
+      card.innerHTML =
+        '<span class="order"></span>' +
+        '<canvas width="100" height="92" style="width:50px;height:46px;display:block"></canvas>' +
+        '<div class="sname">' + def.name + '</div>' +
+        '<div class="scost">' + def.cost + '</div>';
+      grid.appendChild(card);
+      drawPlantIcon(card.querySelector('canvas'), def.id);
+      card.addEventListener('click', () => toggleSeed(def.id));
+    });
+    applySeedFilter();
+    updateSeedSelectionUI();
+  }
+
+  function applySeedFilter() {
+    document.querySelectorAll('.seed-card').forEach((card) => {
+      card.classList.toggle('hide', seedFilter !== 'all' && card.dataset.cat !== seedFilter);
+    });
+    document.querySelectorAll('.tab').forEach((tab) => {
+      tab.classList.toggle('on', tab.dataset.cat === seedFilter);
+    });
+  }
+
+  function setSeedFilter(cat) {
+    seedFilter = cat;
+    applySeedFilter();
+  }
+
+  function toggleSeed(id) {
+    if (selectedSeeds.has(id)) {
+      selectedSeeds.delete(id);
+    } else {
+      if (selectedSeeds.size >= 8) return;
+      selectedSeeds.add(id);
+    }
+    updateSeedSelectionUI();
+  }
+
+  function updateSeedSelectionUI() {
+    const ordered = Array.from(selectedSeeds);
+    document.querySelectorAll('.seed-card').forEach((card) => {
+      const idx = ordered.indexOf(card.dataset.id);
+      card.classList.toggle('sel', idx >= 0);
+      const badge = card.querySelector('.order');
+      if (badge) badge.textContent = idx >= 0 ? String(idx + 1) : '';
+    });
+    const count = $('selCount');
+    if (count) count.textContent = String(selectedSeeds.size);
+    const begin = $('beginBtn');
+    if (begin) begin.disabled = selectedSeeds.size === 0;
+  }
+
+  function autoLoadout() {
+    selectedSeeds = new Set([
+      'sunflower', 'twinsun', 'peashooter', 'snowpea',
+      'wallnut', 'melon', 'cherrybomb', 'jalapeno'
+    ]);
+    updateSeedSelectionUI();
+  }
+
+  function beginLevel() {
+    if (selectedSeeds.size === 0) return;
+    const loadout = PLANT_LIST
+      .filter((d) => selectedSeeds.has(d.id))
+      .map((d) => d.id)
+      .slice(0, 8);
+
     resetGame();
+    G.levelIndex = currentLevelIndex;
+    G.level = LEVELS[currentLevelIndex];
+    G.loadout = loadout;
+    G.sun = G.level.startSun;
     G.phase = 'playing';
+    G.waveState = 'break';
+    G.waveIndex = -1;
+    G.waveBreak = 12;
+    G.sunTimer = 4;
+
+    buildCards();
     showOverlay(null);
-    showBanner('准备迎战僵尸！');
+    showBanner(G.level.name + ' · 准备迎战');
     refreshHUD();
   }
 
@@ -1682,6 +4413,84 @@
     }
     refreshHUD();
   }
+
+  /* =========================================================
+     能量豆拖放
+     ========================================================= */
+  let energyDrag = null;
+
+  function makeEnergyGhost(x, y) {
+    const ghost = document.createElement('canvas');
+    ghost.width = 84; ghost.height = 84;
+    ghost.className = 'energy-ghost';
+    drawEnergyBean(ghost.getContext('2d'), 42, 43, 1.05, 1);
+    document.body.appendChild(ghost);
+    moveEnergyGhost(ghost, x, y);
+    return ghost;
+  }
+
+  function moveEnergyGhost(ghost, x, y) {
+    if (!ghost) return;
+    ghost.style.left = (x - 29) + 'px';
+    ghost.style.top = (y - 29) + 'px';
+  }
+
+  function cancelEnergyDrag() {
+    if (energyDrag && energyDrag.ghost) energyDrag.ghost.remove();
+    energyDrag = null;
+  }
+
+  function energyTargetAtClient(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+    const x = (clientX - rect.left) * (W / rect.width);
+    const y = (clientY - rect.top) * (H / rect.height);
+    const col = Math.floor((x - GRID_X) / CELL_W);
+    const row = Math.floor((y - GRID_Y) / CELL_H);
+    if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return null;
+    return plantAt(row, col);
+  }
+
+  document.querySelectorAll('.energy-slot').forEach((slot) => {
+    drawEnergyBean(slot.querySelector('canvas').getContext('2d'), 42, 43, 1.05, 1);
+    slot.addEventListener('pointerdown', (e) => {
+      const index = parseInt(slot.dataset.slot, 10);
+      if (G.phase !== 'playing' || index >= G.energyBeans) return;
+      e.preventDefault();
+      G.selected = null;
+      G.selectedEnergy = G.selectedEnergy === index ? null : index;
+      energyDrag = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false, ghost: null };
+      try { slot.setPointerCapture(e.pointerId); } catch (err) { /* 浏览器不支持时由文档事件接管 */ }
+      refreshHUD();
+    });
+  });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!energyDrag || e.pointerId !== energyDrag.pointerId) return;
+    if (!energyDrag.moved && Math.hypot(e.clientX - energyDrag.startX, e.clientY - energyDrag.startY) > 5) {
+      energyDrag.moved = true;
+      energyDrag.ghost = makeEnergyGhost(e.clientX, e.clientY);
+    }
+    if (energyDrag.moved) {
+      e.preventDefault();
+      moveEnergyGhost(energyDrag.ghost, e.clientX, e.clientY);
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = (e.clientX - rect.left) * (W / rect.width);
+      mouse.y = (e.clientY - rect.top) * (H / rect.height);
+      mouse.inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+    }
+  });
+
+  document.addEventListener('pointerup', (e) => {
+    if (!energyDrag || e.pointerId !== energyDrag.pointerId) return;
+    const moved = energyDrag.moved;
+    cancelEnergyDrag();
+    if (!moved || G.phase !== 'playing') return;
+    const target = energyTargetAtClient(e.clientX, e.clientY);
+    if (target) useEnergyOnPlant(target);
+    else showBanner('把能量豆放到已种植的植物上');
+  });
+  document.addEventListener('pointercancel', cancelEnergyDrag);
 
   /* =========================================================
      输入
@@ -1708,7 +4517,6 @@
     if (G.phase !== 'playing') return;
     const pt = toCanvasPoint(e);
 
-    // 优先收集阳光
     for (let i = G.suns.length - 1; i >= 0; i--) {
       const s = G.suns[i];
       if (Math.hypot(s.x - pt.x, s.y - pt.y) < 34) {
@@ -1717,8 +4525,16 @@
       }
     }
 
-    if (!G.selected) return;
+    if (G.selectedEnergy !== null && G.selectedEnergy !== undefined) {
+      const col = Math.floor((pt.x - GRID_X) / CELL_W);
+      const row = Math.floor((pt.y - GRID_Y) / CELL_H);
+      const target = row >= 0 && row < ROWS && col >= 0 && col < COLS ? plantAt(row, col) : null;
+      if (target) useEnergyOnPlant(target);
+      else showBanner('请选择一株已种植的植物');
+      return;
+    }
 
+    if (!G.selected) return;
     const col = Math.floor((pt.x - GRID_X) / CELL_W);
     const row = Math.floor((pt.y - GRID_Y) / CELL_H);
     if (row < 0 || row >= ROWS || col < 0 || col >= COLS) {
@@ -1732,51 +4548,93 @@
   canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     G.selected = null;
+    G.selectedEnergy = null;
+    cancelEnergyDrag();
     refreshHUD();
   });
 
   $('shovelBtn').addEventListener('click', () => {
-    if (G.phase === 'ready') return;
+    if (G.phase !== 'playing') return;
+    G.selectedEnergy = null;
     G.selected = G.selected === 'shovel' ? null : 'shovel';
     refreshHUD();
   });
 
   $('pauseBtn').addEventListener('click', () => {
-    if (G.phase === 'ready') { startGame(); return; }
-    togglePause();
+    if (codexOpen) return;
+    if (G.phase === 'playing' || G.phase === 'paused') togglePause();
   });
 
-  $('restartBtn').addEventListener('click', () => {
-    startGame();
+  $('menuBtn').addEventListener('click', () => {
+    showMenu();
+  });
+
+  $('codexBtn').addEventListener('click', () => {
+    openCodex();
   });
 
   $('overlay').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
-    const action = btn.dataset.action;
-    if (action === 'start' || action === 'restart') startGame();
-    else if (action === 'resume') togglePause();
+    const act = btn.dataset.action;
+    if (act === 'level') {
+      showSeeds(parseInt(btn.dataset.level, 10));
+    } else if (act === 'begin') {
+      beginLevel();
+    } else if (act === 'auto') {
+      autoLoadout();
+    } else if (act === 'clear') {
+      selectedSeeds.clear();
+      updateSeedSelectionUI();
+    } else if (act === 'filter') {
+      setSeedFilter(btn.dataset.cat);
+    } else if (act === 'resume') {
+      togglePause();
+    } else if (act === 'restart') {
+      beginLevel();
+    } else if (act === 'next') {
+      showSeeds(Math.min(LEVELS.length - 1, currentLevelIndex + 1));
+    } else if (act === 'retry') {
+      showSeeds(currentLevelIndex);
+    } else if (act === 'menu') {
+      showMenu();
+    } else if (act === 'codex') {
+      openCodex();
+    } else if (act === 'codex-tab') {
+      codexTab = btn.dataset.tab;
+      codexSel = null;
+      renderCodex();
+    } else if (act === 'codex-item') {
+      codexSel = btn.dataset.id;
+      renderCodex();
+    } else if (act === 'codex-close') {
+      closeCodex();
+    }
   });
 
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
       e.preventDefault();
-      if (G.phase === 'ready') startGame();
-      else togglePause();
+      if (codexOpen) return;
+      if (G.phase === 'playing' || G.phase === 'paused') togglePause();
       return;
     }
     if (e.key === 'Escape') {
+      if (codexOpen) { closeCodex(); return; }
       G.selected = null;
+      G.selectedEnergy = null;
+      cancelEnergyDrag();
       if (G.phase === 'paused') togglePause();
       refreshHUD();
       return;
     }
     if (G.phase !== 'playing') return;
     const n = parseInt(e.key, 10);
-    if (n >= 1 && n <= PLANT_ORDER.length) {
-      const key = PLANT_ORDER[n - 1];
-      if (G.cooldowns[key] <= 0 && G.sun >= PLANTS[key].cost) {
-        G.selected = G.selected === key ? null : key;
+    if (!Number.isNaN(n) || e.key === 'm' || e.key === 'M') G.selectedEnergy = null;
+    if (n >= 1 && n <= G.loadout.length) {
+      const id = G.loadout[n - 1];
+      if ((G.cooldowns[id] || 0) <= 0 && G.sun >= PLANTS[id].cost) {
+        G.selected = G.selected === id ? null : id;
         refreshHUD();
       }
     }
@@ -1798,9 +4656,9 @@
      启动
      ========================================================= */
   resetGame();
+  G.loadout = ['sunflower', 'peashooter', 'wallnut', 'snowpea', 'cabbage', 'cherrybomb'];
   buildCards();
-  showOverlay('start');
-  refreshHUD();
+  showMenu();
 
   let last = performance.now();
   function loop(now) {
@@ -1815,6 +4673,7 @@
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
+
 })();
 </script>
 </body>
