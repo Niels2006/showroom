@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -31,6 +31,9 @@
     --accent-l:#7cc4ff;
     --accent-m:#4ade80;
     --accent-n:#fb7185;
+    --accent-o:#fb923c;
+    --accent-p:#22d3ee;
+    --accent-q:#c084fc;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
@@ -413,6 +416,7 @@
   .card:nth-child(10){animation-delay:.59s}
   .card:nth-child(11){animation-delay:.65s}
   .card:nth-child(12){animation-delay:.71s}
+  .card:nth-child(13){animation-delay:.77s}
 
   @media (max-width:640px){
     header.hero{padding:60px 0 34px}
@@ -440,19 +444,19 @@
     </div>
     <h1 class="title">作品展厅</h1>
     <p class="hero-sub">
-      街机游戏、物理弹射、深海生存、多人对战、群体行为模拟，以及可离线研习的 3D 电子学与机械课程 —— 点开即可体验。
+      街机游戏、物理弹射、深海生存、多人对战、群体行为模拟与三维海面，以及可离线研习的 3D 电子学与机械课程 —— 点开即可体验。
     </p>
     <div class="hero-meta">
-      <div class="stat"><b>15</b><span>件作品</span></div>
+      <div class="stat"><b>18</b><span>件作品</span></div>
       <div class="stat"><b>3</b><span>个分类</span></div>
-      <div class="stat"><b>14</b><span>纯前端 · 免安装</span></div>
+      <div class="stat"><b>17</b><span>纯前端 · 免安装</span></div>
     </div>
   </header>
 
   <!-- ══════════ 游戏 ══════════ -->
   <div class="section-head">
     <h2>游戏 Game</h2>
-    <span class="count">12</span>
+    <span class="count">13</span>
     <div class="line"></div>
   </div>
 
@@ -744,12 +748,12 @@
       </div>
       <h3>植物大战僵尸<span class="en">Plants vs. Zombies</span></h3>
       <p class="desc">
-        经典塔防网页版：点击落下的阳光收集能量，从 6 种植物卡中挑选布阵 —— 向日葵产阳光、豌豆射手攻击、坚果墙阻挡、寒冰射手减速、双发射手连射、樱桃炸弹清场。共 10 波僵尸，每行一辆小推车只能救场一次，全部消灭即获胜。快捷键 1–6 选植物、Esc 取消、空格暂停。
+        大幅扩展版经典塔防：54 种植物卡，涵盖产阳光、直线射击、投掷、激光与连锁等流派，可自由搭配卡组布阵。11 个庭院关卡从「前院草坪」一路打到「风暴之夜」，每关 8–28 波、星级难度递增，僵尸血量与密度同步攀升。点击阳光收集能量，小推车每行仅能救场一次。
       </p>
       <div class="tags">
-        <span class="tag">塔防策略</span>
-        <span class="tag">6 种植物</span>
-        <span class="tag">10 波僵尸</span>
+        <span class="tag">54 种植物</span>
+        <span class="tag">11 个庭院关卡</span>
+        <span class="tag">8–28 波递增</span>
       </div>
       <div class="card-foot">
         <span class="open-link">
@@ -774,12 +778,12 @@
       </div>
       <h3>教室大乱斗<span class="en">Classroom Brawl Online</span></h3>
       <p class="desc">
-        多人联机俯视角射击对战：输入昵称即可加入同一间教室，与在线玩家实时火并。WASD / 方向键移动，鼠标瞄准，左键或空格射击；命中敌人造成伤害，血量归零即被击杀。支持击杀播报与实时玩家列表，断线时自动重试重连。
+        多人联机俯视角射击对战：创建或按房间号搜索房间，与在线玩家实时火并。五张大地图 —— 教室、图书馆、宿舍、实验室、体育馆，均支持多层与分区（如宿舍 201–204 加走廊）。WASD / 方向键移动，鼠标瞄准，左键或空格射击，E 键可躲进柜子隐匿身形；击杀播报与实时玩家列表齐全。
       </p>
       <div class="tags">
-        <span class="tag">多人联机</span>
-        <span class="tag">俯视角射击</span>
-        <span class="tag">实时击杀播报</span>
+        <span class="tag">5 张大地图</span>
+        <span class="tag">房间号联机</span>
+        <span class="tag">多层分区 · 躲藏</span>
       </div>
       <div class="card-foot">
         <span class="open-link">
@@ -822,12 +826,42 @@
       </div>
     </a>
 
+    <!-- 保卫萝卜 -->
+    <a class="card" href="game/carrot-defense.html" target="_blank" rel="noopener" style="--accent:var(--accent-o)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 9.5c0-1.2 1.6-2.2 3.6-2.2s3.6 1 3.6 2.2"/>
+            <path d="M11.6 7.3V4.4c0-.8 1.3-.8 1.3 0v2.9"/>
+            <path d="M12.6 21.4c1.6-1.6 2.4-4.4 2.4-7.3 0-2-.6-3.6-1.6-4.6-1.2-1.1-3.4-1-4.5.1-1.1 1.1-1.4 3-1.4 5 0 2.9.9 5.3 2.5 6.8Z"/>
+          </svg>
+        </div>
+        <span class="card-index">13</span>
+      </div>
+      <h3>保卫萝卜<span class="en">Carrot Defense</span></h3>
+      <p class="desc">
+        怪物正沿着小路冲向你的萝卜：在草地格子上建塔拦截，坚持 10 波即可获胜。箭塔射速快、炮塔范围溅射、魔法塔减速敌人；击杀怪物攒金币，可对已建塔升级或出售。漏怪会扣萝卜生命，塔位与金币需要权衡取舍。
+      </p>
+      <div class="tags">
+        <span class="tag">塔防策略</span>
+        <span class="tag">3 种防御塔</span>
+        <span class="tag">10 波怪物</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">game/carrot-defense.html</span>
+      </div>
+    </a>
+
   </section>
 
   <!-- ══════════ 模拟 ══════════ -->
   <div class="section-head">
     <h2>模拟 Simulation</h2>
-    <span class="count">1</span>
+    <span class="count">2</span>
     <div class="line"></div>
   </div>
 
@@ -842,7 +876,7 @@
             <path d="M6.5 7.5 9 10M17.5 7.5 15 10"/>
           </svg>
         </div>
-        <span class="card-index">13</span>
+        <span class="card-index">14</span>
       </div>
       <h3>鸟群涌现<span class="en">Emergence · Boids</span></h3>
       <p class="desc">
@@ -862,16 +896,82 @@
       </div>
     </a>
 
+    <!-- 三维海面 -->
+    <a class="card" href="3D-modeling/ocean.html" target="_blank" rel="noopener" style="--accent:var(--accent-p)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9c2.2-2 4.4-2 6.6 0S13 11 15.2 9 19.4 7 22 9"/>
+            <path d="M2 14c2.2-2 4.4-2 6.6 0S13 16 15.2 14 19.4 12 22 14"/>
+            <path d="M2 19c2.2-2 4.4-2 6.6 0S13 21 15.2 19 19.4 17 22 19"/>
+          </svg>
+        </div>
+        <span class="card-index">15</span>
+      </div>
+      <h3>潮汐<span class="en">Tide · 3D Ocean</span></h3>
+      <p class="desc">
+        WebGL 实时三维海面：多组波浪叠加驱动水体，船体随浪浮沉并与渲染保持一致，高浪强风时波峰碎成白沫。提供微风 / 风暴预设，拖拽旋转、滚轮缩放，点击海面激起涟漪与气泡；继续下潜还能切换到水下视角。
+      </p>
+      <div class="tags">
+        <span class="tag">实时波浪模拟</span>
+        <span class="tag">风浪预设</span>
+        <span class="tag">水下视角</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">3D-modeling/ocean.html</span>
+      </div>
+    </a>
+
   </section>
 
   <!-- ══════════ 学习 ══════════ -->
   <div class="section-head">
     <h2>学习 Learn</h2>
-    <span class="count">2</span>
+    <span class="count">3</span>
     <div class="line"></div>
   </div>
 
   <section class="grid">
+
+    <!-- 机械核心 3D -->
+    <a class="card" href="3D-modeling/mechanical-core.html" target="_blank" rel="noopener" style="--accent:var(--accent-q)">
+      <div class="card-top">
+        <div class="icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <circle cx="6" cy="7" r="2"/>
+            <circle cx="18" cy="7" r="2"/>
+            <circle cx="12" cy="19" r="2"/>
+            <path d="M8.2 9.4 7.4 8.2M15.8 9.4l.8-1.2M12 15v2"/>
+          </svg>
+        </div>
+        <span class="card-index">16</span>
+      </div>
+      <h3>机械核心<span class="en">Mechanical Core · 3D</span></h3>
+      <p class="desc">
+        实时 3D 机械展示：主齿轮带动三组行星齿轮公转，曲柄滑块机构拉动两侧活塞往复运动，连杆与气缸联动可见。可切换线框与爆炸视图、调节转速与自动运行，配合辉光后处理呈现工业质感，适合观察传动结构如何咬合。
+      </p>
+      <div class="tags">
+        <span class="tag">行星齿轮组</span>
+        <span class="tag">曲柄滑块 · 活塞</span>
+        <span class="tag">线框 / 爆炸视图</span>
+      </div>
+      <div class="note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L14.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <span>页面使用 ES Module 并通过 importmap 从 unpkg 加载 three.js，需经本地 HTTP 服务打开且保持联网。</span>
+      </div>
+      <div class="card-foot">
+        <span class="open-link">
+          打开作品
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </span>
+        <span class="path">3D-modeling/mechanical-core.html</span>
+      </div>
+    </a>
 
     <!-- 电子学 101 -->
     <a class="card" href="mirrors/electronics-101-six.vercel.app/index.html" target="_blank" rel="noopener" style="--accent:var(--accent-k)">
@@ -884,7 +984,7 @@
             <path d="M9.8 9.4v5.2M12 9.4v5.2M14.2 9.4v5.2"/>
           </svg>
         </div>
-        <span class="card-index">14</span>
+        <span class="card-index">17</span>
       </div>
       <h3>电子学 101<span class="en">Electronics 101 · Mirror</span></h3>
       <p class="desc">
@@ -919,7 +1019,7 @@
             <circle cx="12" cy="12" r="8"/>
           </svg>
         </div>
-        <span class="card-index">15</span>
+        <span class="card-index">18</span>
       </div>
       <h3>机械入门 101<span class="en">Mechanical 101</span></h3>
       <p class="desc">
