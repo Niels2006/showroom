@@ -200,6 +200,21 @@
   .overlay.lose h2 { color: #ff9b8a; text-shadow: 0 3px 0 #8a2018, 0 5px 0 #60120c, 0 0 30px rgba(255,110,90,.7); }
   .overlay p { color: #e9f3d6; font-size: 15px; max-width: 520px; text-align: center; line-height: 1.75; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
   .overlay .btn { padding: 10px 30px; font-size: 16px; }
+  .overlay-btns { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+  .level-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-top:4px; }
+  .lvl-card {
+    background:linear-gradient(#4a7a2a,#2f5518); border:3px solid #c8e88a;
+    border-radius:14px; padding:14px 10px; width:130px; cursor:pointer; text-align:center;
+    box-shadow:0 4px 0 #1a3308, 0 8px 18px rgba(0,0,0,.4); transition:transform .12s;
+  }
+  .lvl-card:hover:not(.locked){ transform:translateY(-3px); }
+  .lvl-card.locked { background:linear-gradient(#3a3a44,#22222c); border-color:#555; cursor:not-allowed; filter:grayscale(.6); }
+  .lvl-ico { font-size:34px; line-height:1; }
+  .lvl-name { color:#ffe14d; font-weight:700; font-size:15px; margin-top:6px; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  .lvl-card.locked .lvl-name { color:#aaa; }
+  .lvl-meta { color:#d7ecb0; font-size:11px; margin-top:4px; line-height:1.5; }
+  .lvl-card.locked .lvl-meta { color:#888; }
+  .lvl-lock { color:#ffcc66; font-size:11px; margin-top:7px; }
 
   .tip { font-size: 12px; color: #bfd79a; text-align: center; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
 </style>
@@ -211,7 +226,7 @@
   <div class="hud">
     <div class="stat gold"><span class="ico">🥕</span><span id="gold">200</span></div>
     <div class="stat life"><span class="ico">❤️</span><span id="life">20</span></div>
-    <div class="stat wave"><span class="ico">🌊</span>第 <span id="wave">0</span> / 10 波</div>
+    <div class="stat wave"><span class="ico">🌊</span>第 <span id="wave">0</span> / <span id="waveMax">10</span> 波</div>
     <div class="controls">
       <button class="btn speed" id="speedBtn">⏩ 1x</button>
       <button class="btn" id="pauseBtn">⏸ 暂停</button>
@@ -229,16 +244,11 @@
         <button class="btn sell" id="sellBtn">出售</button>
       </div>
     </div>
-    <div class="overlay" id="overlay">
-      <h2>🥕 保卫萝卜</h2>
-      <p>怪物正沿着小路冲向你的萝卜！<br>在草地格子上建造防御塔，阻止它们到达终点。<br>击杀怪物获得金币，升级塔以应对更凶猛的敌人。坚持 10 波即可获胜！</p>
-      <p style="color:#ffd166">点击下方塔卡片选择，再点击草地放置；点击已建塔可升级或出售。</p>
-      <button class="btn start" id="playBtn">开始游戏</button>
-    </div>
+    <div class="overlay" id="overlay"></div>
   </div>
 
   <div class="towerbar" id="towerbar"></div>
-  <div class="tip">提示：箭塔射速快 · 炮塔范围溅射 · 魔法塔减速敌人 · 怪物到达终点会扣除萝卜生命</div>
+  <div class="tip">提示：不同关卡解锁不同防御塔，本局塔种固定 · 选塔后点击空地建造 · 点击已建塔可升级或出售</div>
 </div>
 
 <script>
@@ -247,60 +257,268 @@ const COLS = 16, ROWS = 10, CELL = 56;
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-// 路径（格子坐标），蜿蜒穿越地图；首尾收进画布内，保证起点传送门与终点萝卜完整可见
-const PATH_CELLS = [
-  {c:0, r:1},{c:5,r:1},{c:5,r:4},{c:11,r:4},{c:11,r:1},
-  {c:14,r:1},{c:14,r:8},{c:2,r:8},{c:2,r:5},{c:7,r:5},
-  {c:7,r:8.7},{c:15,r:8.7}
+// ============ 多关卡配置 ============
+// 每关：名称 / 主题 / 起始金币 / 生命 / 路径（格子坐标）/ 可用塔种（固定，不可更改）/ 波次
+// 可用塔种随关卡推进逐步增加，早期关卡只能用少量塔型，考验搭配
+const LEVELS = [
+  {
+    name:'青青草原', theme:'grass', gold:260, life:20,
+    towers:['arrow'],
+    path:[{c:0,r:1},{c:5,r:1},{c:5,r:4},{c:11,r:4},{c:11,r:1},{c:14,r:1},{c:14,r:8},{c:2,r:8},{c:2,r:5},{c:7,r:5},{c:7,r:8.7},{c:15,r:8.7}],
+    waves:[
+      [['normal',6,1.0]],
+      [['normal',8,0.9]],
+      [['normal',8,0.8],['fast',3,0.6]],
+      [['fast',8,0.5]],
+      [['normal',10,0.7],['fast',4,0.5]],
+      [['tank',2,1.8],['normal',8,0.7]],
+      [['fast',12,0.4],['tank',2,1.5]],
+      [['tank',3,1.4],['normal',10,0.6],['fast',6,0.4]]
+    ]
+  },
+  {
+    name:'冰封雪原', theme:'snow', gold:240, life:18,
+    towers:['arrow','frost'],
+    path:[{c:0,r:2},{c:3,r:2},{c:3,r:7},{c:8,r:7},{c:8,r:2},{c:12,r:2},{c:12,r:8.7},{c:15,r:8.7}],
+    waves:[
+      [['normal',8,0.9]],
+      [['normal',10,0.8],['fast',4,0.5]],
+      [['fast',10,0.45]],
+      [['normal',8,0.7],['tank',2,1.6]],
+      [['fast',14,0.4]],
+      [['tank',4,1.4],['fast',8,0.4]],
+      [['normal',12,0.6],['tank',3,1.3]],
+      [['fast',18,0.35],['tank',4,1.2]],
+      [['tank',5,1.2],['normal',12,0.5],['fast',10,0.35]]
+    ]
+  },
+  {
+    name:'荒漠古城', theme:'desert', gold:230, life:18,
+    towers:['arrow','cannon'],
+    path:[{c:0,r:8.7},{c:4,r:8.7},{c:4,r:3},{c:9,r:3},{c:9,r:8.7},{c:13,r:8.7},{c:13,r:1},{c:15,r:1}],
+    waves:[
+      [['normal',10,0.8],['fast',4,0.5]],
+      [['tank',3,1.6],['normal',8,0.7]],
+      [['fast',14,0.4]],
+      [['tank',5,1.4],['fast',8,0.4]],
+      [['normal',14,0.55],['tank',3,1.3]],
+      [['fast',18,0.35],['tank',4,1.2]],
+      [['tank',6,1.2],['normal',10,0.6]],
+      [['fast',22,0.32],['tank',5,1.1]],
+      [['tank',7,1.1],['normal',14,0.5],['fast',12,0.35]]
+    ]
+  },
+  {
+    name:'暗夜森林', theme:'night', gold:220, life:16,
+    towers:['arrow','frost','cannon'],
+    path:[{c:0,r:1},{c:2,r:1},{c:2,r:6},{c:6,r:6},{c:6,r:2},{c:10,r:2},{c:10,r:7},{c:13,r:7},{c:13,r:3},{c:15,r:3}],
+    waves:[
+      [['normal',8,0.9]],
+      [['normal',10,0.8],['fast',4,0.5]],
+      [['normal',8,0.7],['fast',8,0.45]],
+      [['tank',3,1.6],['normal',10,0.7]],
+      [['fast',16,0.4],['normal',6,0.6]],
+      [['tank',5,1.4],['fast',10,0.4]],
+      [['normal',14,0.55],['tank',4,1.3],['fast',8,0.4]],
+      [['fast',20,0.35],['tank',6,1.2]],
+      [['tank',8,1.1],['normal',16,0.5],['fast',12,0.35]],
+      [['tank',10,1.0],['fast',24,0.3],['normal',20,0.45]]
+    ]
+  },
+  {
+    name:'熔岩火山', theme:'lava', gold:210, life:16,
+    towers:['arrow','cannon','flame'],
+    path:[{c:0,r:4},{c:3,r:4},{c:3,r:1},{c:7,r:1},{c:7,r:6},{c:4,r:6},{c:4,r:8.7},{c:11,r:8.7},{c:11,r:3},{c:15,r:3}],
+    waves:[
+      [['normal',10,0.8],['fast',4,0.5]],
+      [['fast',12,0.45]],
+      [['tank',4,1.5],['normal',10,0.65]],
+      [['fast',16,0.4],['normal',8,0.6]],
+      [['tank',5,1.4],['fast',10,0.4]],
+      [['normal',16,0.5],['tank',5,1.3]],
+      [['fast',20,0.35],['tank',6,1.2]],
+      [['tank',7,1.15],['normal',14,0.5]],
+      [['boss',1,0],['fast',18,0.35],['tank',5,1.2]],
+      [['tank',9,1.0],['normal',18,0.45],['fast',14,0.3]]
+    ]
+  },
+  {
+    name:'极寒峡谷', theme:'snow', gold:250, life:16,
+    towers:['arrow','frost','sniper'],
+    path:[{c:0,r:1},{c:13,r:1},{c:13,r:4},{c:2,r:4},{c:2,r:7},{c:15,r:7}],
+    waves:[
+      [['normal',10,0.8]],
+      [['normal',10,0.7],['fast',5,0.45]],
+      [['fast',14,0.4]],
+      [['tank',3,1.5],['normal',10,0.6]],
+      [['fast',16,0.35],['normal',8,0.6]],
+      [['tank',4,1.4],['fast',10,0.4]],
+      [['normal',16,0.5],['tank',4,1.3]],
+      [['fast',20,0.32],['tank',5,1.2]],
+      [['tank',6,1.1],['normal',14,0.5],['fast',10,0.35]],
+      [['fast',24,0.3],['tank',6,1.1]],
+      [['tank',8,1.0],['normal',18,0.45],['fast',14,0.3]]
+    ]
+  },
+  {
+    name:'黄沙遗迹', theme:'desert', gold:245, life:16,
+    towers:['arrow','cannon','poison','frost'],
+    path:[{c:0,r:8.5},{c:12,r:8.5},{c:12,r:5},{c:3,r:5},{c:3,r:1.5},{c:15,r:1.5}],
+    waves:[
+      [['normal',10,0.75],['fast',6,0.45]],
+      [['tank',3,1.5],['fast',10,0.4]],
+      [['normal',14,0.6],['tank',3,1.4]],
+      [['fast',18,0.35],['tank',4,1.2]],
+      [['tank',5,1.3],['normal',14,0.55]],
+      [['fast',22,0.32],['normal',10,0.5]],
+      [['tank',6,1.2],['fast',14,0.35]],
+      [['normal',20,0.45],['tank',6,1.1]],
+      [['fast',26,0.28],['tank',7,1.05]],
+      [['tank',9,1.0],['normal',18,0.45],['fast',14,0.3]],
+      [['boss',1,0],['tank',8,1.0],['fast',20,0.28]]
+    ]
+  },
+  {
+    name:'幽影林地', theme:'night', gold:235, life:15,
+    towers:['arrow','sniper','tesla','poison'],
+    path:[{c:0,r:2},{c:4,r:2},{c:4,r:6},{c:8,r:6},{c:8,r:1},{c:12,r:1},{c:12,r:8},{c:15,r:8}],
+    waves:[
+      [['normal',12,0.7],['fast',6,0.45]],
+      [['fast',16,0.38],['normal',8,0.6]],
+      [['tank',4,1.4],['fast',12,0.4]],
+      [['normal',16,0.55],['tank',4,1.3]],
+      [['fast',22,0.32],['tank',5,1.2]],
+      [['tank',6,1.2],['normal',16,0.5]],
+      [['fast',26,0.28],['tank',6,1.1]],
+      [['normal',22,0.42],['tank',7,1.05]],
+      [['fast',30,0.26],['tank',8,1.0]],
+      [['boss',1,0],['fast',24,0.28],['tank',6,1.0]],
+      [['tank',10,0.95],['normal',24,0.4],['fast',20,0.28]],
+      [['boss',2,2.5],['tank',8,1.0],['fast',24,0.26]]
+    ]
+  },
+  {
+    name:'火山口', theme:'lava', gold:235, life:14,
+    towers:['arrow','cannon','frost','flame','tesla'],
+    path:[{c:0,r:5},{c:3,r:5},{c:3,r:8.5},{c:7,r:8.5},{c:7,r:2},{c:11,r:2},{c:11,r:6.5},{c:15,r:6.5}],
+    waves:[
+      [['normal',12,0.7],['fast',8,0.42]],
+      [['tank',5,1.35],['fast',12,0.38]],
+      [['fast',20,0.34],['normal',10,0.55]],
+      [['tank',6,1.25],['normal',16,0.5]],
+      [['fast',24,0.3],['tank',6,1.15]],
+      [['normal',22,0.42],['fast',18,0.32]],
+      [['tank',8,1.1],['fast',20,0.3]],
+      [['boss',1,0],['tank',7,1.05],['fast',18,0.3]],
+      [['fast',30,0.25],['tank',9,1.0]],
+      [['normal',26,0.38],['tank',10,0.95],['fast',22,0.28]],
+      [['boss',2,2.0],['fast',26,0.26],['tank',8,1.0]],
+      [['boss',3,1.8],['tank',12,0.9],['fast',30,0.24]]
+    ]
+  }
 ];
-// 转换为像素坐标（格子中心）
-const PATH = PATH_CELLS.map(p => ({ x: p.c * CELL + CELL/2, y: p.r * CELL + CELL/2 }));
+let currentLevelIdx = 0;
+let PATH = [];       // 当前关卡的像素路径（switchLevel 时填充）
+let WAVES = [];      // 当前关卡的波次
+// 格子坐标 -> 像素坐标
+function cellsToPath(cells){ return cells.map(p=>({ x: p.c*CELL+CELL/2, y: p.r*CELL+CELL/2 })); }
+function switchLevel(idx){
+  currentLevelIdx = idx;
+  const lv = LEVELS[idx];
+  PATH = cellsToPath(lv.path);
+  WAVES = lv.waves;
+}
+
+const THEME_ICON = {grass:'🌿', snow:'❄️', desert:'🏜️', night:'🌙', lava:'🌋'};
+function getUnlocked(){
+  let v = parseInt(localStorage.getItem('carrotDefenseUnlocked')||'1',10);
+  if(isNaN(v)||v<1) v=1;
+  return Math.min(v, LEVELS.length);
+}
+function setUnlocked(n){
+  const cur = getUnlocked();
+  localStorage.setItem('carrotDefenseUnlocked', String(Math.max(cur, Math.min(n, LEVELS.length))));
+}
+function showLevelSelect(){
+  game.state='idle';
+  const unlocked = getUnlocked();
+  const ov = document.getElementById('overlay');
+  ov.classList.remove('hidden','win','lose');
+  let cards='';
+  LEVELS.forEach((lv,i)=>{
+    const locked = i>=unlocked;
+    cards += `<div class="lvl-card ${locked?'locked':''}" data-idx="${i}">
+      <div class="lvl-ico">${locked?'🔒':THEME_ICON[lv.theme]}</div>
+      <div class="lvl-name">${i+1}. ${lv.name}</div>
+      <div class="lvl-meta">${lv.waves.length} 波 · 🏰 ${lv.towers.length} 种塔<br>❤️ ${lv.life} · 🥕 ${lv.gold}</div>
+      ${locked?'<div class="lvl-lock">通关上一关解锁</div>':''}
+    </div>`;
+  });
+  ov.innerHTML = `<h2>🥕 保卫萝卜</h2>
+    <p>选择关卡开始游戏。击败每关全部怪物即可解锁下一关，进度自动保存。</p>
+    <div class="level-grid">${cards}</div>`;
+  ov.querySelectorAll('.lvl-card').forEach(c=>{
+    c.onclick = ()=>{
+      if(c.classList.contains('locked')) return;
+      switchLevel(parseInt(c.dataset.idx,10));
+      resetGame();
+    };
+  });
+}
 
 // 塔类型定义
 const TOWER_TYPES = {
   arrow: {
-    name: '箭塔', cost: 50, color: '#7ee0a0', accent: '#3ecf7a',
-    range: 145, damage: 16, fireRate: 1.3, projSpeed: 520, splash: 0, slow: 0,
-    desc: '射速快，单体攻击，性价比高'
+    name: '箭塔', cost: 45, color: '#7ee0a0', accent: '#3ecf7a',
+    range: 145, damage: 14, fireRate: 1.5, projSpeed: 620, splash: 0, slow: 0,
+    sfx: 'arrow', desc: '射速快，单体输出，开局主力'
   },
   cannon: {
-    name: '炮塔', cost: 110, color: '#f0a868', accent: '#e07a2f',
-    range: 130, damage: 38, fireRate: 0.55, projSpeed: 360, splash: 62, slow: 0,
-    desc: '范围溅射伤害，适合密集敌群'
+    name: '炮塔', cost: 105, color: '#f0a868', accent: '#e07a2f',
+    range: 132, damage: 40, fireRate: 0.55, projSpeed: 380, splash: 64, slow: 0,
+    sfx: 'cannon', desc: '炮弹爆炸，范围溅射伤害'
   },
-  magic: {
-    name: '魔法塔', cost: 80, color: '#b69bff', accent: '#7c5ce0',
-    range: 155, damage: 11, fireRate: 1.6, projSpeed: 460, splash: 0, slow: 0.5, slowDur: 1.6,
-    desc: '减速敌人，控场利器'
+  frost: {
+    name: '冰霜塔', cost: 85, color: '#8fd8ff', accent: '#3f9fe0',
+    range: 150, damage: 9, fireRate: 1.4, projSpeed: 480, splash: 0, slow: 0.45, slowDur: 1.8,
+    sfx: 'frost', desc: '冰锥减速，控场拖延敌人'
+  },
+  sniper: {
+    name: '狙击塔', cost: 155, color: '#c9b3ff', accent: '#6a4fd0',
+    range: 268, damage: 82, fireRate: 0.45, projSpeed: 1500, splash: 0, slow: 0,
+    sfx: 'sniper', desc: '超远射程，单发高额伤害'
+  },
+  tesla: {
+    name: '电塔', cost: 165, color: '#b6f0ff', accent: '#3fb8e0',
+    range: 142, damage: 26, fireRate: 1.0, projSpeed: 0, splash: 0, slow: 0, chain: 4,
+    sfx: 'tesla', desc: '闪电链，一次电击多名敌人'
+  },
+  poison: {
+    name: '毒液塔', cost: 95, color: '#a6e07a', accent: '#4a9a2a',
+    range: 142, damage: 8, fireRate: 1.1, projSpeed: 430, splash: 32, slow: 0,
+    dot: { dps: 15, dur: 3.2 },
+    sfx: 'poison', desc: '毒液溅射，持续掉血'
+  },
+  flame: {
+    name: '火焰塔', cost: 120, color: '#ffc46b', accent: '#e0632a',
+    range: 112, damage: 11, fireRate: 3.0, projSpeed: 470, splash: 44, slow: 0,
+    dot: { dps: 8, dur: 2 },
+    sfx: 'flame', desc: '近距离喷火，灼烧小范围敌人'
   }
 };
 
-// 怪物类型定义（深色化配色，配合狰狞造型）
+// 怪物类型定义：有身体/四肢/触角/翅膀/甲壳的部件化造型
 const ENEMY_TYPES = {
-  normal: { hp: 55, speed: 58, gold: 10, color: '#e0503f', color2: '#ff9b6b', dark: '#7e1c12', r: 16, name: '小怪' },
-  fast:   { hp: 30, speed: 108, gold: 9, color: '#e0a51e', color2: '#ffe066', dark: '#7d5504', r: 12.5, name: '快怪' },
-  tank:   { hp: 210, speed: 36, gold: 28, color: '#2f86bd', color2: '#8fd8ff', dark: '#123f60', r: 20, name: '坦克' },
-  boss:   { hp: 1600, speed: 30, gold: 220, color: '#9336cc', color2: '#e0a2ff', dark: '#43105f', r: 28, name: 'BOSS' }
+  normal: { hp: 55, speed: 58, gold: 10, color: '#8e4fd6', color2: '#c99bff', dark: '#3d1a6b', r: 16, name: '小怪' },
+  fast:   { hp: 30, speed: 112, gold: 9, color: '#9fd82a', color2: '#d9ff7a', dark: '#3f5e0a', r: 13, name: '快怪' },
+  tank:   { hp: 230, speed: 36, gold: 28, color: '#4a7a9e', color2: '#8fc3e0', dark: '#1e3a55', r: 22, name: '坦克' },
+  boss:   { hp: 1800, speed: 30, gold: 220, color: '#b0305a', color2: '#ff8ab0', dark: '#5a1030', r: 30, name: 'BOSS' }
 };
-
-// 波次配置：每波生成序列 [type, count, interval]
-const WAVES = [
-  [['normal',8,0.9]],
-  [['normal',10,0.8],['fast',4,0.5]],
-  [['normal',8,0.7],['fast',8,0.45]],
-  [['tank',3,1.6],['normal',10,0.7]],
-  [['fast',16,0.4],['normal',6,0.6]],
-  [['tank',5,1.4],['fast',10,0.4]],
-  [['normal',14,0.55],['tank',4,1.3],['fast',8,0.4]],
-  [['fast',20,0.35],['tank',6,1.2]],
-  [['tank',8,1.1],['normal',16,0.5],['fast',12,0.35]],
-  [['boss',1,0],['tank',6,1.2],['fast',16,0.35],['normal',10,0.5]]
-];
 
 // ============ 游戏状态 ============
 const game = {
   gold: 200, life: 20, wave: 0,
-  towers: [], enemies: [], bullets: [], particles: [], floats: [],
+  towers: [], enemies: [], bullets: [], particles: [], floats: [], arcs: [],
   selectedType: null, selectedTower: null,
   mouse: { x: 0, y: 0, gx: -1, gy: -1, onCanvas: false },
   state: 'idle', // idle | playing | paused | won | lost
@@ -331,29 +549,85 @@ function nearPath(x,y,thr=CELL*0.62){
   return false;
 }
 
-// ============ 音效（WebAudio 合成，无需外部文件） ============
-let audioCtx = null;
-function ac(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
-function beep(freq, dur, type='square', vol=0.08, slide=0){
+// ============ 音效（WebAudio 实时合成，无需外部文件） ============
+let audioCtx = null, masterGain = null, noiseBuf = null;
+function ac(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const comp = audioCtx.createDynamicsCompressor();
+    comp.threshold.value=-20; comp.knee.value=22; comp.ratio.value=6;
+    comp.attack.value=0.003; comp.release.value=0.22;
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value=0.9;
+    masterGain.connect(comp); comp.connect(audioCtx.destination);
+    // 预生成一段白噪声，供打击/爆炸/风声复用
+    const len = Math.floor(audioCtx.sampleRate*0.7);
+    noiseBuf = audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for(let i=0;i<len;i++) data[i]=Math.random()*2-1;
+  }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+// 单音：带淡入淡出包络，避免爆音
+function tone(freq, dur, opt={}){
   try{
-    const a=ac(); const o=a.createOscillator(); const g=a.createGain();
-    o.type=type; o.frequency.value=freq;
-    if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40,freq+slide), a.currentTime+dur);
-    g.gain.value=vol; g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur);
-    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+dur);
+    const a=ac(), t=a.currentTime;
+    const type=opt.type||'sine', vol=opt.vol||0.06, delay=opt.delay||0;
+    const attack=opt.attack===undefined?0.008:opt.attack;
+    const o=a.createOscillator(), g=a.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq, t+delay);
+    if(opt.to) o.frequency.exponentialRampToValueAtTime(Math.max(20,opt.to), t+delay+dur);
+    if(opt.detune) o.detune.value=opt.detune;
+    g.gain.setValueAtTime(0.0001, t+delay);
+    g.gain.exponentialRampToValueAtTime(vol, t+delay+attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+delay+dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(t+delay); o.stop(t+delay+dur+0.03);
+  }catch(e){}
+}
+// 滤波噪声：用于爆炸、打击、风声
+function noise(dur, opt={}){
+  try{
+    const a=ac(), t=a.currentTime;
+    const vol=opt.vol||0.07, delay=opt.delay||0;
+    const src=a.createBufferSource(); src.buffer=noiseBuf;
+    const flt=a.createBiquadFilter();
+    flt.type=opt.type||'lowpass';
+    flt.frequency.setValueAtTime(opt.f||1200, t+delay);
+    if(opt.f2) flt.frequency.exponentialRampToValueAtTime(Math.max(40,opt.f2), t+delay+dur);
+    flt.Q.value=opt.q||1;
+    const g=a.createGain();
+    g.gain.setValueAtTime(0.0001, t+delay);
+    g.gain.exponentialRampToValueAtTime(vol, t+delay+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+delay+dur);
+    src.connect(flt); flt.connect(g); g.connect(masterGain);
+    src.start(t+delay); src.stop(t+delay+dur+0.03);
   }catch(e){}
 }
 const sfx = {
-  shoot: ()=>beep(720,0.06,'square',0.04,-200),
-  cannon: ()=>beep(180,0.12,'sawtooth',0.07,-80),
-  magic: ()=>beep(520,0.1,'sine',0.05,300),
-  hit: ()=>beep(300,0.05,'triangle',0.05,-100),
-  boom: ()=>beep(90,0.25,'sawtooth',0.09,-50),
-  gold: ()=>{ beep(880,0.06,'square',0.05); setTimeout(()=>beep(1320,0.08,'square',0.05),60); },
-  place: ()=>beep(440,0.1,'triangle',0.06,200),
-  hurt: ()=>beep(160,0.3,'sawtooth',0.1,-100),
-  win: ()=>{ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'triangle',0.08),i*120)); },
-  lose: ()=>{ [400,300,200,120].forEach((f,i)=>setTimeout(()=>beep(f,0.3,'sawtooth',0.09),i*150)); }
+  arrow(){ tone(980,0.09,{type:'sine',vol:0.04,to:330}); noise(0.05,{vol:0.028,f:3200,f2:1500,type:'highpass'}); },
+  cannon(){ tone(150,0.17,{type:'sine',vol:0.085,to:52}); noise(0.22,{vol:0.07,f:900,f2:170}); },
+  frost(){ tone(1280,0.14,{type:'triangle',vol:0.038,to:1900}); tone(1900,0.11,{type:'sine',vol:0.022,to:2500,delay:0.02}); },
+  sniper(){ noise(0.06,{vol:0.055,f:4200,type:'highpass'}); tone(1700,0.1,{type:'square',vol:0.028,to:220}); },
+  tesla(){ noise(0.17,{vol:0.05,f:2600,f2:700,q:5,type:'bandpass'}); tone(1300,0.1,{type:'square',vol:0.026,to:420}); },
+  poison(){ tone(320,0.15,{type:'sine',vol:0.05,to:640}); tone(200,0.13,{type:'sine',vol:0.028,to:150,delay:0.06}); },
+  flame(){ noise(0.24,{vol:0.045,f:520,f2:1500,q:1.6,type:'bandpass'}); },
+  hit(){ noise(0.045,{vol:0.026,f:1600,f2:750}); },
+  boom(){ noise(0.4,{vol:0.1,f:900,f2:90}); tone(80,0.34,{type:'sine',vol:0.075,to:40}); },
+  gold(){ tone(1046.5,0.3,{type:'triangle',vol:0.045}); tone(1568,0.26,{type:'sine',vol:0.026,delay:0.01}); tone(2093,0.2,{type:'sine',vol:0.013,delay:0.02}); },
+  place(){ tone(240,0.1,{type:'sine',vol:0.055,to:168}); noise(0.07,{vol:0.038,f:600,f2:240}); },
+  hurt(){ tone(210,0.3,{type:'sawtooth',vol:0.055,to:80}); noise(0.2,{vol:0.038,f:420,f2:120}); },
+  win(){
+    [523.25,659.25,783.99,1046.5].forEach((f,i)=>{
+      tone(f,0.34,{type:'triangle',vol:0.05,delay:i*0.11});
+      tone(f*2,0.22,{type:'sine',vol:0.018,delay:i*0.11});
+    });
+    tone(1567.98,0.55,{type:'sine',vol:0.028,delay:0.46});
+  },
+  lose(){
+    [392,329.63,261.63,196].forEach((f,i)=>tone(f,0.42,{type:'sawtooth',vol:0.045,to:f*0.85,delay:i*0.14}));
+  }
 };
 
 // ============ 实体类 ============
@@ -394,10 +668,36 @@ class Tower{
   }
   fire(target){
     const d=this.def;
+    if(this.type==='tesla'){ this.chainLightning(d); return; }
     game.bullets.push(new Bullet(this.x,this.y,target,this));
-    if(this.type==='arrow') sfx.shoot();
-    else if(this.type==='cannon') sfx.cannon();
-    else sfx.magic();
+    const f=sfx[d.sfx]||sfx.arrow; f();
+  }
+  chainLightning(d){
+    // 从最近的敌人起，向附近敌人链式放电
+    let cur=null, best=1e9;
+    for(const e of game.enemies){
+      if(e.dead) continue;
+      const dd=dist(this,e);
+      if(dd<=d.range && dd<best){ best=dd; cur=e; }
+    }
+    if(!cur) return;
+    const used=new Set();
+    let from={x:this.x, y:this.y-3};
+    for(let i=0;i<d.chain && cur;i++){
+      used.add(cur);
+      game.arcs.push(new Arc(from.x,from.y,cur.x,cur.y, i===0?'#eafcff':'#9fe8ff'));
+      cur.takeDamage(d.damage);
+      addHit(cur.x,cur.y,'#bff4ff');
+      from={x:cur.x, y:cur.y};
+      let nxt=null, nd=1e9;
+      for(const e of game.enemies){
+        if(e.dead || used.has(e)) continue;
+        const dd=dist(cur,e);
+        if(dd<=d.range*0.78 && dd<nd){ nd=dd; nxt=e; }
+      }
+      cur=nxt;
+    }
+    sfx.tesla();
   }
   draw(){
     const d=this.def;
@@ -433,11 +733,46 @@ class Tower{
       ctx.strokeStyle='#3f4a53'; ctx.lineWidth=1.5; ctx.stroke();
       ctx.fillStyle=d.accent; roundRect(-3,-5,22,10,4); ctx.fill();
       ctx.fillStyle='#2b333a'; ctx.beginPath(); ctx.arc(23,0,5.5,0,7); ctx.fill();
-    } else {
+    } else if(this.type==='frost'){
+      // 冰晶棱柱
+      ctx.fillStyle='#cfefff';
+      ctx.beginPath(); ctx.moveTo(-3,-8); ctx.lineTo(25,0); ctx.lineTo(-3,8); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#4f9fd0'; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,.9)';
+      ctx.beginPath(); ctx.moveTo(1,-4); ctx.lineTo(18,-0.6); ctx.lineTo(1,0.2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=d.accent; ctx.beginPath(); ctx.arc(24,0,3,0,7); ctx.fill();
+    } else if(this.type==='sniper'){
+      // 细长枪管 + 瞄准镜
+      ctx.fillStyle='#5a4a7a'; roundRect(-8,-4,42,8,3); ctx.fill();
+      ctx.strokeStyle='#33254f'; ctx.lineWidth=1.4; ctx.stroke();
+      ctx.fillStyle=d.accent; roundRect(18,-2.5,16,5,2); ctx.fill();
+      ctx.fillStyle='#2a2040'; ctx.beginPath(); ctx.arc(3,-8,4.6,0,7); ctx.fill();
+      ctx.fillStyle='rgba(190,255,255,.85)'; ctx.beginPath(); ctx.arc(3,-8,2,0,7); ctx.fill();
+    } else if(this.type==='tesla'){
+      // 双电极 + 放电火花
+      ctx.fillStyle='#7f8c96';
+      roundRect(-5,-9,15,4.5,2); ctx.fill();
+      roundRect(-5,4.5,15,4.5,2); ctx.fill();
       ctx.fillStyle=d.accent;
-      ctx.beginPath(); ctx.moveTo(-2,-9); ctx.lineTo(25,0); ctx.lineTo(-2,9); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle='#4b2f8a'; ctx.lineWidth=1.5; ctx.stroke();
-      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(21,0,3.2,0,7); ctx.fill();
+      ctx.beginPath(); ctx.arc(15,-7,3.2,0,7); ctx.fill();
+      ctx.beginPath(); ctx.arc(15,7,3.2,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(220,250,255,.95)'; ctx.lineWidth=1.5; ctx.lineJoin='round';
+      ctx.beginPath(); ctx.moveTo(15,-7); ctx.lineTo(20,-2); ctx.lineTo(14,0); ctx.lineTo(20,4); ctx.lineTo(15,7); ctx.stroke();
+    } else if(this.type==='poison'){
+      // 毒液罐 + 喷嘴
+      ctx.fillStyle='#5a7a3a'; roundRect(-7,-7,18,14,6); ctx.fill();
+      ctx.strokeStyle='#33521e'; ctx.lineWidth=1.4; ctx.stroke();
+      ctx.fillStyle=d.accent; roundRect(8,-3.5,15,7,3); ctx.fill();
+      ctx.fillStyle='#d8ff9a'; ctx.beginPath(); ctx.arc(-1,0,3.4,0,7); ctx.fill();
+      ctx.fillStyle='#b6f08a'; ctx.beginPath(); ctx.arc(21,0,3,0,7); ctx.fill();
+    } else {
+      // 火焰喷射器
+      ctx.fillStyle='#7a4a2a'; roundRect(-7,-7,21,14,6); ctx.fill();
+      ctx.strokeStyle='#4a2a12'; ctx.lineWidth=1.5; ctx.stroke();
+      ctx.fillStyle='#ffd166';
+      ctx.beginPath(); ctx.moveTo(12,-5.5); ctx.lineTo(27,0); ctx.lineTo(12,5.5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#ff8b3c';
+      ctx.beginPath(); ctx.moveTo(12,-3); ctx.lineTo(22,0); ctx.lineTo(12,3); ctx.closePath(); ctx.fill();
     }
     ctx.restore();
 
@@ -482,18 +817,20 @@ class Bullet{
   hit(){
     const d=this.tower.def;
     if(d.splash>0){
-      // 范围伤害
+      // 范围伤害（毒液/火焰会附加持续伤害）
       for(const e of game.enemies){
         if(e.dead) continue;
         if(dist(this.target,e)<=d.splash){
           e.takeDamage(d.damage);
+          if(d.dot && !e.dead) e.applyDot(d.dot.dps, d.dot.dur, d.color);
         }
       }
-      addExplosion(this.target.x,this.target.y,d.splash,'#ffb066');
-      sfx.boom();
+      addExplosion(this.target.x,this.target.y,d.splash,d.splash>50?'#ffb066':d.color);
+      if(d.splash>50) sfx.boom(); else sfx.hit();
     } else {
       this.target.takeDamage(d.damage);
       if(d.slow>0) this.target.applySlow(d.slow, d.slowDur);
+      if(d.dot && !this.target.dead) this.target.applyDot(d.dot.dps, d.dot.dur, d.color);
       addHit(this.target.x,this.target.y, d.color);
       sfx.hit();
     }
@@ -526,9 +863,15 @@ class Enemy{
     for(let i=0;i<PATH.length-1;i++) this.totalLen+=dist(PATH[i],PATH[i+1]);
     this.dead=false; this.reached=false;
     this.slowT=0; this.slowAmt=0;
+    this.dots=[];
     this.bob=Math.random()*7;
   }
   applySlow(amt,dur){ this.slowAmt=Math.max(this.slowAmt,amt); this.slowT=Math.max(this.slowT,dur); }
+  applyDot(dps,dur,color){
+    const ex=this.dots.find(x=>x.color===color);
+    if(ex){ ex.dps=Math.max(ex.dps,dps); ex.t=Math.max(ex.t,dur); }
+    else this.dots.push({dps, t:dur, color, tick:0});
+  }
   takeDamage(dmg){
     if(this.dead) return;
     this.hp-=dmg;
@@ -543,6 +886,14 @@ class Enemy{
   }
   update(dt){
     if(this.dead) return;
+    // 持续伤害（中毒 / 灼烧）
+    if(this.dots.length){
+      let dmg=0;
+      for(const d of this.dots){ d.t-=dt; dmg+=d.dps*dt; }
+      this.dots=this.dots.filter(d=>d.t>0);
+      if(dmg>0) this.takeDamage(dmg);
+      if(this.dead) return;
+    }
     if(this.slowT>0){ this.slowT-=dt; if(this.slowT<=0) this.slowAmt=0; }
     const spd=this.speed*(1-this.slowAmt);
     let remain=spd*dt;
@@ -576,113 +927,303 @@ class Enemy{
   }
   draw(){
     const d=this.def;
-    const bobY=Math.sin(this.bob)*2;
-    const x=this.x, y=this.y+bobY, r=d.r;
+    const r=d.r;
+    const anim=this.bob;
+    const x=this.x;
+    const baseY=this.y;
+    const bob = this.type==='fast' ? Math.sin(anim*0.8)*5 : Math.abs(Math.sin(anim))*2;
+    const y=baseY-bob;
+
     ctx.save();
-    // 地面阴影
-    ctx.fillStyle='rgba(25,18,0,0.3)';
-    ctx.beginPath(); ctx.ellipse(x,this.y+r+5,r*0.95,r*0.34,0,0,7); ctx.fill();
+    // 地面阴影（浮动怪阴影固定在地面）
+    ctx.fillStyle='rgba(20,12,0,0.32)';
+    ctx.beginPath(); ctx.ellipse(x, baseY+r*0.95, r*0.85, r*0.3, 0,0,7); ctx.fill();
 
-    // 背部尖刺
-    ctx.fillStyle=d.dark;
-    const spikes = this.type==='boss'?9:6;
-    for(let i=0;i<spikes;i++){
-      const a=i/spikes*Math.PI*2+this.bob*0.12;
-      const sx=x+Math.cos(a)*r*0.9, sy=y+Math.sin(a)*r*0.9;
-      const tx=x+Math.cos(a)*(r+5), ty=y+Math.sin(a)*(r+5);
-      ctx.beginPath();
-      ctx.moveTo(sx+Math.cos(a+1.6)*3.5, sy+Math.sin(a+1.6)*3.5);
-      ctx.lineTo(tx,ty);
-      ctx.lineTo(sx+Math.cos(a-1.6)*3.5, sy+Math.sin(a-1.6)*3.5);
-      ctx.closePath(); ctx.fill();
-    }
-
-    // 身体（暗色渐变）
-    const grd=ctx.createRadialGradient(x-r*0.35,y-r*0.42,2,x,y,r*1.05);
-    grd.addColorStop(0,d.color2); grd.addColorStop(0.58,d.color); grd.addColorStop(1,d.dark);
-    ctx.fillStyle=grd;
-    ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
-    ctx.strokeStyle='rgba(18,8,0,0.55)'; ctx.lineWidth=2; ctx.stroke();
-
-    // 身上的黑色斑点
-    ctx.fillStyle='rgba(20,8,0,0.22)';
-    for(let i=0;i<3;i++){
-      const a=this.bob*0.2+i*2.1+1;
-      ctx.beginPath();
-      ctx.arc(x+Math.cos(a)*r*0.58, y+Math.sin(a)*r*0.42+2, r*0.16, 0, 7);
-      ctx.fill();
-    }
-
-    // 发光眼睛 + 竖瞳
-    const ey=y-r*0.16, ex=x-r*0.44, gap=r*0.88;
-    const eyeColor = this.type==='boss' ? '#ff3b2f' : this.type==='tank' ? '#c9f4ff' : this.type==='fast' ? '#ffe14d' : '#ff4d3d';
-    for(const exx of [ex, ex+gap]){
-      ctx.save();
-      ctx.shadowColor = this.type==='tank' ? 'rgba(140,230,255,.95)' : 'rgba(255,70,40,.95)';
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = eyeColor;
-      ctx.beginPath(); ctx.ellipse(exx,ey,r*0.33,r*0.29,0,0,7); ctx.fill();
-      ctx.restore();
-      ctx.fillStyle='#160b00';
-      ctx.beginPath(); ctx.ellipse(exx+(exx<x?1:-1)*r*0.04, ey, r*0.15, r*0.25, 0,0,7); ctx.fill();
-      ctx.fillStyle='#fff';
-      ctx.beginPath(); ctx.arc(exx-r*0.09, ey-r*0.09, r*0.06, 0, 7); ctx.fill();
-    }
-
-    // 愤怒的斜眉
-    ctx.strokeStyle='#160b00'; ctx.lineWidth=Math.max(2.2, r*0.17); ctx.lineCap='round';
-    ctx.beginPath();
-    ctx.moveTo(ex-r*0.34, ey-r*0.62); ctx.lineTo(ex+r*0.18, ey-r*0.34);
-    ctx.moveTo(ex+gap+r*0.34, ey-r*0.62); ctx.lineTo(ex+gap-r*0.18, ey-r*0.34);
-    ctx.stroke();
-
-    // 咧嘴
-    ctx.fillStyle='#3a0a0a';
-    ctx.beginPath();
-    ctx.moveTo(x-r*0.48, y+r*0.30);
-    ctx.quadraticCurveTo(x, y+r*0.92, x+r*0.48, y+r*0.30);
-    ctx.quadraticCurveTo(x, y+r*0.48, x-r*0.48, y+r*0.30);
-    ctx.closePath(); ctx.fill();
-
-    // 尖牙
-    ctx.fillStyle='#fff8e8';
-    for(let i=0;i<3;i++){
-      const tx=x-r*0.30+i*r*0.30;
-      ctx.beginPath();
-      ctx.moveTo(tx-r*0.08, y+r*0.34);
-      ctx.lineTo(tx, y+r*0.62);
-      ctx.lineTo(tx+r*0.08, y+r*0.34);
-      ctx.closePath(); ctx.fill();
-    }
-
-    // BOSS 双角
-    if(this.type==='boss'){
-      ctx.fillStyle='#f2e8ff'; ctx.strokeStyle='#5a2a8a'; ctx.lineWidth=2;
-      for(const sgn of [-1,1]){
-        ctx.beginPath();
-        ctx.moveTo(x+sgn*r*0.52, y-r*0.78);
-        ctx.quadraticCurveTo(x+sgn*r*0.98, y-r*1.42, x+sgn*r*0.46, y-r*1.5);
-        ctx.quadraticCurveTo(x+sgn*r*0.72, y-r*1.06, x+sgn*r*0.26, y-r*0.92);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
-      }
-    }
+    if(this.type==='normal') drawNormalMonster(x,y,r,anim,d);
+    else if(this.type==='fast') drawFastMonster(x,y,r,anim,d);
+    else if(this.type==='tank') drawTankMonster(x,y,r,anim,d);
+    else drawBossMonster(x,y,r,anim,d);
 
     // 减速光环
     if(this.slowT>0){
-      ctx.strokeStyle='rgba(140,110,255,0.85)'; ctx.lineWidth=2.5;
-      ctx.beginPath(); ctx.arc(x,y,r+4.5,0,7); ctx.stroke();
+      ctx.strokeStyle='rgba(140,110,255,0.9)'; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.arc(x,y,r+6,0,7); ctx.stroke();
     }
-
+    // 中毒 / 灼烧冒泡
+    if(this.dots.length){
+      ctx.save();
+      ctx.globalAlpha=0.85;
+      for(let i=0;i<3;i++){
+        const ang=anim*1.6+i*2.1;
+        ctx.fillStyle=this.dots[i%this.dots.length].color;
+        ctx.beginPath();
+        ctx.arc(x+Math.cos(ang)*r*0.75, y+Math.sin(ang*1.3)*r*0.55-r*0.2, 2.2, 0, 7);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
     // 血条
     if(this.hp<this.maxHp){
-      const bw=Math.max(26,d.r*2), bh=5;
-      const by=this.y-d.r-(this.type==='boss'?18:10);
+      const bw=Math.max(28,r*2), bh=5;
+      const by=y-r-(this.type==='boss'?22:12);
       ctx.fillStyle='rgba(0,0,0,0.65)'; roundRect(x-bw/2,by,bw,bh,2.5); ctx.fill();
       const pct=Math.max(0,this.hp/this.maxHp);
       ctx.fillStyle=pct>0.5?'#7ee0a0':pct>0.25?'#ffd166':'#ff5b4a';
       roundRect(x-bw/2,by,bw*pct,bh,2.5); ctx.fill();
     }
     ctx.restore();
+  }
+}
+
+// ============ 怪物部件化造型 ============
+// 紫毛小怪：椭圆胖身 + 头顶双触角 + 大眼 + 锯齿嘴 + 摆动的手脚
+function drawNormalMonster(x,y,r,anim,d){
+  const walk=Math.sin(anim);
+  const rx=r*0.95, ry=r*1.15;
+  // 脚
+  ctx.fillStyle=d.dark;
+  ctx.beginPath(); ctx.ellipse(x-r*0.5+walk*3, y+ry*0.78, r*0.28, r*0.22, 0,0,7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x+r*0.5-walk*3, y+ry*0.78, r*0.28, r*0.22, 0,0,7); ctx.fill();
+  // 身体
+  const g=ctx.createRadialGradient(x-rx*0.35, y-ry*0.4, 2, x, y, rx*1.1);
+  g.addColorStop(0,d.color2); g.addColorStop(0.6,d.color); g.addColorStop(1,d.dark);
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,7); ctx.fill();
+  ctx.strokeStyle='rgba(20,8,30,0.5)'; ctx.lineWidth=2; ctx.stroke();
+  // 手
+  ctx.fillStyle=d.color;
+  ctx.beginPath(); ctx.ellipse(x-rx*0.85, y+r*0.15+walk*2, r*0.22, r*0.16, -0.5,0,7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x+rx*0.85, y+r*0.15-walk*2, r*0.22, r*0.16, 0.5,0,7); ctx.fill();
+  // 触角
+  const sw=Math.sin(anim*0.8)*0.25;
+  for(const sgn of [-1,1]){
+    ctx.strokeStyle=d.dark; ctx.lineWidth=2.5; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(x+sgn*r*0.45, y-ry*0.75);
+    ctx.quadraticCurveTo(x+sgn*r*0.9, y-ry*1.15, x+sgn*r*0.55, y-ry*1.4+sw*4);
+    ctx.stroke();
+    ctx.fillStyle=d.color2;
+    ctx.beginPath(); ctx.arc(x+sgn*r*0.55, y-ry*1.4+sw*4, r*0.22, 0,7); ctx.fill();
+  }
+  // 眼睛
+  const ey=y-r*0.12;
+  for(const sgn of [-1,1]){
+    ctx.save();
+    ctx.shadowColor='rgba(150,100,255,.8)'; ctx.shadowBlur=6;
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.ellipse(x+sgn*r*0.4, ey, r*0.3, r*0.32, 0,0,7); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#1a0a2a';
+    ctx.beginPath(); ctx.arc(x+sgn*r*0.43, ey+1, r*0.15, 0,7); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(x+sgn*r*0.45, ey-1, r*0.055, 0,7); ctx.fill();
+  }
+  // 嘴
+  ctx.fillStyle='#2a0a1a';
+  ctx.beginPath();
+  ctx.moveTo(x-r*0.42, y+r*0.28);
+  ctx.quadraticCurveTo(x, y+r*0.72, x+r*0.42, y+r*0.28);
+  ctx.quadraticCurveTo(x, y+r*0.42, x-r*0.42, y+r*0.28);
+  ctx.closePath(); ctx.fill();
+  // 牙
+  ctx.fillStyle='#fff';
+  for(let i=0;i<4;i++){
+    const tx=x-r*0.31+i*r*0.205;
+    ctx.beginPath();
+    ctx.moveTo(tx-r*0.07,y+r*0.3); ctx.lineTo(tx,y+r*0.52); ctx.lineTo(tx+r*0.07,y+r*0.3);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+// 飞虫快怪：瘦身 + 扑动的大翅膀 + 复眼 + 尖嘴，整体浮空
+function drawFastMonster(x,y,r,anim,d){
+  const flap=Math.abs(Math.sin(anim*1.6));
+  const rx=r*0.8, ry=r*1.0;
+  // 翅膀
+  for(const sgn of [-1,1]){
+    ctx.save();
+    ctx.globalAlpha=0.78;
+    ctx.translate(x,y-r*0.2);
+    ctx.scale(sgn,1);
+    ctx.scale(1, 0.4+flap*0.7);
+    const wg=ctx.createLinearGradient(0,0,r*1.6,0);
+    wg.addColorStop(0,'rgba(220,255,180,0.9)'); wg.addColorStop(1,'rgba(160,210,90,0.3)');
+    ctx.fillStyle=wg;
+    ctx.beginPath(); ctx.ellipse(r*0.9, 0, r*1.1, r*0.7, 0.3, 0,7); ctx.fill();
+    ctx.strokeStyle='rgba(60,90,20,0.5)'; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.restore();
+  }
+  // 身体
+  const g=ctx.createRadialGradient(x-rx*0.3,y-ry*0.4,2,x,y,rx*1.1);
+  g.addColorStop(0,d.color2); g.addColorStop(0.6,d.color); g.addColorStop(1,d.dark);
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,7); ctx.fill();
+  ctx.strokeStyle='rgba(20,40,5,0.5)'; ctx.lineWidth=2; ctx.stroke();
+  // 背部条纹
+  ctx.strokeStyle='rgba(20,40,5,0.25)'; ctx.lineWidth=2;
+  for(let i=-1;i<=1;i++){
+    ctx.beginPath(); ctx.ellipse(x,y+i*r*0.32, rx*0.9, r*0.12, 0,0,7); ctx.stroke();
+  }
+  // 复眼
+  const ey=y-r*0.25;
+  for(const sgn of [-1,1]){
+    ctx.save();
+    ctx.shadowColor='rgba(255,230,80,.8)'; ctx.shadowBlur=5;
+    ctx.fillStyle='#ffe14d';
+    ctx.beginPath(); ctx.arc(x+sgn*r*0.38, ey, r*0.26,0,7); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#3a2a05';
+    for(const [px,py] of [[-0.1,-0.08],[0.1,-0.08],[0,0.08]]){
+      ctx.beginPath(); ctx.arc(x+sgn*r*0.38+px*r*0.12, ey+py*r*0.12, r*0.05,0,7); ctx.fill();
+    }
+  }
+  // 尖嘴
+  ctx.fillStyle='#2a1a05';
+  ctx.beginPath();
+  ctx.moveTo(x-r*0.2, y+r*0.2); ctx.lineTo(x, y+r*0.6); ctx.lineTo(x+r*0.2, y+r*0.2);
+  ctx.closePath(); ctx.fill();
+  // 触角
+  const sw=Math.sin(anim*1.2)*0.3;
+  for(const sgn of [-1,1]){
+    ctx.strokeStyle=d.dark; ctx.lineWidth=2; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(x+sgn*r*0.3, y-ry*0.8);
+    ctx.quadraticCurveTo(x+sgn*r*0.7, y-ry*1.25+sw*4, x+sgn*r*0.5, y-ry*1.5+sw*5);
+    ctx.stroke();
+    ctx.fillStyle=d.color2;
+    ctx.beginPath(); ctx.arc(x+sgn*r*0.5, y-ry*1.5+sw*5, r*0.14,0,7); ctx.fill();
+  }
+}
+
+// 甲壳坦克：厚实身体 + 背甲 + 双犄角 + 獠牙 + 四短腿
+function drawTankMonster(x,y,r,anim,d){
+  const walk=Math.sin(anim*0.7);
+  const rx=r*1.05, ry=r*0.95;
+  // 四腿
+  ctx.fillStyle=d.dark;
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,side],i)=>{
+    const off=(i%2?walk:-walk)*3;
+    ctx.beginPath(); ctx.ellipse(x+sx*rx*0.78+off, y+ry*0.7+side*r*0.18, r*0.26, r*0.2, 0,0,7); ctx.fill();
+  });
+  // 身体底盘
+  const g=ctx.createRadialGradient(x-rx*0.3,y-ry*0.4,2,x,y,rx*1.1);
+  g.addColorStop(0,d.color2); g.addColorStop(0.6,d.color); g.addColorStop(1,d.dark);
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,7); ctx.fill();
+  ctx.strokeStyle='rgba(10,25,40,0.55)'; ctx.lineWidth=2.5; ctx.stroke();
+  // 背甲
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(x,y,rx*0.98,ry*0.7,0,Math.PI,0); ctx.clip();
+  const sg=ctx.createLinearGradient(0,y-ry,0,y);
+  sg.addColorStop(0,'#5a8aae'); sg.addColorStop(1,'#2c4e6b');
+  ctx.fillStyle=sg;
+  ctx.fillRect(x-rx*2, y-ry*2, rx*4, ry*2);
+  ctx.strokeStyle='rgba(10,25,40,0.4)'; ctx.lineWidth=2;
+  for(const sgn of [-1,1]){
+    ctx.beginPath(); ctx.moveTo(x, y-ry*0.7); ctx.lineTo(x+sgn*rx*0.8, y); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(x,y-ry*0.1,rx*0.35,Math.PI,0); ctx.stroke();
+  ctx.restore();
+  // 犄角
+  ctx.fillStyle='#e8e0d0'; ctx.strokeStyle='#3a2a1a'; ctx.lineWidth=1.8;
+  for(const sgn of [-1,1]){
+    ctx.beginPath();
+    ctx.moveTo(x+sgn*rx*0.45, y-ry*0.6);
+    ctx.quadraticCurveTo(x+sgn*rx*0.95, y-ry*1.3, x+sgn*rx*0.35, y-ry*1.45);
+    ctx.quadraticCurveTo(x+sgn*rx*0.65, y-ry*0.95, x+sgn*rx*0.2, y-ry*0.75);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  // 眼睛
+  const ey=y-r*0.15;
+  for(const sgn of [-1,1]){
+    ctx.save();
+    ctx.shadowColor='rgba(120,200,255,.8)'; ctx.shadowBlur=6;
+    ctx.fillStyle='#ffd93b';
+    ctx.beginPath(); ctx.ellipse(x+sgn*r*0.45, ey, r*0.24, r*0.2, 0,0,7); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#1a0a00';
+    ctx.beginPath(); ctx.arc(x+sgn*r*0.46, ey, r*0.1, 0,7); ctx.fill();
+  }
+  // 怒眉
+  ctx.strokeStyle='#101a25'; ctx.lineWidth=2.5; ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(x-r*0.62, ey-r*0.35); ctx.lineTo(x-r*0.22, ey-r*0.15);
+  ctx.moveTo(x+r*0.62, ey-r*0.35); ctx.lineTo(x+r*0.22, ey-r*0.15);
+  ctx.stroke();
+  // 嘴 + 獠牙
+  ctx.fillStyle='#1a0a14';
+  ctx.beginPath();
+  ctx.moveTo(x-r*0.38, y+r*0.32); ctx.quadraticCurveTo(x, y+r*0.62, x+r*0.38, y+r*0.32);
+  ctx.quadraticCurveTo(x, y+r*0.45, x-r*0.38, y+r*0.32);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#fff';
+  for(const sgn of [-1,1]){
+    ctx.beginPath();
+    ctx.moveTo(x+sgn*r*0.22, y+r*0.34); ctx.lineTo(x+sgn*r*0.14, y+r*0.68); ctx.lineTo(x+sgn*r*0.06, y+r*0.34);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+// BOSS 多角怪：巨身 + 三角 + 皇冠 + 三眼 + 獠牙大嘴
+function drawBossMonster(x,y,r,anim,d){
+  const walk=Math.sin(anim*0.5);
+  const rx=r*1.0, ry=r*0.98;
+  // 大脚
+  ctx.fillStyle=d.dark;
+  ctx.beginPath(); ctx.ellipse(x-r*0.6+walk*4, y+ry*0.85, r*0.35, r*0.24,0,0,7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x+r*0.6-walk*4, y+ry*0.85, r*0.35, r*0.24,0,0,7); ctx.fill();
+  // 身体
+  const g=ctx.createRadialGradient(x-rx*0.35,y-ry*0.45,2,x,y,rx*1.15);
+  g.addColorStop(0,d.color2); g.addColorStop(0.6,d.color); g.addColorStop(1,d.dark);
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,7); ctx.fill();
+  ctx.strokeStyle='rgba(30,5,20,0.55)'; ctx.lineWidth=3; ctx.stroke();
+  // 三只角
+  ctx.fillStyle='#f0e6f5'; ctx.strokeStyle='#4a1a55'; ctx.lineWidth=2;
+  for(const [dx,h] of [[0,r*1.55],[-0.7,r*1.25],[0.7,r*1.25]]){
+    ctx.beginPath();
+    ctx.moveTo(x+dx*0.9, y-ry*0.75);
+    ctx.quadraticCurveTo(x+dx*1.4, y-h*0.6, x+dx*0.55, y-h);
+    ctx.quadraticCurveTo(x+dx*0.9, y-h*0.75, x+dx*0.2, y-ry*0.85);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  // 皇冠
+  ctx.fillStyle='#ffd166'; ctx.strokeStyle='#b07a1a'; ctx.lineWidth=1.5;
+  const cy=y-r*1.55;
+  ctx.beginPath();
+  ctx.moveTo(x-10,cy+6); ctx.lineTo(x-10,cy-2); ctx.lineTo(x-6,cy+2);
+  ctx.lineTo(x-2,cy-6); ctx.lineTo(x+2,cy+2); ctx.lineTo(x+6,cy-2);
+  ctx.lineTo(x+10,cy+2); ctx.lineTo(x+10,cy+6); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // 三只眼
+  for(const [ex,ey] of [[-0.45,-0.1],[0.45,-0.1],[0,-0.45]]){
+    ctx.save();
+    ctx.shadowColor='rgba(255,60,40,.9)'; ctx.shadowBlur=10;
+    ctx.fillStyle='#ff3b2f';
+    ctx.beginPath(); ctx.arc(x+ex*r, y+ey*r, r*0.17,0,7); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle='#1a0500';
+    ctx.beginPath(); ctx.arc(x+ex*r, y+ey*r, r*0.08,0,7); ctx.fill();
+  }
+  // 怒眉
+  ctx.strokeStyle='#2a0510'; ctx.lineWidth=3; ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(x-r*0.68, y-r*0.32); ctx.lineTo(x-r*0.22, y-r*0.12);
+  ctx.moveTo(x+r*0.68, y-r*0.32); ctx.lineTo(x+r*0.22, y-r*0.12);
+  ctx.stroke();
+  // 大嘴 + 獠牙
+  ctx.fillStyle='#2a0510';
+  ctx.beginPath();
+  ctx.moveTo(x-r*0.55, y+r*0.28);
+  ctx.quadraticCurveTo(x, y+r*0.85, x+r*0.55, y+r*0.28);
+  ctx.quadraticCurveTo(x, y+r*0.45, x-r*0.55, y+r*0.28);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#fff';
+  for(let i=0;i<5;i++){
+    const tx=x-r*0.42+i*r*0.21;
+    ctx.beginPath();
+    ctx.moveTo(tx-r*0.075,y+r*0.3); ctx.lineTo(tx,y+r*0.58); ctx.lineTo(tx+r*0.075,y+r*0.3);
+    ctx.closePath(); ctx.fill();
   }
 }
 
@@ -701,6 +1242,34 @@ class Particle{
     ctx.globalAlpha=1;
   }
 }
+// 电塔闪电弧：短暂锯齿状电光
+class Arc{
+  constructor(x1,y1,x2,y2,color){
+    this.color=color; this.life=0.18; this.max=0.18;
+    this.pts=[];
+    const n=5;
+    for(let i=0;i<=n;i++){
+      const t=i/n;
+      const jx=(i===0||i===n)?0:rand(-9,9), jy=(i===0||i===n)?0:rand(-9,9);
+      this.pts.push({x:lerp(x1,x2,t)+jx, y:lerp(y1,y2,t)+jy});
+    }
+  }
+  update(dt){ this.life-=dt; }
+  draw(){
+    const a=Math.max(0,this.life/this.max);
+    ctx.save();
+    ctx.globalAlpha=a;
+    ctx.strokeStyle=this.color; ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.shadowColor=this.color; ctx.shadowBlur=9;
+    ctx.beginPath(); ctx.moveTo(this.pts[0].x,this.pts[0].y);
+    for(let i=1;i<this.pts.length;i++) ctx.lineTo(this.pts[i].x,this.pts[i].y);
+    ctx.stroke();
+    ctx.globalAlpha=a*0.95; ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.shadowBlur=0;
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 class FloatText{
   constructor(x,y,text,color){ this.x=x;this.y=y;this.text=text;this.color=color;this.life=1; }
   update(dt){ this.life-=dt; this.y-=30*dt; }
@@ -754,32 +1323,61 @@ function drawStar(cx,cy,r,color){
 function seeded(i){ const x=Math.sin(i*127.1)*43758.5453; return x-Math.floor(x); }
 
 function drawBackground(){
-  // 明亮草地渐变
+  const theme = LEVELS[currentLevelIdx].theme;
+  let top, mid, bot, patchA, patchB, blade;
+  if(theme==='snow'){ top='#eaf4ff'; mid='#cfe4f5'; bot='#a9c8e6'; patchA='rgba(255,255,255,0.5)'; patchB='rgba(150,190,230,0.25)'; blade='rgba(255,255,255,0.55)'; }
+  else if(theme==='desert'){ top='#f0d9a0'; mid='#e0bd72'; bot='#c89850'; patchA='rgba(255,240,200,0.3)'; patchB='rgba(160,110,40,0.18)'; blade='rgba(170,120,50,0.35)'; }
+  else if(theme==='night'){ top='#2c2458'; mid='#1c1a40'; bot='#0e0c24'; patchA='rgba(120,110,200,0.15)'; patchB='rgba(60,40,120,0.18)'; blade='rgba(180,170,255,0.12)'; }
+  else if(theme==='lava'){ top='#3a1414'; mid='#2a0e10'; bot='#160608'; patchA='rgba(255,120,40,0.12)'; patchB='rgba(120,30,10,0.2)'; blade='rgba(255,90,30,0.18)'; }
+  else { top='#b2e158'; mid='#96cf42'; bot='#78b433'; patchA='rgba(255,255,255,0.06)'; patchB='rgba(52,112,18,0.07)'; blade='rgba(58,118,22,0.30)'; }
+
   const g=ctx.createLinearGradient(0,0,0,canvas.height);
-  g.addColorStop(0,'#b2e158'); g.addColorStop(0.5,'#96cf42'); g.addColorStop(1,'#78b433');
+  g.addColorStop(0,top); g.addColorStop(0.5,mid); g.addColorStop(1,bot);
   ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // 大块明暗草斑
+  // 明暗斑块
   for(let i=0;i<28;i++){
-    const x=seeded(i*3+1)*canvas.width;
-    const y=seeded(i*3+2)*canvas.height;
+    const x=seeded(i*3+1)*canvas.width, y=seeded(i*3+2)*canvas.height;
     const r=34+seeded(i*3+3)*78;
-    ctx.fillStyle = i%2 ? 'rgba(255,255,255,0.06)' : 'rgba(52,112,18,0.07)';
+    ctx.fillStyle = i%2 ? patchA : patchB;
     ctx.beginPath(); ctx.ellipse(x,y,r,r*0.6,seeded(i)*3,0,7); ctx.fill();
   }
-
-  // 草叶短线（合成一条路径批量描边）
-  ctx.strokeStyle='rgba(58,118,22,0.30)';
+  // 纹理短线
+  ctx.strokeStyle=blade;
   ctx.lineWidth=2; ctx.lineCap='round';
   ctx.beginPath();
   for(let i=0;i<220;i++){
-    const x=seeded(i*7+11)*canvas.width;
-    const y=seeded(i*7+12)*canvas.height;
+    const x=seeded(i*7+11)*canvas.width, y=seeded(i*7+12)*canvas.height;
     const h=3+seeded(i*7+13)*6;
     ctx.moveTo(x,y);
     ctx.lineTo(x+(seeded(i*7+14)-0.5)*4, y-h);
   }
   ctx.stroke();
+
+  // 主题特殊元素
+  if(theme==='night'){
+    ctx.fillStyle='#fff';
+    for(let i=0;i<70;i++){
+      const x=seeded(i*11+5)*canvas.width, y=seeded(i*11+6)*canvas.height*0.75;
+      const s=0.8+seeded(i*11+7)*1.8;
+      ctx.globalAlpha=0.4+seeded(i*11+8)*0.6;
+      ctx.beginPath(); ctx.arc(x,y,s,0,7); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  } else if(theme==='lava'){
+    for(let i=0;i<9;i++){
+      let cx=seeded(i*13+2)*canvas.width, cy=seeded(i*13+3)*canvas.height;
+      ctx.strokeStyle=`rgba(255,${120+Math.floor(seeded(i)*80)},40,${0.3+seeded(i)*0.3})`;
+      ctx.lineWidth=2+seeded(i*13+4)*3;
+      ctx.beginPath(); ctx.moveTo(cx,cy);
+      for(let k=0;k<5;k++){
+        cx+=(seeded(i*13+5+k*3)-0.5)*80;
+        cy+=(seeded(i*13+6+k*3)-0.3)*55;
+        ctx.lineTo(cx,cy);
+      }
+      ctx.stroke();
+    }
+  }
 }
 
 // 小花点缀
@@ -911,6 +1509,117 @@ function drawPond(x,y,s){
 }
 
 // 装饰布局（手工排布，避开土路）
+// ---- 各主题装饰绘制 ----
+function drawSnowTree(x,y,s){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle='rgba(30,60,110,.18)'; ctx.beginPath(); ctx.ellipse(0,2,13,4,0,0,7); ctx.fill();
+  ctx.fillStyle='#6b4423'; ctx.fillRect(-2.5,-8,5,12);
+  for(const [ly,lw] of [[-10,14],[-20,11],[-28,8]]){
+    ctx.fillStyle='#3a6e8a';
+    ctx.beginPath(); ctx.moveTo(0,ly-lw); ctx.lineTo(lw,ly+lw*0.5); ctx.lineTo(-lw,ly+lw*0.5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#eaf4ff';
+    ctx.beginPath(); ctx.moveTo(0,ly-lw); ctx.lineTo(lw*0.55,ly-lw*0.25); ctx.lineTo(-lw*0.55,ly-lw*0.25); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawCactus(x,y,s){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle='rgba(30,60,10,.22)'; ctx.beginPath(); ctx.ellipse(0,2,10,3,0,0,7); ctx.fill();
+  const g=ctx.createLinearGradient(-8,0,8,0);
+  g.addColorStop(0,'#3a8a3a'); g.addColorStop(0.5,'#5cb85c'); g.addColorStop(1,'#2f6a2f');
+  ctx.fillStyle=g; ctx.strokeStyle='#234a23'; ctx.lineWidth=1.5;
+  roundRect(-6,-26,12,30,6); ctx.fill(); ctx.stroke();
+  roundRect(-16,-16,9,16,4); ctx.fill(); ctx.stroke();
+  roundRect(7,-20,9,18,4); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle='#f0e8b0'; ctx.lineWidth=1;
+  for(let i=-2;i<=2;i++){
+    ctx.beginPath(); ctx.moveTo(-1,i*5-20); ctx.lineTo(-4,i*5-20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(1,i*5-20); ctx.lineTo(4,i*5-20); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawBone(x,y,s){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s); ctx.rotate((seeded(Math.round(x*7+y*3))-0.5)*1.2);
+  ctx.fillStyle='#efe6d0'; ctx.strokeStyle='#9a8a6a'; ctx.lineWidth=1.2;
+  roundRect(-7,-2,14,4,1); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(-7,0,3.5,0,7); ctx.arc(7,0,3.5,0,7); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+function drawGlowMushroom(x,y,s){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle='rgba(40,30,80,.3)'; ctx.beginPath(); ctx.ellipse(0,2,8,3,0,0,7); ctx.fill();
+  ctx.fillStyle='#e8e0d0'; roundRect(-3,-4,6,10,2); ctx.fill();
+  const glow=ctx.createRadialGradient(0,-8,1,0,-8,15);
+  glow.addColorStop(0,'#aaffcc'); glow.addColorStop(1,'rgba(80,220,140,0)');
+  ctx.fillStyle=glow; ctx.beginPath(); ctx.ellipse(0,-8,15,10,0,0,7); ctx.fill();
+  ctx.fillStyle='#7ee8a0'; ctx.beginPath(); ctx.ellipse(0,-8,9,6,0,Math.PI,0); ctx.fill();
+  ctx.fillStyle='#e8ffe8'; ctx.beginPath(); ctx.arc(-3,-9,1.2,0,7); ctx.arc(3,-8,1,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawDarkTree(x,y,s){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle='rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(0,2,13,4,0,0,7); ctx.fill();
+  ctx.fillStyle='#1a1430'; ctx.fillRect(-3,-8,6,12);
+  ctx.fillStyle='#2a1f4a';
+  for(const [ly,lw] of [[-10,14],[-19,11],[-27,8]]){
+    ctx.beginPath(); ctx.moveTo(0,ly-lw); ctx.lineTo(lw,ly+lw*0.5); ctx.lineTo(-lw,ly+lw*0.5); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawLavaRock(x,y,s){
+  ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+  ctx.fillStyle='rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(0,6,14,4,0,0,7); ctx.fill();
+  const g=ctx.createLinearGradient(0,-12,0,10);
+  g.addColorStop(0,'#5a2a2a'); g.addColorStop(1,'#2a0e0e');
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.moveTo(-13,6); ctx.lineTo(-9,-6); ctx.lineTo(-1,-11); ctx.lineTo(8,-7); ctx.lineTo(13,4); ctx.lineTo(6,9); ctx.lineTo(-7,9); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='#1a0606'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.strokeStyle='rgba(255,140,40,0.8)'; ctx.lineWidth=1.8;
+  ctx.beginPath(); ctx.moveTo(-6,-2); ctx.lineTo(0,2); ctx.lineTo(-3,7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(4,-4); ctx.lineTo(8,0); ctx.stroke();
+  ctx.restore();
+}
+function themedDecorPoints(n, seedOff){
+  const pts=[];
+  for(let i=0;i<n;i++){
+    pts.push([seeded(i*5+1+seedOff)*canvas.width, seeded(i*5+2+seedOff)*canvas.height, 0.6+seeded(i*5+3+seedOff)*0.7]);
+  }
+  return pts;
+}
+function drawSnowDecor(){
+  for(const [x,y,s] of themedDecorPoints(16,0)){
+    if(nearPath(x,y,CELL*0.72)) continue;
+    drawSnowTree(x,y,s);
+  }
+  ctx.fillStyle='rgba(255,255,255,0.55)';
+  for(let i=0;i<90;i++){
+    const x=seeded(i*3+100)*canvas.width, y=seeded(i*3+101)*canvas.height;
+    if(nearPath(x,y,CELL*0.5)) continue;
+    ctx.beginPath(); ctx.arc(x,y,1.2+seeded(i*3+102)*1.5,0,7); ctx.fill();
+  }
+}
+function drawDesertDecor(){
+  let idx=0;
+  for(const [x,y,s] of themedDecorPoints(16,10)){
+    if(nearPath(x,y,CELL*0.72)) continue;
+    const k=idx++ % 3;
+    if(k===0) drawCactus(x,y,s); else if(k===1) drawRock(x,y,s); else drawBone(x,y,s*0.8);
+  }
+}
+function drawNightDecor(){
+  let idx=0;
+  for(const [x,y,s] of themedDecorPoints(16,20)){
+    if(nearPath(x,y,CELL*0.72)) continue;
+    if(idx++ % 4===0) drawGlowMushroom(x,y,s); else drawDarkTree(x,y,s);
+  }
+}
+function drawLavaDecor(){
+  for(const [x,y,s] of themedDecorPoints(16,30)){
+    if(nearPath(x,y,CELL*0.72)) continue;
+    drawLavaRock(x,y,s);
+  }
+}
+
 const DECOR = [
   ['pine',95,36,0.72], ['pine',168,38,0.62], ['rock',250,34,0.7],
   ['pine',352,36,0.62], ['bush',432,38,0.85], ['pine',522,36,0.7],
@@ -922,15 +1631,21 @@ const DECOR = [
   ['stump',716,390,0.9], ['pond',600,396,0.8], ['ladybug',700,340,0.9]
 ];
 function drawDecor(){
-  for(const [type,x,y,s] of DECOR){
-    if(type==='pine') drawPine(x,y,s);
-    else if(type==='rock') drawRock(x,y,s);
-    else if(type==='ladybug') drawLadybug(x,y,s);
-    else if(type==='stump') drawStump(x,y,s);
-    else if(type==='bush') drawBush(x,y,s);
-    else if(type==='pond') drawPond(x,y,s);
-  }
-  drawFlowers();
+  const theme = LEVELS[currentLevelIdx].theme;
+  if(theme==='grass'){
+    for(const [type,x,y,s] of DECOR){
+      if(type==='pine') drawPine(x,y,s);
+      else if(type==='rock') drawRock(x,y,s);
+      else if(type==='ladybug') drawLadybug(x,y,s);
+      else if(type==='stump') drawStump(x,y,s);
+      else if(type==='bush') drawBush(x,y,s);
+      else if(type==='pond') drawPond(x,y,s);
+    }
+    drawFlowers();
+  } else if(theme==='snow') drawSnowDecor();
+  else if(theme==='desert') drawDesertDecor();
+  else if(theme==='night') drawNightDecor();
+  else drawLavaDecor();
 }
 
 // 沿路径描一条线，供多层描边复用
@@ -941,24 +1656,32 @@ function pathTrace(){
 }
 
 function drawPath(){
+  const theme = LEVELS[currentLevelIdx].theme;
+  let edge, g0, g1, g2, hi, dotA, dotB, dotHi;
+  if(theme==='snow'){ edge='#8fb0d0'; g0='#eaf4ff'; g1='#d4e6f5'; g2='#b8d4ec'; hi='rgba(255,255,255,0.7)'; dotA='rgba(150,180,220,0.4)'; dotB='rgba(110,145,190,0.3)'; dotHi='rgba(255,255,255,0.6)'; }
+  else if(theme==='desert'){ edge='#9a7038'; g0='#e8c98a'; g1='#d4ad60'; g2='#b68b40'; hi='rgba(255,235,180,0.5)'; dotA='rgba(150,110,50,0.4)'; dotB='rgba(110,75,30,0.3)'; dotHi='rgba(255,240,200,0.4)'; }
+  else if(theme==='night'){ edge='#2a2050'; g0='#4a3e78'; g1='#352b5c'; g2='#241c44'; hi='rgba(180,160,240,0.35)'; dotA='rgba(120,100,200,0.3)'; dotB='rgba(70,50,130,0.3)'; dotHi='rgba(220,200,255,0.4)'; }
+  else if(theme==='lava'){ edge='#1a0608'; g0='#4a1a1a'; g1='#330e0e'; g2='#1e0608'; hi='rgba(255,120,40,0.3)'; dotA='rgba(255,90,30,0.3)'; dotB='rgba(120,30,10,0.4)'; dotHi='rgba(255,180,80,0.4)'; }
+  else { edge='#5c3a19'; g0='#c08f55'; g1='#a97c43'; g2='#8f6531'; hi='rgba(226,190,135,0.55)'; dotA='rgba(120,92,58,0.45)'; dotB='rgba(92,58,25,0.32)'; dotHi='rgba(255,240,200,0.35)'; }
+
   ctx.save();
   ctx.lineCap='round'; ctx.lineJoin='round';
 
-  // 外缘深棕土边
-  ctx.strokeStyle='#5c3a19'; ctx.lineWidth=CELL*0.96;
+  // 外缘深色边
+  ctx.strokeStyle=edge; ctx.lineWidth=CELL*0.96;
   pathTrace(); ctx.stroke();
 
-  // 土路主体（深浅渐变）
+  // 路径主体（深浅渐变）
   const g=ctx.createLinearGradient(0,0,0,canvas.height);
-  g.addColorStop(0,'#c08f55'); g.addColorStop(0.5,'#a97c43'); g.addColorStop(1,'#8f6531');
+  g.addColorStop(0,g0); g.addColorStop(0.5,g1); g.addColorStop(1,g2);
   ctx.strokeStyle=g; ctx.lineWidth=CELL*0.84;
   pathTrace(); ctx.stroke();
 
-  // 内侧暖色高光
-  ctx.strokeStyle='rgba(226,190,135,0.55)'; ctx.lineWidth=CELL*0.42;
+  // 内侧高光
+  ctx.strokeStyle=hi; ctx.lineWidth=CELL*0.42;
   pathTrace(); ctx.stroke();
 
-  // 泥土斑点与碎石
+  // 斑点与碎石
   let n=0;
   for(let i=0;i<PATH.length-1;i++){
     const a=PATH[i], b=PATH[i+1];
@@ -971,11 +1694,10 @@ function drawPath(){
       const off=(seeded(n*3+1)-0.5)*CELL*0.5;
       const dx=px+Math.cos(ang)*off, dy=py+Math.sin(ang)*off;
       const rr=1.6+seeded(n*3+2)*2.8;
-      ctx.fillStyle = n%5===0 ? 'rgba(120,92,58,0.45)' : 'rgba(92,58,25,0.32)';
+      ctx.fillStyle = n%5===0 ? dotA : dotB;
       ctx.beginPath(); ctx.ellipse(dx,dy,rr*1.5,rr,seeded(n)*3,0,7); ctx.fill();
-      // 偶尔的小石子高光
       if(n%7===0){
-        ctx.fillStyle='rgba(255,240,200,0.35)';
+        ctx.fillStyle=dotHi;
         ctx.beginPath(); ctx.arc(dx-1,dy-1,rr*0.45,0,7); ctx.fill();
       }
       n++;
@@ -1155,6 +1877,7 @@ function towerAt(gx,gy){ return game.towers.find(t=>t.gx===gx&&t.gy===gy); }
 
 function placeTower(gx,gy){
   if(!game.selectedType) return;
+  if(!LEVELS[currentLevelIdx].towers.includes(game.selectedType)) return;
   const d=TOWER_TYPES[game.selectedType];
   const x=gx*CELL+CELL/2, y=gy*CELL+CELL/2;
   if(nearPath(x,y) || towerAt(gx,gy) || game.gold<d.cost) return;
@@ -1182,22 +1905,48 @@ function startNextWave(){
 function endGame(won){
   game.state = won?'won':'lost';
   const ov=document.getElementById('overlay');
-  ov.classList.remove('hidden','win','lose');
-  ov.classList.add(won?'win':'lose');
-  ov.innerHTML = won
-    ? '<h2>🎉 胜利！</h2><p>你成功保卫了萝卜，击退了全部 10 波怪物！</p><button class="btn start" id="playBtn">再玩一次</button>'
-    : '<h2>💔 萝卜沦陷</h2><p>怪物攻破了防线，萝卜被吃掉了… 再试一次吧！</p><button class="btn start" id="playBtn">重新开始</button>';
-  document.getElementById('playBtn').onclick=resetGame;
+  ov.classList.remove('hidden');
+  ov.classList.toggle('win', won);
+  ov.classList.toggle('lose', !won);
+  let body;
+  if(won){
+    const isLast = currentLevelIdx >= LEVELS.length-1;
+    if(!isLast) setUnlocked(currentLevelIdx+2); // 解锁下一关（索引 idx+1，计数 = idx+2）
+    body = `<h2>🎉 胜利！</h2>
+      <p>你成功保卫了萝卜，击退了第 ${currentLevelIdx+1} 关「${LEVELS[currentLevelIdx].name}」的全部 ${WAVES.length} 波怪物！</p>
+      ${isLast?'<p>🏆 恭喜通关全部关卡！你是真正的萝卜守护者！</p>':''}
+      <div class="overlay-btns">
+        ${isLast?'':'<button class="btn start" id="nextBtn">下一关 ▶</button>'}
+        <button class="btn" id="replayBtn">再玩一次</button>
+        <button class="btn" id="selectBtn">返回选关</button>
+      </div>`;
+  } else {
+    body = `<h2>💔 萝卜沦陷</h2>
+      <p>怪物攻破了防线，萝卜被吃掉了… 调整一下塔阵再试一次吧！</p>
+      <div class="overlay-btns">
+        <button class="btn start" id="replayBtn">重新开始</button>
+        <button class="btn" id="selectBtn">返回选关</button>
+      </div>`;
+  }
+  ov.innerHTML = body;
+  const nb=document.getElementById('nextBtn'); if(nb) nb.onclick=()=>{ switchLevel(currentLevelIdx+1); resetGame(); };
+  const rb=document.getElementById('replayBtn'); if(rb) rb.onclick=resetGame;
+  const sb=document.getElementById('selectBtn'); if(sb) sb.onclick=showLevelSelect;
   if(won) sfx.win(); else sfx.lose();
 }
 
 function resetGame(){
-  game.gold=200; game.life=20; game.wave=0;
-  game.towers=[]; game.enemies=[]; game.bullets=[]; game.particles=[]; game.floats=[];
+  const lv = LEVELS[currentLevelIdx];
+  game.gold=lv.gold; game.life=lv.life; game.wave=0;
+  game.towers=[]; game.enemies=[]; game.bullets=[]; game.particles=[]; game.floats=[]; game.arcs=[];
   game.selectedType=null; game.selectedTower=null;
   game.spawnQueue=[]; game.state='playing'; game.betweenWave=false;
-  document.getElementById('overlay').classList.add('hidden');
+  game.carrotShake=0;
+  const ov=document.getElementById('overlay');
+  ov.classList.add('hidden'); ov.classList.remove('win','lose');
+  document.getElementById('panel').style.display='none';
   document.getElementById('startBtn').textContent='▶ 开始下一波';
+  document.getElementById('pauseBtn').textContent='⏸ 暂停';
   updateHUD(); buildTowerBar(); selectType(null);
 }
 
@@ -1205,6 +1954,7 @@ function updateHUD(){
   document.getElementById('gold').textContent=game.gold;
   document.getElementById('life').textContent=game.life;
   document.getElementById('wave').textContent=game.wave;
+  const wm=document.getElementById('waveMax'); if(wm) wm.textContent=WAVES.length;
 }
 
 // ============ 主循环 ============
@@ -1253,6 +2003,8 @@ function update(dt){
   game.particles=game.particles.filter(p=>p.life>0);
   for(const f of game.floats) f.update(dt);
   game.floats=game.floats.filter(f=>f.life>0);
+  for(const a of game.arcs) a.update(dt);
+  game.arcs=game.arcs.filter(a=>a.life>0);
 }
 
 function render(){
@@ -1269,6 +2021,7 @@ function render(){
   const sorted=[...game.enemies].sort((a,b)=>a.y-b.y);
   for(const e of sorted) e.draw();
   for(const b of game.bullets) b.draw();
+  for(const a of game.arcs) a.draw();
   for(const p of game.particles) p.draw();
   for(const f of game.floats) f.draw();
 }
@@ -1277,7 +2030,11 @@ function render(){
 function buildTowerBar(){
   const bar=document.getElementById('towerbar');
   bar.innerHTML='';
-  for(const [key,d] of Object.entries(TOWER_TYPES)){
+  // 本关可用的塔种固定（由关卡配置决定，局内不可更改）
+  const allowed = LEVELS[currentLevelIdx].towers;
+  for(const key of allowed){
+    const d=TOWER_TYPES[key];
+    if(!d) continue;
     const card=document.createElement('div');
     card.className='tcard';
     card.dataset.type=key;
@@ -1311,12 +2068,45 @@ function drawTowerIcon(c,type,x,y){
   // 石台
   c.fillStyle='#cfd6da'; c.beginPath(); c.ellipse(x,y+6,9,4.2,0,0,7); c.fill();
   c.strokeStyle='#8c959c'; c.lineWidth=1.2; c.stroke();
-  // 炮管
-  c.fillStyle=d.accent;
-  if(type==='arrow'){ roundRect2(c,x-4,y-6,18,7,3); c.fill(); }
-  else if(type==='cannon'){ roundRect2(c,x-5,y-8,20,11,4); c.fill(); }
-  else {
-    c.beginPath(); c.moveTo(x-2,y-10); c.lineTo(x+15,y-4); c.lineTo(x-2,y+2); c.closePath(); c.fill();
+  // 炮管/武器
+  if(type==='arrow'){
+    c.fillStyle='#8a5a2c'; roundRect2(c,x-4,y-6,18,7,3); c.fill();
+    c.strokeStyle='#5e3a17'; c.lineWidth=1; c.stroke();
+    c.fillStyle=d.accent; roundRect2(c,x-2,y-4,13,4,2); c.fill();
+  } else if(type==='cannon'){
+    c.fillStyle='#6b7a86'; roundRect2(c,x-5,y-8,20,11,4); c.fill();
+    c.strokeStyle='#3f4a53'; c.lineWidth=1; c.stroke();
+    c.fillStyle=d.accent; roundRect2(c,x-3,y-6,14,7,3); c.fill();
+  } else if(type==='frost'){
+    c.fillStyle='#cfefff';
+    c.beginPath(); c.moveTo(x-2,y-9); c.lineTo(x+16,y-3); c.lineTo(x-2,y+3); c.closePath(); c.fill();
+    c.strokeStyle='#4f9fd0'; c.lineWidth=1.2; c.stroke();
+    c.fillStyle=d.accent; c.beginPath(); c.arc(x+15,y-3,2.4,0,7); c.fill();
+  } else if(type==='sniper'){
+    c.fillStyle='#5a4a7a'; roundRect2(c,x-5,y-6,26,6,2); c.fill();
+    c.strokeStyle='#33254f'; c.lineWidth=1; c.stroke();
+    c.fillStyle=d.accent; roundRect2(c,x+10,y-5,9,4,2); c.fill();
+    c.fillStyle='#2a2040'; c.beginPath(); c.arc(x+2,y-9,3,0,7); c.fill();
+  } else if(type==='tesla'){
+    c.fillStyle='#7f8c96';
+    roundRect2(c,x-4,y-9,11,3.5,2); c.fill();
+    roundRect2(c,x-4,y+3.5,11,3.5,2); c.fill();
+    c.fillStyle=d.accent;
+    c.beginPath(); c.arc(x+9,y-7.5,2.6,0,7); c.fill();
+    c.beginPath(); c.arc(x+9,y+5,2.6,0,7); c.fill();
+    c.strokeStyle='rgba(220,250,255,.95)'; c.lineWidth=1.2;
+    c.beginPath(); c.moveTo(x+9,y-7.5); c.lineTo(x+13,y-1); c.lineTo(x+9,y+0.5); c.lineTo(x+13,y+4); c.lineTo(x+9,y+5); c.stroke();
+  } else if(type==='poison'){
+    c.fillStyle='#5a7a3a'; roundRect2(c,x-6,y-7,13,12,5); c.fill();
+    c.fillStyle=d.accent; roundRect2(c,x+5,y-4,10,6,2.5); c.fill();
+    c.fillStyle='#d8ff9a'; c.beginPath(); c.arc(x-1,y-1,2.6,0,7); c.fill();
+  } else {
+    c.fillStyle='#7a4a2a'; roundRect2(c,x-6,y-7,16,12,5); c.fill();
+    c.strokeStyle='#4a2a12'; c.lineWidth=1.2; c.stroke();
+    c.fillStyle='#ffd166';
+    c.beginPath(); c.moveTo(x+9,y-5); c.lineTo(x+17,y-1); c.lineTo(x+9,y+3); c.closePath(); c.fill();
+    c.fillStyle='#ff8b3c';
+    c.beginPath(); c.moveTo(x+9,y-3); c.lineTo(x+14,y-1); c.lineTo(x+9,y+1); c.closePath(); c.fill();
   }
   // 宝石
   const gg=c.createRadialGradient(x-2,y-6,1,x,y-3,8);
@@ -1353,7 +2143,8 @@ function showTowerPanel(t){
   document.getElementById('pname').textContent=`${TOWER_TYPES[t.type].name} Lv.${t.level}`;
   document.getElementById('pinfo').innerHTML=
     `伤害: ${d.damage.toFixed(0)} · 射程: ${d.range.toFixed(0)}<br>`+
-    `射速: ${d.fireRate.toFixed(2)}/秒${d.splash?` · 溅射: ${d.splash}`:''}${d.slow?` · 减速: ${(d.slow*100).toFixed(0)}%`:''}`;
+    `射速: ${d.fireRate.toFixed(2)}/秒${d.splash?` · 溅射: ${d.splash}`:''}${d.slow?` · 减速: ${(d.slow*100).toFixed(0)}%`:''}`+
+    `${d.chain?`<br>连锁目标: ${d.chain}`:''}${d.dot?` · 持续 ${d.dot.dps}/秒 × ${d.dot.dur}秒`:''}`;
   const upBtn=document.getElementById('upBtn');
   if(t.level>=3){ upBtn.textContent='已满级'; upBtn.disabled=true; upBtn.style.opacity=.5; }
   else { upBtn.textContent=`升级 💰${t.upgradeCost}`; upBtn.disabled=false; upBtn.style.opacity=1; }
@@ -1428,7 +2219,6 @@ document.getElementById('speedBtn').onclick=()=>{
   b.textContent=`⏩ ${game.speed}x`;
   b.classList.toggle('active', game.speed>1);
 };
-document.getElementById('playBtn').onclick=resetGame;
 
 // 点击面板外关闭
 document.addEventListener('click', e=>{
@@ -1438,6 +2228,8 @@ document.addEventListener('click', e=>{
 });
 
 // ============ 启动 ============
+switchLevel(0);
+showLevelSelect();
 buildTowerBar();
 updateHUD();
 
