@@ -704,7 +704,7 @@ function disposeWorld(){
 function makeEnvMap(map){
   const faces = [];
   for (let i=0;i<6;i++){
-    faces.push(makeCanvas(32,64,(ctx,w,h)=>{
+    faces.push(makeCanvas(64,64,(ctx,w,h)=>{
       const g = ctx.createLinearGradient(0,0,0,h);
       g.addColorStop(0, map.envTop);
       g.addColorStop(1, map.envBottom);
