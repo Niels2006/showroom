@@ -186,6 +186,10 @@
   .speed-val span{display:block;font-size:9.5px;letter-spacing:.24em;color:var(--muted-2);margin-top:6px}
   .gear{position:absolute;left:0;right:0;bottom:24px;text-align:center;font-size:10px;letter-spacing:.2em;color:var(--muted-2)}
   .gear b{color:var(--accent);font-size:12px}
+  .nitro{position:absolute;left:50%;bottom:2px;transform:translateX(-50%);width:130px;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .nitro span{font-size:8.5px;letter-spacing:.25em;color:var(--muted-2)}
+  .nitro-track{width:100%;height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;border:1px solid rgba(150,200,255,.18)}
+  .nitro-fill{height:100%;width:100%;border-radius:4px;background:linear-gradient(90deg,#39e6ff,#7c5cff,#ff3d6e);box-shadow:0 0 10px rgba(124,92,255,.7);transition:width .1s linear}
 
   .hud-bl{position:absolute;left:20px;bottom:18px;display:flex;flex-direction:column;gap:8px}
   .hud-bl > div{display:flex;align-items:baseline;gap:10px;padding:6px 13px}
@@ -221,8 +225,13 @@
   }
   @keyframes wrongPulse{0%,100%{opacity:.6}50%{opacity:1}}
 
-  #hitflash{position:absolute;inset:0;opacity:0;box-shadow:inset 0 0 140px rgba(255,60,40,.6);transition:opacity .18s}
+  #hitflash{position:absolute;inset:0;opacity:0;box-shadow:inset 0 0 140px rgba(255,60,40,.6);transition:opacity .18s;pointer-events:none}
   #hitflash.on{opacity:1}
+  #speedfx{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s;
+    background:
+      radial-gradient(ellipse at 50% 46%, transparent 52%, rgba(0,0,0,.42) 100%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 2px, transparent 2px 46px);
+  }
 
   /* ============ 触屏 ============ */
   #touch{position:fixed;inset:auto 0 0 0;z-index:14;display:none;justify-content:space-between;
@@ -369,6 +378,10 @@
     </svg>
     <div class="speed-val"><b id="hud-speed">0</b><span>KM/H</span></div>
     <div class="gear">档位 <b id="hud-gear">1</b></div>
+    <div class="nitro">
+      <span>N₂O</span>
+      <div class="nitro-track"><div id="hud-nitro" class="nitro-fill"></div></div>
+    </div>
   </div>
 
   <div class="hud-bl">
@@ -380,6 +393,7 @@
   <div id="center-msg"></div>
   <div id="wrongway" class="hidden">⚠ 逆行</div>
   <div id="hitflash"></div>
+  <div id="speedfx"></div>
 </div>
 
 <!-- 触屏按键 -->
@@ -459,22 +473,22 @@ if (!window.THREE) {
    ========================================================= */
 const CARS = [
   {id:'zephyr', name:'疾风 GT', en:'ZEPHYR GT', color:'#3fa9ff', hex:0x3fa9ff,
-   top:252, accel:8.6, handling:8.6, grip:8.6, tag:'均衡',
+   top:272, accel:10.5, handling:8.8, grip:8.6, tag:'均衡',
    desc:'前后配重平衡，入弯听话、容错高，是熟悉赛道的最好伙伴。'},
   {id:'magma', name:'熔岩兽', en:'MAGMA BEAST', color:'#ff5a2b', hex:0xff5a2b,
-   top:272, accel:7.6, handling:7.4, grip:7.2, tag:'极速',
+   top:305, accel:9.6, handling:7.4, grip:7.2, tag:'极速',
    desc:'大排量猛兽，直线极速惊人；惯性偏大，刹车点记得提前。'},
   {id:'aurora', name:'极光', en:'AURORA', color:'#5dffc0', hex:0x5dffc0,
-   top:236, accel:9.2, handling:9.6, grip:9.5, tag:'操控',
+   top:250, accel:11.2, handling:9.8, grip:9.5, tag:'操控',
    desc:'轻量化四驱，弯中抓地力全场最强，连续弯道如鱼得水。'},
   {id:'tortoise', name:'玄武', en:'BLACK TORTOISE', color:'#9aa7ff', hex:0x9aa7ff,
-   top:246, accel:7.1, handling:8.4, grip:9.2, tag:'稳定',
+   top:262, accel:9.0, handling:8.6, grip:9.2, tag:'稳定',
    desc:'厚重车身压住底盘，高速变线稳如磐石，稳中求快。'},
   {id:'hunter', name:'猎影', en:'NIGHT HUNTER', color:'#ffd23e', hex:0xffd23e,
-   top:284, accel:8.0, handling:7.8, grip:7.4, tag:'直线',
+   top:324, accel:10.0, handling:7.8, grip:7.4, tag:'直线',
    desc:'为长直线而生的低风阻造型，极速全场第一，代价是弯道胆量。'},
   {id:'phantom', name:'暗夜魅影', en:'PHANTOM', color:'#c084fc', hex:0xc084fc,
-   top:264, accel:9.6, handling:8.8, grip:8.2, tag:'爆发',
+   top:290, accel:11.6, handling:8.8, grip:8.2, tag:'爆发',
    desc:'起步凶猛、出弯凌厉，手刹甩尾极其活跃，高手向座驾。'}
 ];
 
@@ -527,6 +541,7 @@ const ACTIONS = [
   {id:'left', name:'左转', def:'KeyA', aliases:['ArrowLeft']},
   {id:'right', name:'右转', def:'KeyD', aliases:['ArrowRight']},
   {id:'handbrake', name:'手刹漂移', def:'Space'},
+  {id:'nitro', name:'氮气加速', def:'ShiftLeft', aliases:['ShiftRight']},
   {id:'camera', name:'切换视角', def:'KeyC'},
   {id:'reset', name:'归位', def:'KeyR'},
   {id:'pause', name:'暂停', def:'Escape'},
@@ -617,7 +632,7 @@ MAPS.forEach(m => {
    ========================================================= */
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.25));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -649,32 +664,68 @@ function canvasTex(c, rx, ry){
 }
 
 /* 共享纹理画布 */
-const asphaltCanvas = makeCanvas(256,256,(ctx,w,h)=>{
-  ctx.fillStyle = '#d8dbe2';
-  ctx.fillRect(0,0,w,h);
-  for (let i=0;i<11000;i++){
-    const g = 120 + Math.random()*120 | 0;
-    ctx.fillStyle = 'rgba(' + g + ',' + g + ',' + (g+6) + ',' + (Math.random()*0.5).toFixed(2) + ')';
-    ctx.fillRect(Math.random()*w, Math.random()*h, 1.7, 1.7);
+const asphaltCanvas = makeCanvas(512,512,(ctx,w,h)=>{
+  /* 底层多尺度噪声，模拟沥青骨料 */
+  const img = ctx.createImageData(w,h);
+  const d = img.data;
+  for (let y=0;y<h;y++){
+    for (let x=0;x<w;x++){
+      const v = (Math.sin(x*0.0613)+Math.cos(y*0.0577)+Math.sin((x+y)*0.031))*0.5+1.5;
+      const n = (Math.random()*2-1) + (Math.random()*2-1)*0.5;
+      let g = 150 + v*10 + n*32;
+      g = Math.max(90, Math.min(215, g | 0));
+      const o = y*w*4 + x*4;
+      d[o]=g; d[o+1]=g; d[o+2]=g+5; d[o+3]=255;
+    }
   }
-  ctx.globalAlpha = 0.06;
-  for (let i=0;i<30;i++){
-    ctx.strokeStyle = '#8b93a4';
-    ctx.lineWidth = Math.random()*2+0.5;
+  ctx.putImageData(img,0,0);
+  /* 骨料亮点 */
+  for (let i=0;i<26000;i++){
+    const g = 160 + Math.random()*80 | 0;
+    ctx.fillStyle = 'rgba(' + g + ',' + g + ',' + (g+8) + ',' + (Math.random()*0.4).toFixed(2) + ')';
+    ctx.fillRect(Math.random()*w, Math.random()*h, 1.3, 1.3);
+  }
+  /* 细密裂纹 */
+  ctx.globalAlpha = 0.05;
+  for (let i=0;i<46;i++){
+    ctx.strokeStyle = '#6b7280';
+    ctx.lineWidth = Math.random()*1.6+0.4;
     ctx.beginPath();
     ctx.moveTo(Math.random()*w, Math.random()*h);
-    ctx.lineTo(Math.random()*w, Math.random()*h);
+    for (let s=0;s<3;s++) ctx.lineTo(Math.random()*w, Math.random()*h);
     ctx.stroke();
   }
+  /* 淡色胎痕 */
+  ctx.globalAlpha = 0.10;
+  for (let i=0;i<8;i++){
+    ctx.strokeStyle = '#2a2d34';
+    ctx.lineWidth = 3 + Math.random()*4;
+    ctx.beginPath();
+    const yy = Math.random()*h;
+    ctx.moveTo(0, yy); ctx.bezierCurveTo(w*0.3, yy+(Math.random()*30-15), w*0.7, yy+(Math.random()*30-15), w, yy+(Math.random()*10-5));
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
 });
 
-const noiseCanvas = makeCanvas(128,128,(ctx,w,h)=>{
-  ctx.fillStyle = '#c9ccd4';
-  ctx.fillRect(0,0,w,h);
-  for (let i=0;i<9000;i++){
-    const g = 130 + Math.random()*110 | 0;
-    ctx.fillStyle = 'rgba(' + g + ',' + g + ',' + g + ',0.5)';
-    ctx.fillRect(Math.random()*w, Math.random()*h, 1.4, 1.4);
+const noiseCanvas = makeCanvas(256,256,(ctx,w,h)=>{
+  const img = ctx.createImageData(w,h);
+  const d = img.data;
+  for (let y=0;y<h;y++){
+    for (let x=0;x<w;x++){
+      const v = (Math.sin(x*0.0413)+Math.cos(y*0.043)+Math.sin((x-y)*0.022))*0.5+1.5;
+      const n = (Math.random()*2-1)*0.7;
+      let g = 145 + v*9 + n*30;
+      g = Math.max(95, Math.min(205, g | 0));
+      const o = y*w*4 + x*4;
+      d[o]=g; d[o+1]=g; d[o+2]=g; d[o+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+  for (let i=0;i<10000;i++){
+    const g = 120 + Math.random()*100 | 0;
+    ctx.fillStyle = 'rgba(' + g + ',' + g + ',' + g + ',0.45)';
+    ctx.fillRect(Math.random()*w, Math.random()*h, 1.2, 1.2);
   }
 });
 
@@ -943,7 +994,7 @@ function buildSky(map){
 }
 
 function buildGround(map, track){
-  const geo = new THREE.CircleGeometry(map.decor === 'coast' ? 390 : 2400, 64);
+  const geo = new THREE.CircleGeometry(map.decor === 'coast' ? 340 : 2400, 64);
   geo.rotateX(-Math.PI/2);
   const tex = canvasTex(noiseCanvas, 90, 90);
   const mat = new THREE.MeshStandardMaterial({map: tex, color: map.ground, roughness: 0.96, metalness: 0.02});
@@ -960,7 +1011,7 @@ function buildGround(map, track){
     sea.position.y = -1.15;
     scene.add(sea);
 
-    const beachGeo = new THREE.RingGeometry(390, 424, 64);
+    const beachGeo = new THREE.RingGeometry(340, 374, 64);
     beachGeo.rotateX(-Math.PI/2);
     const beach = new THREE.Mesh(beachGeo, new THREE.MeshStandardMaterial({
       color: 0xf0e2b8, roughness: 0.9, metalness: 0
@@ -1031,8 +1082,26 @@ function buildDecor(map, track){
       bodies.push({x:s.x, z:s.z, y:h/2, ry, sx:w, sy:h, sz:d, color: palette[(Math.random()*palette.length)|0]});
       strips.push({x:s.x, z:s.z, y:h+0.4, ry, sx:w*1.04, sy:0.7, sz:d*1.04, color: neon[(Math.random()*neon.length)|0]});
     });
+    const winCanvas = makeCanvas(128,256,(ctx,w,h)=>{
+      ctx.fillStyle = '#0c1018'; ctx.fillRect(0,0,w,h);
+      const cols = 8, rows = 18;
+      const cw = w/cols, ch = h/rows;
+      const lit = ['#ffe9a8','#bfe9ff','#ffd0e8','#c8ffd8'];
+      for (let y=0;y<rows;y++){
+        for (let x=0;x<cols;x++){
+          if (Math.random() < 0.45){
+            ctx.fillStyle = lit[(Math.random()*lit.length)|0];
+            ctx.globalAlpha = 0.55 + Math.random()*0.45;
+            ctx.fillRect(x*cw+cw*0.18, y*ch+ch*0.18, cw*0.64, ch*0.6);
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    });
+    const winTex = canvasTex(winCanvas, 1, 1);
     const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff, roughness: 0.72, metalness: 0.25, emissive: 0x101a30, emissiveIntensity: 0.85
+      color: 0xffffff, roughness: 0.72, metalness: 0.25,
+      emissiveMap: winTex, emissive: 0xffffff, emissiveIntensity: 0.85
     });
     scene.add(instanced(new THREE.BoxGeometry(1,1,1), bodyMat, bodies, true));
     const stripMat = new THREE.MeshBasicMaterial({color: 0xffffff});
@@ -1157,20 +1226,27 @@ function buildDecor(map, track){
 
 function buildLights(map){
   scene.add(new THREE.HemisphereLight(map.hemi.sky, map.hemi.ground, map.hemi.i));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.12));
 
   const sun = new THREE.DirectionalLight(map.sun.color, map.sun.i);
   sun.position.set(map.sun.pos[0], map.sun.pos[1], map.sun.pos[2]);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.left = -340;
-  sun.shadow.camera.right = 340;
-  sun.shadow.camera.top = 340;
-  sun.shadow.camera.bottom = -340;
+  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.camera.left = -330;
+  sun.shadow.camera.right = 330;
+  sun.shadow.camera.top = 330;
+  sun.shadow.camera.bottom = -330;
   sun.shadow.camera.near = 10;
-  sun.shadow.camera.far = 900;
-  sun.shadow.bias = -0.0007;
+  sun.shadow.camera.far = 1100;
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.02;
   scene.add(sun);
   scene.add(sun.target);
+
+  /* 冷色补光：勾勒车身轮廓，避免暗部死黑 */
+  const fill = new THREE.DirectionalLight(map.night ? 0x4a6cff : 0xbfd4ff, map.night ? 0.35 : 0.42);
+  fill.position.set(-map.sun.pos[0], map.sun.pos[1]*0.7, -map.sun.pos[2]);
+  scene.add(fill);
 }
 
 function buildGate(map, track){
@@ -1243,12 +1319,15 @@ function buildCarMesh(def){
   const body = new THREE.Group();
   root.add(body);
 
-  const paint = new THREE.MeshStandardMaterial({
-    color: def.hex, metalness: 0.5, roughness: 0.26, envMapIntensity: 1.35,
-    emissive: new THREE.Color(def.hex), emissiveIntensity: 0.1
+  const paint = new THREE.MeshPhysicalMaterial({
+    color: def.hex, metalness: 0.45, roughness: 0.22, envMapIntensity: 1.6,
+    clearcoat: 1.0, clearcoatRoughness: 0.14,
+    emissive: new THREE.Color(def.hex), emissiveIntensity: 0.03
   });
-  const trim = new THREE.MeshStandardMaterial({color: 0x0e1117, metalness: 0.55, roughness: 0.5});
-  const glass = new THREE.MeshStandardMaterial({color: 0x0a1420, metalness: 0.9, roughness: 0.06, envMapIntensity: 1.7});
+  const trim = new THREE.MeshPhysicalMaterial({color: 0x0e1117, metalness: 0.65, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.3});
+  const glass = new THREE.MeshPhysicalMaterial({color: 0x081018, metalness: 0.2, roughness: 0.05, envMapIntensity: 2.0, transparent: true, opacity: 0.85, clearcoat: 1});
+  const caliperMat = new THREE.MeshStandardMaterial({color: 0xd23b3b, metalness: 0.5, roughness: 0.4});
+  const discMat = new THREE.MeshStandardMaterial({color: 0x8a8d94, metalness: 0.9, roughness: 0.35});
   const lightOn = new THREE.MeshBasicMaterial({color: 0xfff6d8});
   const lightRed = new THREE.MeshBasicMaterial({color: 0xff2a2a});
 
@@ -1287,13 +1366,16 @@ function buildCarMesh(def){
   });
 
   /* 车轮 */
-  const tireGeo = new THREE.CylinderGeometry(0.46, 0.46, 0.34, 18);
+  const tireGeo = new THREE.CylinderGeometry(0.46, 0.46, 0.34, 22);
   tireGeo.rotateZ(Math.PI/2);
-  const rimGeo = new THREE.CylinderGeometry(0.27, 0.27, 0.36, 12);
+  const rimGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.36, 16);
   rimGeo.rotateZ(Math.PI/2);
   const spokeGeo = new THREE.BoxGeometry(0.06, 0.46, 0.05);
-  const tireMat = new THREE.MeshStandardMaterial({color: 0x0b0d11, roughness: 0.92});
-  const rimMat = new THREE.MeshStandardMaterial({color: 0xd6dde9, metalness: 0.95, roughness: 0.22});
+  const discGeo = new THREE.CylinderGeometry(0.30, 0.30, 0.05, 20);
+  discGeo.rotateZ(Math.PI/2);
+  const caliperGeo = new THREE.BoxGeometry(0.14, 0.28, 0.22);
+  const tireMat = new THREE.MeshStandardMaterial({color: 0x0b0d11, roughness: 0.9});
+  const rimMat = new THREE.MeshStandardMaterial({color: 0xd6dde9, metalness: 0.95, roughness: 0.2});
 
   const wheels = [];
   [[-0.95, 1.38, true], [0.95, 1.38, true], [-0.95, -1.42, false], [0.95, -1.42, false]].forEach(cfg => {
@@ -1302,19 +1384,32 @@ function buildCarMesh(def){
     const spin = new THREE.Group();
     steer.add(spin);
 
+    const side = cfg[0] < 0 ? -1 : 1;
     const tire = new THREE.Mesh(tireGeo, tireMat);
     tire.castShadow = true;
     const rim = new THREE.Mesh(rimGeo, rimMat);
     spin.add(tire, rim);
-    for (let i=0;i<3;i++){
+    const disc = new THREE.Mesh(discGeo, discMat);
+    disc.position.x = side * 0.13;
+    spin.add(disc);
+    for (let i=0;i<5;i++){
       const s = new THREE.Mesh(spokeGeo, rimMat);
-      s.rotation.x = i * Math.PI/3;
-      s.position.x = cfg[0] < 0 ? -0.16 : 0.16;
+      s.rotation.x = i * Math.PI/5;
+      s.position.x = side * 0.16;
       spin.add(s);
     }
+    const caliper = new THREE.Mesh(caliperGeo, caliperMat);
+    caliper.position.set(side * 0.10, -0.10, 0);
+    steer.add(caliper);
     root.add(steer);
     wheels.push({steer, spin, front: cfg[2]});
   });
+
+  /* 车身侧面细节：侧裙、前唇、扩散器 */
+  box(2.06, 0.16, 4.06, trim, 0, 0.28, 0);
+  box(1.96, 0.10, 0.7, trim, 0, 0.24, 2.18);
+  box(0.62, 0.10, 0.9, trim, -1.04, 0.30, 0);
+  box(0.62, 0.10, 0.9, trim, 1.04, 0.30, 0);
 
   return {group: root, body, wheels};
 }
@@ -1360,7 +1455,8 @@ function createPlayerState(def, gridP, lateral){
     def, mesh: built.group, body: built.body, wheels: built.wheels,
     pos: new THREE.Vector3(), vel: new THREE.Vector3(),
     h: 0, idx: 0, p: gridP, lastS: 0, vf: 0, steerVis: 0,
-    roll: 0, pitch: 0, offroad: false
+    roll: 0, pitch: 0, offroad: false,
+    nitro: 100, nitroActive: false
   };
   const s = mod(gridP, race.track.L);
   const smp = trackSample(s);
@@ -1453,24 +1549,37 @@ function stepPlayer(dt){
   const thr = isDown('throttle');
   const brk = isDown('brake');
   const hand = isDown('handbrake');
+  const nitroIn = isDown('nitro');
   const steerInput = (isDown('left') ? 1 : 0) - (isDown('right') ? 1 : 0);
 
-  const maxS = p.offroad ? def.top/3.6*0.55 : def.top/3.6;
+  /* 氮气：按住 Shift 消耗并加速，松开后缓慢回充 */
+  if (nitroIn && p.nitro > 0 && thr && p.vf > 2){
+    p.nitro = Math.max(0, p.nitro - 26 * dt);
+    p.nitroActive = true;
+  } else {
+    p.nitroActive = false;
+    p.nitro = Math.min(100, p.nitro + 19 * dt);
+  }
+
+  const topCap = def.top / 3.6;
+  const maxS = (p.offroad ? topCap * 0.6 : topCap) * (p.nitroActive ? 1.28 : 1);
   const f = {x: Math.sin(p.h), z: Math.cos(p.h)};
   const r = {x: Math.cos(p.h), z: -Math.sin(p.h)};
 
   let vf = p.vel.x*f.x + p.vel.z*f.z;
   let vr = p.vel.x*r.x + p.vel.z*r.z;
 
-  if (thr) vf += def.accel * 1.8 * (1 - clamp(vf/maxS, 0, 1)) * dt;
+  const thrust = def.accel * 2.7 * (1 - clamp(vf / topCap, 0, 1)) * (p.nitroActive ? 1.55 : 1);
+  if (thr) vf += thrust * dt;
+  if (p.nitroActive) vf += 22 * dt;
   if (brk){
-    if (vf > 0.4) vf -= 30*dt;
-    else vf -= 9*dt;
+    if (vf > 0.4) vf -= 34*dt;
+    else vf -= 10*dt;
   }
-  vf -= vf * 0.32 * dt;
-  if (!thr && !brk) vf -= Math.sign(vf) * Math.min(Math.abs(vf), 2.8*dt);
-  if (p.offroad) vf -= Math.sign(vf) * Math.min(Math.abs(vf), 7*dt);
-  vf = clamp(vf, -13, maxS);
+  vf -= vf * 0.05 * dt;                          /* 空气阻力：大幅降低，让车能逼近极速 */
+  if (!thr && !brk) vf -= Math.sign(vf) * Math.min(Math.abs(vf), 3.2*dt);
+  if (p.offroad) vf -= Math.sign(vf) * Math.min(Math.abs(vf), 9*dt);
+  vf = clamp(vf, -14, maxS);
 
   const gripK = hand ? 1.8 : (5.5 + def.grip*0.85);
   vr *= Math.exp(-gripK*dt);
@@ -1632,7 +1741,7 @@ function updateRaceCamera(dt){
   camera.up.set(0,1,0);
   camera.lookAt(camLook);
 
-  const fov = 62 + ratio*10;
+  const fov = 62 + ratio*10 + (p.nitroActive ? 9 : 0);
   camera.fov += (fov - camera.fov) * Math.min(1, dt*4);
   camera.updateProjectionMatrix();
 }
@@ -1664,6 +1773,7 @@ const el = {
   speed: document.getElementById('hud-speed'),
   gear: document.getElementById('hud-gear'),
   needle: document.getElementById('needle'),
+  nitro: document.getElementById('hud-nitro'),
   cam: document.getElementById('hud-cam'),
   wrong: document.getElementById('wrongway'),
   center: document.getElementById('center-msg'),
@@ -1703,7 +1813,7 @@ function buildSpeedTicks(){
       txt.setAttribute('fill', 'rgba(170,196,228,.6)');
       txt.setAttribute('font-size', '9.5');
       txt.setAttribute('font-family', 'Consolas, monospace');
-      txt.textContent = String(i*25);
+      txt.textContent = String(i*30);
       g.appendChild(txt);
     }
   }
@@ -1722,7 +1832,7 @@ function updateHUD(){
   if (!p || !race.track) return;
   const kmh = Math.round(Math.abs(p.vf) * 3.6);
   el.speed.textContent = kmh;
-  const deg = -120 + clamp(kmh/300, 0, 1) * 240;
+  const deg = -120 + clamp(kmh/360, 0, 1) * 240;
   el.needle.setAttribute('transform', 'rotate(' + deg.toFixed(1) + ' 100 104)');
   el.gear.textContent = String(Math.min(6, 1 + Math.floor(kmh / (p.def.top/6.2))));
   el.lap.textContent = String(Math.min(LAPS, race.completedLaps + 1));
@@ -1731,7 +1841,16 @@ function updateHUD(){
   el.best.textContent = isFinite(race.bestLap) ? fmtTime(race.bestLap * 1000) : '--:--.---';
   el.last.textContent = isFinite(race.lastLap) ? fmtTime(race.lastLap * 1000) : '--:--.---';
   el.cam.textContent = CAM_NAMES[race.camMode];
+  if (el.nitro){
+    el.nitro.style.width = clamp(p.nitro, 0, 100).toFixed(1) + '%';
+    el.nitro.style.filter = p.nitroActive ? 'brightness(1.6) saturate(1.3)' : '';
+  }
   el.wrong.classList.toggle('hidden', race.wrongT < 0.9);
+  const sfx = document.getElementById('speedfx');
+  if (sfx){
+    const r = clamp(Math.abs(p.vf) / (p.def.top/3.6), 0, 1);
+    sfx.style.opacity = (clamp((r - 0.55) / 0.45, 0, 1) * (p.nitroActive ? 1 : 0.65)).toFixed(2);
+  }
   drawMinimap();
 }
 
@@ -2310,7 +2429,7 @@ document.getElementById('btn-again').addEventListener('click', () => {
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.25));
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
