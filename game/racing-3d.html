@@ -1582,7 +1582,9 @@ function stepPlayer(dt){
   vf = clamp(vf, -14, maxS);
 
   const gripK = hand ? 1.8 : (5.5 + def.grip*0.85);
-  vr *= Math.exp(-gripK*dt);
+  /* 贴墙时大幅降低横向抓地：模拟轮胎蹭着护栏滑，不让沿墙的速度被瞬间杀光 */
+  const wallGrip = p._wall ? Math.min(gripK, 1.5) : gripK;
+  vr *= Math.exp(-wallGrip*dt);
 
   const spd = Math.abs(vf);
   const steerRate = def.handling * 0.155;
@@ -1604,16 +1606,65 @@ function stepPlayer(dt){
   p.offroad = Math.abs(q.lat) > halfW - 0.9;
 
   const limit = halfW - 1.15;
-  if (Math.abs(q.lat) > limit){
-    const sign = Math.sign(q.lat);
-    p.pos.x = q.px + q.nx*limit*sign;
-    p.pos.z = q.pz + q.nz*limit*sign;
-    const vn = p.vel.x*q.nx + p.vel.z*q.nz;
-    if (vn*sign > 0){
-      p.vel.x -= q.nx*vn*1.25;
-      p.vel.z -= q.nz*vn*1.25;
-      p.vel.multiplyScalar(0.86);
-      if (Math.abs(vn) > 7) triggerHit();
+  const over = Math.abs(q.lat) > limit;
+  /* 贴墙标志带迟滞（离开墙 0.5m 内仍算贴墙），避免浮点抖动导致反复进出墙状态 */
+  if (over) p._wall = true;
+  else if (Math.abs(q.lat) < limit - 0.5) p._wall = false;
+
+  if (over){
+    const sign = Math.sign(q.lat) || 1;
+    /* 外法线：从赛道中心指向护栏墙 */
+    const nx = q.nx * sign, nz = q.nz * sign;
+    /* 位置修正：把车推回墙内，避免嵌入 */
+    p.pos.x = q.px + q.nx * limit * sign;
+    p.pos.z = q.pz + q.nz * limit * sign;
+
+    /* 沿墙外法线的速度分量：>0 表示正在撞向墙 */
+    const vOut = p.vel.x * nx + p.vel.z * nz;
+    /* 切向（沿墙）方向 */
+    const tx = -nz, tz = nx;
+
+    if (vOut > 0.5){
+      /* 真实撞击：法向分量反弹（恢复系数 0.35），切向分量保留大部分动能 */
+      const jn = -(1 + 0.35) * vOut;
+      p.vel.x += nx * jn;
+      p.vel.z += nz * jn;
+      /* 轮胎蹭墙摩擦：只削弱沿墙方向的速度，绝不刹停整车 */
+      const vt = p.vel.x * tx + p.vel.z * tz;
+      p.vel.x -= tx * vt * 0.18;
+      p.vel.z -= tz * vt * 0.18;
+      /* 高速撞击带一点甩尾，更接近真实 */
+      if (vOut > 9){
+        const sp = Math.abs(vt);
+        if (sp > 1) p.h += clamp((vt > 0 ? 1 : -1) * (sp - 8) * 0.012, -0.18, 0.18);
+      }
+      if (vOut > 6) triggerHit();
+    } else {
+      /* 贴墙滑行：仅给切向很小的摩擦，车可继续沿墙前进 */
+      const vt = p.vel.x * tx + p.vel.z * tz;
+      p.vel.x -= tx * vt * 0.04;
+      p.vel.z -= tz * vt * 0.04;
+    }
+  }
+
+  /* 护栏导向：贴墙时把车头缓慢扭向赛道切线方向，模拟车身被护栏刮着摆正，
+     避免车头卡死在墙里出不来。低速卡住时导向强，高速滑行时导向弱。 */
+  if (p._wall){
+    const tg = track.tangents[q.idx];
+    const tangAng = Math.atan2(tg.x, tg.z);
+    let diff = p.h - tangAng;
+    while (diff > Math.PI) diff -= 2*Math.PI;
+    while (diff < -Math.PI) diff += 2*Math.PI;
+    if (Math.abs(diff) > Math.PI/2) diff -= Math.sign(diff)*Math.PI; /* 对齐到最近切线方向，不倒转车头 */
+    const spdNow = Math.sqrt(p.vel.x*p.vel.x + p.vel.z*p.vel.z);
+    const align = clamp(1.7 - spdNow/10, 0.2, 1.7);
+    p.h -= diff * align * dt;
+
+    /* 彻底停下时的防卡死助推：沿赛道前进方向给一点力，顺墙滑出去 */
+    if (thr && spdNow < 2.0){
+      const wantF = (p.vel.x*tg.x + p.vel.z*tg.z) >= -0.5 ? 1 : -1;
+      p.vel.x += tg.x * wantF * 7 * dt;
+      p.vel.z += tg.z * wantF * 7 * dt;
     }
   }
 
